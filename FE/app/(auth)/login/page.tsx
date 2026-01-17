@@ -46,11 +46,24 @@ export default function LoginPage() {
         email: data.email,
         password: data.password,
       });
-      
-      // Header đã được cập nhật (setUser trong authService.login)
-      // Chuyển về trang chủ, không redirect sang profile
+
+      // Gọi getMe để có đủ dữ liệu (hồ sơ, ví, đơn hàng); nếu lỗi vẫn giữ user từ login
+      try {
+        await authService.getMe();
+      } catch {
+        // Giữ user cơ bản từ login
+      }
+
       toast.success("Đăng nhập thành công!");
-      router.push("/");
+      const redirect =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("redirect")
+          : null;
+      const safeRedirect =
+        redirect && redirect.startsWith("/") && !redirect.startsWith("//")
+          ? redirect
+          : null;
+      router.push(safeRedirect || "/");
     } catch (error: any) {
       toast.error(error.message || "Đăng nhập thất bại. Vui lòng thử lại.");
     } finally {

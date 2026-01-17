@@ -34,18 +34,18 @@ export function RequireAuth({
       return;
     }
 
-    // If we have token but not authenticated yet, wait a bit for auth check
+    // Nếu có token nhưng chưa isAuthenticated: có thể AuthProvider đang getMe. Đợi thêm, không redirect khi còn isLoading.
     if (isLoading || !isAuthenticated) {
-      // Give a small delay for auth state to initialize
       const timer = setTimeout(() => {
-        // After delay, if still not authenticated, redirect
-        const stillNotAuth = !useAuthStore.getState().isAuthenticated;
-        if (stillNotAuth) {
+        const state = useAuthStore.getState();
+        const stillNotAuth = !state.isAuthenticated;
+        const stillLoading = state.isLoading;
+        // Chỉ redirect khi đã hết loading mà vẫn chưa đăng nhập (tránh cắt getMe đang chạy)
+        if (stillNotAuth && !stillLoading) {
           const currentPath = globalThis.window.location.pathname;
           router.replace(redirectTo || `/login?redirect=${encodeURIComponent(currentPath)}`);
         }
-      }, 200);
-      
+      }, 400);
       return () => clearTimeout(timer);
     }
 
