@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -22,33 +20,13 @@ import {
   ShoppingBag,
   MessageSquare,
 } from "lucide-react";
-import { useAuthStore } from "@/lib/auth";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 
 export default function CustomerProfilePage() {
-  const { isAuthenticated, isLoading } = useAuthStore();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/login");
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  if (isLoading) {
-    return (
-      <div className="container py-8">
-        <div className="max-w-4xl mx-auto text-center">Đang tải...</div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
   return (
     <RequireAuth>
       <div className="container py-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
         {/* Header Card */}
         <Card>
           <CardHeader>

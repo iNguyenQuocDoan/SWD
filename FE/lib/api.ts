@@ -6,13 +6,36 @@
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from "axios";
 
 const getApiUrl = (): string => {
-  // In browser/client: use relative URL or env variable
-  if (typeof globalThis.window !== "undefined") {
-    return process.env.NEXT_PUBLIC_API_URL || "/api";
+  // If NEXT_PUBLIC_API_URL is set, use it (works for both client and server)
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+
+  // Check if we're in browser/client-side
+  const isClient = typeof globalThis.window !== "undefined";
+  
+  if (isClient) {
+    // Client-side: use relative URL
+    // In local dev: Next.js rewrites will proxy /api/* to http://localhost:3001/api/*
+    // In production: Vercel routing will handle /api/* to backend
+    return "/api";
   }
   
-  // In server: use full URL
-  return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+  // Server-side (SSR/API routes):
+  // - If API_URL is set, use it
+  if (process.env.API_URL) {
+    return process.env.API_URL;
+  }
+
+  // In Vercel production, construct URL from VERCEL_URL
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}/api`;
+  }
+
+  // Local development: server-side needs full URL (can't use relative path)
+  // Production: use relative path (same domain)
+  const isProduction = process.env.NODE_ENV === "production";
+  return isProduction ? "/api" : "http://localhost:3001/api";
 };
 
 export interface ApiResponse<T = unknown> {
