@@ -112,19 +112,23 @@ export class AuthController {
 
       // Access token cookie
       const accessTokenMaxAge = parseJwtExpire(env.jwtExpire);
+      const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+      
       res.cookie("accessToken", result.token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        secure: isProduction, // Use HTTPS in production
+        sameSite: isProduction ? "none" : "lax", // "none" for cross-site in production, "lax" for same-site
         maxAge: accessTokenMaxAge,
+        path: "/",
       });
 
       // Refresh token cookie (expires in 30 days)
       res.cookie("refreshToken", result.refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        path: "/",
       });
 
       res.status(200).json({
@@ -177,11 +181,14 @@ export class AuthController {
 
       // Set new access token cookie
       const accessTokenMaxAge = parseJwtExpire(env.jwtExpire);
+      const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+      
       res.cookie("accessToken", result.token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
         maxAge: accessTokenMaxAge,
+        path: "/",
       });
 
       res.status(200).json({
@@ -196,15 +203,19 @@ export class AuthController {
   logout = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // Clear both access token and refresh token cookies
+      const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+      
       res.clearCookie("accessToken", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+        path: "/",
       });
       res.clearCookie("refreshToken", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+        path: "/",
       });
       res.status(200).json({
         success: true,

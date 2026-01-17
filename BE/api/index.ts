@@ -1,3 +1,8 @@
+// Load environment variables (for local development)
+// In Vercel, env vars are automatically available in process.env
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -15,29 +20,84 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(helmet()); // Security headers
+// Configure Helmet for production (allow cookies and cross-origin)
 app.use(
-  cors({
-    origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
-      const allowedOrigins = [
-        env.corsOrigin,
-        process.env.CORS_ORIGIN || process.env.VERCEL_URL || 'http://localhost:3000'
-      ];
-      
-      // Allow Vercel preview URLs
-      if (origin.includes('.vercel.app') || origin.includes('localhost') || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.warn('🚫 CORS blocked origin:', origin);
-        callback(new Error('Not allowed by CORS'));
-      }
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
     },
-    credentials: true,
   })
 );
+
+// CORS configuration
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) {
+      console.log("CORS: Allowing request with no origin");
+      return callback(null, true);
+    }
+
+    // Get allowed origins from env
+    const allowedOrigins: string[] = [];
+    
+    // Add env CORS_ORIGIN
+    if (env.corsOrigin) {
+      allowedOrigins.push(env.corsOrigin);
+    }
+    
+    // Add CORS_ORIGIN from env
+    if (process.env.CORS_ORIGIN) {
+      allowedOrigins.push(process.env.CORS_ORIGIN);
+    }
+    
+    // Add Vercel URL if available
+    if (process.env.VERCEL_URL) {
+      allowedOrigins.push(`https://${process.env.VERCEL_URL}`);
+    }
+    
+    // Add VERCEL_BRANCH_URL if available (preview deployments)
+    if (process.env.VERCEL_BRANCH_URL) {
+      allowedOrigins.push(`https://${process.env.VERCEL_BRANCH_URL}`);
+    }
+
+    // Allow localhost for development
+    if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+      console.log("CORS: Allowing localhost origin:", origin);
+      return callback(null, true);
+    }
+
+    // Allow all Vercel preview URLs
+    if (origin.includes(".vercel.app")) {
+      console.log("CORS: Allowing Vercel origin:", origin);
+      return callback(null, true);
+    }
+
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      console.log("CORS: Allowing origin from allowed list:", origin);
+      return callback(null, true);
+    }
+
+    // Log blocked origin for debugging
+    console.warn("CORS: Blocked origin:", origin);
+    console.warn("CORS: Allowed origins:", allowedOrigins);
+    callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
+  maxAge: 86400, // 24 hours
+};
+
+app.use(cors(corsOptions));
 app.use(compression()); // Compress responses
 app.use(morgan("dev")); // Logging
 app.use(express.json({ limit: "10mb" }));

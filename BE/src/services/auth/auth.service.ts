@@ -53,54 +53,81 @@ export class AuthService {
   }
 
   async login(email: string, password: string): Promise<LoginResult> {
-    // Find user
-    const user = await User.findOne({ email, isDeleted: false }).populate(
-      "roleId"
-    );
-    if (!user) {
-      throw new AppError("Invalid email or password", 401);
+    try {
+      // Find user
+      const user = await User.findOne({ email, isDeleted: false }).populate(
+        "roleId"
+      );
+      if (!user) {
+        throw new AppError("Invalid email or password", 401);
+      }
+
+      // Check if roleId is populated
+      if (!user.roleId || typeof user.roleId === "string") {
+        console.error("User roleId not populated:", user._id);
+        throw new AppError("User role not found", 500);
+      }
+
+      // Check status
+      if (user.status !== "Active") {
+        throw new AppError("Account is locked or banned", 403);
+      }
+
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isPasswordValid) {
+        throw new AppError("Invalid email or password", 401);
+      }
+
+      // Update last login
+      await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
+
+      // Generate tokens
+      const roleKey = (user.roleId as any).roleKey;
+      if (!roleKey) {
+        console.error("Role key not found for user:", user._id);
+        throw new AppError("User role configuration error", 500);
+      }
+
+      const token = this.generateToken(user._id.toString(), user.email, roleKey);
+      const refreshToken = this.generateRefreshToken(
+        user._id.toString(),
+        user.email
+      );
+
+      // Log tokens
+      console.log("\n========== TOKEN GENERATION ==========");
+      console.log(`User: ${user.email} (${user._id})`);
+      console.log(`Role: ${roleKey}`);
+      console.log(`Access Token: ${token}`);
+      console.log(`Refresh Token: ${refreshToken}`);
+      console.log("=======================================\n");
+
+      return {
+        user: {
+          id: user._id.toString(),
+          email: user.email,
+          fullName: user.fullName,
+          roleKey,
+        },
+        token,
+        refreshToken,
+      };
+    } catch (error) {
+      // Log error for debugging
+      console.error("Login error:", error);
+      
+      // Re-throw AppError as-is
+      if (error instanceof AppError) {
+        throw error;
+      }
+      
+      // Wrap other errors
+      throw new AppError(
+        error instanceof Error ? error.message : "Login failed",
+        500
+      );
     }
-
-    // Check status
-    if (user.status !== "Active") {
-      throw new AppError("Account is locked or banned", 403);
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
-      throw new AppError("Invalid email or password", 401);
-    }
-
-    // Update last login
-    await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
-
-    // Generate tokens
-    const roleKey = (user.roleId as any).roleKey;
-    const token = this.generateToken(user._id.toString(), user.email, roleKey);
-    const refreshToken = this.generateRefreshToken(
-      user._id.toString(),
-      user.email
-    );
-
-    // Log tokens
-    console.log("\n========== TOKEN GENERATION ==========");
-    console.log(`User: ${user.email} (${user._id})`);
-    console.log(`Role: ${roleKey}`);
-    console.log(`Access Token: ${token}`);
-    console.log(`Refresh Token: ${refreshToken}`);
-    console.log("=======================================\n");
-
-    return {
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        fullName: user.fullName,
-        roleKey,
-      },
-      token,
-      refreshToken,
-    };
   }
 
   async refreshToken(refreshToken: string): Promise<{ token: string }> {
