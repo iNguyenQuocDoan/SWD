@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
   Package,
   Clock,
@@ -216,7 +217,8 @@ export default function CustomerOrderDetailPage({
   };
 
   return (
-    <div className="container py-6 md:py-8 max-w-5xl">
+    <RequireAuth>
+      <div className="container py-6 md:py-8 max-w-5xl">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -510,5 +512,6 @@ export default function CustomerOrderDetailPage({
         </Card>
       </div>
     </div>
+    </RequireAuth>
   );
 }

@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { CreditCard, Wallet, Shield, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 
 // Mock data
 const mockCheckoutData = {
@@ -89,7 +90,8 @@ export default function CheckoutPage() {
     mockCheckoutData.total > mockCheckoutData.walletBalance;
 
   return (
-    <div className="container py-6 md:py-8 max-w-5xl">
+    <RequireAuth>
+      <div className="container py-6 md:py-8 max-w-5xl">
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -300,5 +302,6 @@ export default function CheckoutPage() {
         </form>
       </div>
     </div>
+    </RequireAuth>
   );
 }

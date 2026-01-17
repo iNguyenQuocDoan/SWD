@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShoppingCart, Trash2, Minus, Plus, Package, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 
 // Mock data
 const mockCartItems = [
@@ -85,22 +86,19 @@ export default function CartPage() {
     router.push("/checkout");
   };
 
-  if (isLoading) {
-    return (
-      <div className="container py-8">
-        <Skeleton className="h-12 w-64 mb-6" />
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
-          ))}
+  return (
+    <RequireAuth>
+      {isLoading ? (
+        <div className="container py-8">
+          <Skeleton className="h-12 w-64 mb-6" />
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="container py-8">
+      ) : items.length === 0 ? (
+        <div className="container py-8">
         <h1 className="text-3xl font-bold mb-6">Giỏ hàng</h1>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 px-4 text-center">
@@ -115,11 +113,8 @@ export default function CartPage() {
           </CardContent>
         </Card>
       </div>
-    );
-  }
-
-  return (
-    <div className="container py-6 md:py-8">
+      ) : (
+        <div className="container py-6 md:py-8">
       <div className="flex flex-col lg:grid lg:grid-cols-3 gap-8">
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
@@ -281,6 +276,7 @@ export default function CartPage() {
           </Card>
         </div>
       </div>
-    </div>
+      )}
+    </RequireAuth>
   );
 }

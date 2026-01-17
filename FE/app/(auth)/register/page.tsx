@@ -23,10 +23,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { authService } from "@/lib/services/auth.service";
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -41,13 +44,16 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterInput) => {
     setIsLoading(true);
     try {
-      // TODO: Implement actual registration logic
-      console.log("Register data:", data);
-      toast.success(
-        "Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản."
-      );
-    } catch (error) {
-      toast.error("Đăng ký thất bại. Vui lòng thử lại.");
+      await authService.register({
+        email: data.email,
+        password: data.password,
+        fullName: data.name,
+      });
+      
+      toast.success("Đăng ký thành công! Vui lòng đăng nhập.");
+      router.push("/login");
+    } catch (error: any) {
+      toast.error(error.message || "Đăng ký thất bại. Vui lòng thử lại.");
     } finally {
       setIsLoading(false);
     }

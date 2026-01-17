@@ -7,6 +7,7 @@ import { createTicketSchema, type CreateTicketInput } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
   Card,
   CardContent,
@@ -58,7 +59,8 @@ export default function CreateTicketPage() {
   };
 
   return (
-    <div className="container py-8 max-w-2xl">
+    <RequireAuth>
+      <div className="container py-8 max-w-2xl">
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Tạo ticket hỗ trợ</h1>
@@ -181,5 +183,6 @@ export default function CreateTicketPage() {
         </Form>
       </div>
     </div>
+    </RequireAuth>
   );
 }

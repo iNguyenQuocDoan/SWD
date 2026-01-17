@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
   Select,
   SelectContent,
@@ -76,7 +77,8 @@ export default function SellerDashboard() {
       : mockProducts.filter((p) => p.status === statusFilter);
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 lg:py-16 space-y-8 md:space-y-10">
+    <RequireAuth requiredRole="seller">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 lg:py-16 space-y-8 md:space-y-10">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
         <div className="space-y-2">
@@ -374,5 +376,6 @@ export default function SellerDashboard() {
         </CardContent>
       </Card>
     </div>
+    </RequireAuth>
   );
 }

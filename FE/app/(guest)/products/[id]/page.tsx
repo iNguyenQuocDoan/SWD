@@ -84,11 +84,11 @@ export default function ProductDetailPage({
 }: {
   params: { id: string };
 }) {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("description");
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -225,12 +225,26 @@ export default function ProductDetailPage({
           )}
 
           {/* Tabs */}
-          <Tabs defaultValue="description" className="w-full">
+          <Tabs value={activeTab} onValueChange={(value) => {
+            if (value === "reviews" && !isAuthenticated) {
+              toast.info("Vui lòng đăng nhập để xem đánh giá", {
+                action: {
+                  label: "Đăng nhập",
+                  onClick: () => router.push(`/login?redirect=/products/${params.id}`),
+                },
+              });
+              router.push(`/login?redirect=/products/${params.id}`);
+              return;
+            }
+            setActiveTab(value);
+          }} className="w-full">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-12 md:h-14">
               <TabsTrigger value="description" className="text-sm md:text-base">Mô tả</TabsTrigger>
               <TabsTrigger value="warranty" className="text-sm md:text-base">Bảo hành</TabsTrigger>
               <TabsTrigger value="howToUse" className="text-sm md:text-base">Hướng dẫn sử dụng</TabsTrigger>
-              <TabsTrigger value="reviews" className="text-sm md:text-base">Đánh giá shop</TabsTrigger>
+              <TabsTrigger value="reviews" className="text-sm md:text-base">
+                Đánh giá shop
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="description" className="space-y-4 mt-6 md:mt-8">
@@ -276,15 +290,30 @@ export default function ProductDetailPage({
             </TabsContent>
 
             <TabsContent value="reviews" className="mt-6">
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  <Star className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Chưa có đánh giá</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm">
-                    Sẽ hiển thị đánh giá từ khách hàng sau khi họ mua và sử dụng sản phẩm
-                  </p>
-                </CardContent>
-              </Card>
+              {!isAuthenticated ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                    <Lock className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Vui lòng đăng nhập</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm mb-4">
+                      Bạn cần đăng nhập để xem đánh giá từ khách hàng
+                    </p>
+                    <Button onClick={() => router.push(`/login?redirect=/products/${params.id}`)}>
+                      Đăng nhập ngay
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                    <Star className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Chưa có đánh giá</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm">
+                      Sẽ hiển thị đánh giá từ khách hàng sau khi họ mua và sử dụng sản phẩm
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
 

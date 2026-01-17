@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
   Card,
   CardContent,
@@ -119,7 +120,8 @@ export default function CreateProductPage() {
   };
 
   return (
-    <div className="container py-8 max-w-4xl">
+    <RequireAuth requiredRole="seller">
+      <div className="container py-8 max-w-4xl">
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Tạo sản phẩm mới</h1>
@@ -383,5 +385,6 @@ export default function CreateProductPage() {
         </Form>
       </div>
     </div>
+    </RequireAuth>
   );
 }

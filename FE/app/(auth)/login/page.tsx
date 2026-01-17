@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@/lib/validations";
+import { useAuthStore } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,10 +24,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { authService } from "@/lib/services/auth.service";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -39,11 +43,27 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginInput) => {
     setIsLoading(true);
     try {
-      // TODO: Implement actual login logic
-      console.log("Login data:", data);
+      await authService.login({
+        email: data.email,
+        password: data.password,
+      });
+      
+      // Fetch full user data
+      await authService.getMe();
+      
       toast.success("Đăng nhập thành công!");
-    } catch (error) {
-      toast.error("Đăng nhập thất bại. Vui lòng thử lại.");
+      
+      // Redirect based on role
+      const user = useAuthStore.getState().user;
+      if (user?.role === "seller") {
+        router.push("/seller");
+      } else if (user?.role === "moderator" || user?.role === "admin") {
+        router.push("/moderator");
+      } else {
+        router.push("/customer");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Đăng nhập thất bại. Vui lòng thử lại.");
     } finally {
       setIsLoading(false);
     }

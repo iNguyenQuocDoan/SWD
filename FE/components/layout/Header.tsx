@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/lib/auth";
+import { authService } from "@/lib/services/auth.service";
+import { useRouter } from "next/navigation";
 import {
   Search,
   ShoppingCart,
@@ -23,12 +25,20 @@ import {
   Shield,
   Menu,
   X,
+  Wallet,
+  Package,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export function Header() {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await authService.logout();
+    router.push("/");
+  };
 
   const getDashboardLink = () => {
     switch (user?.role) {
@@ -180,9 +190,15 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="text-base">
-                      <Link href={getDashboardLink()}>
-                        <Settings className="mr-2 h-5 w-5" />
-                        <span>Dashboard</span>
+                      <Link href="/customer/wallet">
+                        <Wallet className="mr-2 h-5 w-5" />
+                        <span>Ví tiền</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="text-base">
+                      <Link href="/customer/orders">
+                        <Package className="mr-2 h-5 w-5" />
+                        <span>Lịch sử đơn hàng</span>
                       </Link>
                     </DropdownMenuItem>
                     {user?.role === "seller" && (
@@ -202,7 +218,7 @@ export function Header() {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={logout} className="text-base">
+                    <DropdownMenuItem onClick={handleLogout} className="text-base">
                       <LogOut className="mr-2 h-5 w-5" />
                       <span>Đăng xuất</span>
                     </DropdownMenuItem>

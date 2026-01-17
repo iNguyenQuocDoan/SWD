@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Wallet, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle, XCircle, CreditCard } from "lucide-react";
 import { toast } from "sonner";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
   Select,
   SelectContent,
@@ -145,7 +146,8 @@ export default function WalletPage() {
   };
 
   return (
-    <div className="container py-6 md:py-8 max-w-6xl">
+    <RequireAuth>
+      <div className="container py-6 md:py-8 max-w-6xl">
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -405,5 +407,6 @@ export default function WalletPage() {
         </Tabs>
       </div>
     </div>
+    </RequireAuth>
   );
 }
