@@ -104,7 +104,6 @@ jobs:
 
             - name: Link Vercel Project
               run: |
-                  cd FE
                   mkdir -p .vercel
                   cat > .vercel/project.json << EOF
                   {
@@ -117,7 +116,6 @@ jobs:
                   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
             - name: Deploy to Vercel
-              working-directory: ./FE
               run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
               env:
                   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
