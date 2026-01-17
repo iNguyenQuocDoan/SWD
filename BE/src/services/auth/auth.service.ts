@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { User, IUser } from "@/models";
-import { Role } from "@/models";
+import { User, IUser, Role } from "@/models";
 import { env } from "@/config/env";
 import { AppError } from "@/middleware/errorHandler";
 
@@ -84,6 +83,14 @@ export class AuthService {
       user.email
     );
 
+    // Log tokens
+    console.log("\n========== TOKEN GENERATION ==========");
+    console.log(`User: ${user.email} (${user._id})`);
+    console.log(`Role: ${roleKey}`);
+    console.log(`Access Token: ${token}`);
+    console.log(`Refresh Token: ${refreshToken}`);
+    console.log("=======================================\n");
+
     return {
       user: {
         id: user._id.toString(),
@@ -111,8 +118,18 @@ export class AuthService {
       const roleKey = (user.roleId as any).roleKey;
       const token = this.generateToken(user._id.toString(), user.email, roleKey);
 
+      // Log new access token
+      console.log("\n========== TOKEN REFRESH ==========");
+      console.log(`User: ${user.email} (${user._id})`);
+      console.log(`New Access Token: ${token}`);
+      console.log(`Refresh Token (used): ${refreshToken}`);
+      console.log("===================================\n");
+
       return { token };
     } catch (error: unknown) {
+      if (error instanceof AppError) {
+        throw error;
+      }
       throw new AppError("Invalid refresh token", 401);
     }
   }
@@ -121,6 +138,30 @@ export class AuthService {
     const payload = { userId, email, roleKey };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpire } as any);
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
+    // Find user
+    const user = await User.findById(userId);
+    if (!user || user.isDeleted) {
+      throw new AppError("User not found", 404);
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new AppError("Current password is incorrect", 400);
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await User.findByIdAndUpdate(userId, { passwordHash: newPasswordHash });
   }
 
   private generateRefreshToken(userId: string, email: string): string {

@@ -18,7 +18,10 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
+    // Try to get token from Authorization header first, then from cookie
+    const token = 
+      req.headers.authorization?.replace("Bearer ", "") || 
+      req.cookies?.accessToken;
 
     if (!token) {
       res.status(401).json({ success: false, message: "No token provided" });
@@ -48,6 +51,9 @@ export const authenticate = async (
 
     next();
   } catch (error) {
+    if (error instanceof Error) {
+      console.error("Authentication error:", error.message);
+    }
     res.status(401).json({ success: false, message: "Invalid token" });
   }
 };

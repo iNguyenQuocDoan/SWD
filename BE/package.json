@@ -9,7 +9,8 @@
         "build": "tsc && tsc-alias -p tsconfig.json",
         "start": "node dist/index.js",
         "lint": "eslint src --ext .ts",
-        "type-check": "tsc --noEmit"
+        "type-check": "tsc --noEmit",
+        "seed:roles": "tsx src/scripts/seed-roles.ts"
     },
     "keywords": [
         "marketplace",
@@ -36,6 +37,8 @@
         "morgan": "^1.10.0",
         "multer": "^2.0.2",
         "slugify": "^1.6.6",
+        "swagger-ui-express": "^5.0.1",
+        "yamljs": "^0.3.0",
         "zod": "^3.24.1"
     },
     "devDependencies": {
@@ -47,6 +50,8 @@
         "@types/jsonwebtoken": "^9.0.7",
         "@types/morgan": "^1.9.9",
         "@types/node": "^22.10.2",
+        "@types/swagger-ui-express": "^4.1.8",
+        "@types/yamljs": "^0.2.34",
         "@typescript-eslint/eslint-plugin": "^8.18.1",
         "@typescript-eslint/parser": "^8.18.1",
         "eslint": "^9.17.0",

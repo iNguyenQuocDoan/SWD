@@ -4,6 +4,9 @@ import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
 import cookieParser from "cookie-parser";
+import path from "node:path";
+import swaggerUi from "swagger-ui-express";
+import YAML from "yamljs";
 import connectDB from "@/config/database";
 import { env } from "@/config/env";
 import apiRoutes from "@/routes";
@@ -37,6 +40,33 @@ app.get("/health", (_req, res) => {
   });
 });
 
+// Swagger UI
+const swaggerFilePath = path.join(__dirname, "..", "swagger.yml");
+let swaggerDocument;
+try {
+  swaggerDocument = YAML.load(swaggerFilePath);
+  console.log("Swagger document loaded successfully");
+
+  const swaggerOptions = {
+    customCss: ".swagger-ui .topbar { display: none }",
+    customSiteTitle: "Marketplace API Documentation",
+    persistAuthorization: true, // Giữ authorization khi refresh
+    filter: true,
+    validatorUrl: null,
+    supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
+    docExpansion: "list" as const,
+  };
+
+  app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
+
+  // Redirect /swagger/ to /swagger
+  app.get("/swagger/", (_req, res) => {
+    res.redirect("/swagger");
+  });
+} catch (err) {
+  console.warn("Could not load swagger file:", err);
+}
+
 // API Routes
 app.use("/api", apiRoutes);
 
@@ -55,6 +85,7 @@ app.use(errorHandler);
 const PORT = env.port;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
+  console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
 });
 
 export default app;
