@@ -1,6 +1,5 @@
 import { BaseService } from "@/services/base.service";
-import Shop, { IShop } from "@/models/Shop";
-import User from "@/models/User";
+import { Shop, IShop, User } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
 
 export class ShopService extends BaseService<IShop> {

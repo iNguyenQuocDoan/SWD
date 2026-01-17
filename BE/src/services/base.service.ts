@@ -1,4 +1,7 @@
-import { Model, Document, FilterQuery, UpdateQuery } from "mongoose";
+import { Model, Document, UpdateQuery } from "mongoose";
+
+// FilterQuery was removed in mongoose 9.x, use this type instead
+type FilterQuery<T> = Record<string, any> | Partial<T>;
 
 export class BaseService<T extends Document> {
   protected model: Model<T>;

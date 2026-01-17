@@ -1,7 +1,5 @@
 import { BaseService } from "@/services/base.service";
-import Product, { IProduct } from "@/models/Product";
-import Shop from "@/models/Shop";
-import PlatformCatalog from "@/models/PlatformCatalog";
+import { Product, IProduct, Shop, PlatformCatalog } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
 import { PlanType } from "@/types";
 

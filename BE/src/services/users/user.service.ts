@@ -1,5 +1,5 @@
 import { BaseService } from "@/services/base.service";
-import User, { IUser } from "@/models/User";
+import { User, IUser } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
 
 export class UserService extends BaseService<IUser> {

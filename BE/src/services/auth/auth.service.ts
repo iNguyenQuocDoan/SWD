@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import User, { IUser } from "@/models/User";
-import Role from "@/models/Role";
+import { User, IUser } from "@/models";
+import { Role } from "@/models";
 import { env } from "@/config/env";
 import { AppError } from "@/middleware/errorHandler";
 
