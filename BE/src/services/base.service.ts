@@ -1,7 +1,7 @@
 import { Model, Document, UpdateQuery } from "mongoose";
 
-// FilterQuery was removed in mongoose 9.x, use this type instead
-type FilterQuery<T> = Record<string, any> | Partial<T>;
+// For mongoose 9.x, use Record<string, any> or Partial<T> for filters
+type QueryFilter<T> = Partial<T> | Record<string, any>;
 
 export class BaseService<T extends Document> {
   protected model: Model<T>;
@@ -19,12 +19,12 @@ export class BaseService<T extends Document> {
     return this.model.findById(id);
   }
 
-  async findOne(filter: FilterQuery<T>): Promise<T | null> {
-    return this.model.findOne(filter);
+  async findOne(filter?: QueryFilter<T>): Promise<T | null> {
+    return this.model.findOne(filter as any);
   }
 
   async findMany(
-    filter: FilterQuery<T> = {},
+    filter: QueryFilter<T> = {},
     options: {
       limit?: number;
       skip?: number;
@@ -32,7 +32,7 @@ export class BaseService<T extends Document> {
       populate?: string | string[];
     } = {}
   ): Promise<T[]> {
-    let query = this.model.find(filter);
+    let query = this.model.find(filter as any);
 
     if (options.skip) {
       query = query.skip(options.skip);
@@ -50,8 +50,8 @@ export class BaseService<T extends Document> {
     return query.exec();
   }
 
-  async count(filter: FilterQuery<T> = {}): Promise<number> {
-    return this.model.countDocuments(filter);
+  async count(filter: QueryFilter<T> = {}): Promise<number> {
+    return this.model.countDocuments(filter as any);
   }
 
   async updateById(id: string, data: UpdateQuery<T>): Promise<T | null> {
@@ -59,10 +59,10 @@ export class BaseService<T extends Document> {
   }
 
   async updateOne(
-    filter: FilterQuery<T>,
+    filter: QueryFilter<T>,
     data: UpdateQuery<T>
   ): Promise<T | null> {
-    return this.model.findOneAndUpdate(filter, data, { new: true });
+    return this.model.findOneAndUpdate(filter as any, data, { new: true });
   }
 
   async deleteById(id: string): Promise<T | null> {
