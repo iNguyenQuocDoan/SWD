@@ -304,15 +304,15 @@ export default function ProductDetailPage({
                   </CardContent>
                 </Card>
               ) : (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                    <Star className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Chưa có đánh giá</h3>
-                    <p className="text-sm text-muted-foreground max-w-sm">
-                      Sẽ hiển thị đánh giá từ khách hàng sau khi họ mua và sử dụng sản phẩm
-                    </p>
-                  </CardContent>
-                </Card>
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <Star className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Chưa có đánh giá</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    Sẽ hiển thị đánh giá từ khách hàng sau khi họ mua và sử dụng sản phẩm
+                  </p>
+                </CardContent>
+              </Card>
               )}
             </TabsContent>
           </Tabs>

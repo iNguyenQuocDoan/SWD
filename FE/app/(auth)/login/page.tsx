@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@/lib/validations";
-import { useAuthStore } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -48,20 +47,10 @@ export default function LoginPage() {
         password: data.password,
       });
       
-      // Fetch full user data
-      await authService.getMe();
-      
+      // Header đã được cập nhật (setUser trong authService.login)
+      // Chuyển về trang chủ, không redirect sang profile
       toast.success("Đăng nhập thành công!");
-      
-      // Redirect based on role
-      const user = useAuthStore.getState().user;
-      if (user?.role === "seller") {
-        router.push("/seller");
-      } else if (user?.role === "moderator" || user?.role === "admin") {
-        router.push("/moderator");
-      } else {
-        router.push("/customer");
-      }
+      router.push("/");
     } catch (error: any) {
       toast.error(error.message || "Đăng nhập thất bại. Vui lòng thử lại.");
     } finally {

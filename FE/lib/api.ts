@@ -4,6 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from "axios";
+import { useAuthStore } from "@/lib/auth";
 
 const getApiUrl = (): string => {
   // If NEXT_PUBLIC_API_URL is set, use it (works for both client and server)
@@ -96,9 +97,10 @@ class ApiClient {
             error.config.url.includes("/api/"));
 
         if (error.response?.status === 401 && isApiCall) {
-          // Token expired or invalid - clear token
+          // Token expired or invalid - clear token và đồng bộ store
           this.clearToken();
-          
+          useAuthStore.getState().logout();
+
           // Only redirect if we're not on a public page or error page
           if (typeof globalThis.window !== "undefined") {
             const currentPath = globalThis.window.location.pathname;
