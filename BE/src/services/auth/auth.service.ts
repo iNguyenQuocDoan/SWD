@@ -1,0 +1,131 @@
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import User, { IUser } from "@/models/User";
+import Role from "@/models/Role";
+import { env } from "@/config/env";
+import { AppError } from "@/middleware/errorHandler";
+
+export interface LoginResult {
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+    roleKey: string;
+  };
+  token: string;
+  refreshToken: string;
+}
+
+export class AuthService {
+  async register(
+    email: string,
+    password: string,
+    fullName: string,
+    roleKey: string = "CUSTOMER"
+  ): Promise<IUser> {
+    // Check if user exists
+    const existingUser = await User.findOne({ email, isDeleted: false });
+    if (existingUser) {
+      throw new AppError("Email already exists", 400);
+    }
+
+    // Get role
+    const role = await Role.findOne({ roleKey, status: "Active" });
+    if (!role) {
+      throw new AppError("Invalid role", 400);
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create user
+    const user = await User.create({
+      roleId: role._id,
+      email,
+      passwordHash,
+      fullName,
+      status: "Active",
+      emailVerified: false,
+      phoneVerified: false,
+      trustLevel: 0,
+    });
+
+    return user;
+  }
+
+  async login(email: string, password: string): Promise<LoginResult> {
+    // Find user
+    const user = await User.findOne({ email, isDeleted: false }).populate(
+      "roleId"
+    );
+    if (!user) {
+      throw new AppError("Invalid email or password", 401);
+    }
+
+    // Check status
+    if (user.status !== "Active") {
+      throw new AppError("Account is locked or banned", 403);
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new AppError("Invalid email or password", 401);
+    }
+
+    // Update last login
+    await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
+
+    // Generate tokens
+    const roleKey = (user.roleId as any).roleKey;
+    const token = this.generateToken(user._id.toString(), user.email, roleKey);
+    const refreshToken = this.generateRefreshToken(
+      user._id.toString(),
+      user.email
+    );
+
+    return {
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        fullName: user.fullName,
+        roleKey,
+      },
+      token,
+      refreshToken,
+    };
+  }
+
+  async refreshToken(refreshToken: string): Promise<{ token: string }> {
+    try {
+      const decoded = jwt.verify(
+        refreshToken,
+        env.jwtRefreshSecret
+      ) as { userId: string; email: string };
+
+      const user = await User.findById(decoded.userId).populate("roleId");
+      if (!user || user.isDeleted || user.status !== "Active") {
+        throw new AppError("Invalid refresh token", 401);
+      }
+
+      const roleKey = (user.roleId as any).roleKey;
+      const token = this.generateToken(user._id.toString(), user.email, roleKey);
+
+      return { token };
+    } catch (error: unknown) {
+      throw new AppError("Invalid refresh token", 401);
+    }
+  }
+
+  private generateToken(userId: string, email: string, roleKey: string): string {
+    const payload = { userId, email, roleKey };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpire } as any);
+  }
+
+  private generateRefreshToken(userId: string, email: string): string {
+    const payload = { userId, email };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return jwt.sign(payload, env.jwtRefreshSecret, { expiresIn: env.jwtRefreshExpire } as any);
+  }
+}

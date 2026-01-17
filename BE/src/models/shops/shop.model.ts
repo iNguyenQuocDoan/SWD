@@ -1,0 +1,87 @@
+import mongoose, { Schema, Document } from "mongoose";
+import { ShopStatus, PayoutMethod } from "@/types";
+
+export interface IShop extends Document {
+  ownerUserId: mongoose.Types.ObjectId;
+  shopName: string;
+  description?: string | null;
+  payoutMethod?: PayoutMethod | null; // Demo-only, có thể bỏ
+  payoutAccount?: string | null; // Demo-only, có thể bỏ
+  status: ShopStatus;
+  approvedByUserId?: mongoose.Types.ObjectId | null; // ADMIN
+  approvedAt?: Date | null;
+  ratingAvg: number;
+  totalSales: number;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted: boolean;
+}
+
+const ShopSchema = new Schema<IShop>(
+  {
+    ownerUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true, // 1 user tối đa 1 shop
+    },
+    shopName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      default: null,
+    },
+    payoutMethod: {
+      type: String,
+      enum: ["Bank", "Momo", "Vnpay", "Zalopay"],
+      default: null,
+    },
+    payoutAccount: {
+      type: String,
+      default: null,
+    },
+    status: {
+      type: String,
+      required: true,
+      enum: ["Pending", "Active", "Suspended", "Closed"],
+      default: "Pending",
+    },
+    approvedByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User", // ADMIN
+      default: null,
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+    ratingAvg: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    totalSales: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// Indexes
+// Note: ownerUserId index is automatically created by unique: true
+ShopSchema.index({ status: 1 });
+ShopSchema.index({ isDeleted: 1 });
+
+export default mongoose.model<IShop>("Shop", ShopSchema);

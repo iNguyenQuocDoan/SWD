@@ -1,0 +1,170 @@
+"use client";
+
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { registerSchema, type RegisterInput } from "@/lib/validations";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import Link from "next/link";
+import { toast } from "sonner";
+
+export default function RegisterPage() {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      confirmPassword: "",
+      name: "",
+    },
+  });
+
+  const onSubmit = async (data: RegisterInput) => {
+    setIsLoading(true);
+    try {
+      // TODO: Implement actual registration logic
+      console.log("Register data:", data);
+      toast.success(
+        "Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản."
+      );
+    } catch (error) {
+      toast.error("Đăng ký thất bại. Vui lòng thử lại.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-2">
+          <CardTitle className="text-2xl md:text-3xl text-center">Đăng ký tài khoản</CardTitle>
+          <CardDescription className="text-center text-base">
+            Tạo tài khoản mới để bắt đầu mua sắm sản phẩm số
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base">Tên hiển thị</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Nguyễn Văn A" 
+                        className="h-11 text-base"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base">Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="example@email.com"
+                        type="email"
+                        className="h-11 text-base"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base">Mật khẩu</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="••••••••"
+                        type="password"
+                        className="h-11 text-base"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base">Xác nhận mật khẩu</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="••••••••"
+                        type="password"
+                        className="h-11 text-base"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button 
+                type="submit" 
+                className="w-full h-12 text-base md:text-lg" 
+                disabled={isLoading}
+              >
+                {isLoading ? "Đang đăng ký..." : "Đăng ký"}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+        <CardFooter className="flex flex-col gap-4">
+          <div className="text-base text-muted-foreground text-center">
+            Đã có tài khoản?{" "}
+            <Link href="/login" className="text-primary hover:underline font-medium">
+              Đăng nhập ngay
+            </Link>
+          </div>
+          <div className="w-full border-t pt-4">
+            <p className="text-sm text-muted-foreground text-center mb-2">
+              Bạn muốn bán hàng?
+            </p>
+            <Button variant="outline" className="w-full h-11 text-base" asChild>
+              <Link href="/seller/register">
+                Đăng ký làm Seller
+              </Link>
+            </Button>
+          </div>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
