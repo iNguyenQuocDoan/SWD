@@ -1,17 +1,31 @@
 {
   "version": 2,
-  "buildCommand": "yarn build",
-  "devCommand": "yarn dev",
-  "installCommand": "yarn install",
-  "framework": "nextjs",
-  "regions": ["sin1"],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/"
+      "src": "../BE/api/index.ts",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
     }
-  ]
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "../BE/api/index.ts"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    }
+  ],
+  "functions": {
+    "../BE/api/index.ts": {
+      "maxDuration": 30
+    }
+  }
 }
