@@ -1,3 +1,6 @@
+// Register @/ path aliases first - Vercel serverless does not resolve @/ at build time
+import "./register-paths";
+
 // Load environment variables (for local development)
 // In Vercel, env vars are automatically available in process.env
 import dotenv from "dotenv";
@@ -9,10 +12,10 @@ import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
 import cookieParser from "cookie-parser";
-import connectDB from "@/config/database";
-import { env } from "@/config/env";
-import apiRoutes from "@/routes";
-import { errorHandler } from "@/middleware/errorHandler";
+import connectDB from "../src/config/database";
+import { env } from "../src/config/env";
+import apiRoutes from "../src/routes";
+import { errorHandler } from "../src/middleware/errorHandler";
 
 const app = express();
 
