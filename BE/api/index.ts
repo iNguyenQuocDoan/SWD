@@ -19,6 +19,10 @@ import { errorHandler } from "../src/middleware/errorHandler";
 
 const app = express();
 
+// Trust proxy - required when behind Vercel/reverse proxy for express-rate-limit
+// (X-Forwarded-For is set by the proxy; without this, express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR)
+app.set("trust proxy", 1);
+
 // Connect to database
 connectDB();
 
