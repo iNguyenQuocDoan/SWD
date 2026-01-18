@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +15,16 @@ import { CreditCard, Wallet, Shield, CheckCircle, AlertCircle } from "lucide-rea
 import { toast } from "sonner";
 import Link from "next/link";
 import { RequireAuth } from "@/components/auth/RequireAuth";
+import { checkoutSchema, type CheckoutInput } from "@/lib/validations";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 // Mock data
 const mockCheckoutData = {
@@ -38,9 +50,16 @@ const mockCheckoutData = {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "other">("wallet");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const form = useForm<CheckoutInput>({
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: {
+      paymentMethod: "wallet",
+    },
+  });
+
+  const paymentMethod = form.watch("paymentMethod");
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -49,27 +68,8 @@ export default function CheckoutPage() {
     }).format(price);
   };
 
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-
-    if (paymentMethod === "other") {
-      // Validate payment method fields
-      // This is a placeholder - add actual validation
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      toast.error("Vui lòng kiểm tra lại thông tin");
-      return;
-    }
-
-    if (paymentMethod === "wallet" && mockCheckoutData.total > mockCheckoutData.walletBalance) {
+  const handleSubmit = async (data: CheckoutInput) => {
+    if (data.paymentMethod === "wallet" && mockCheckoutData.total > mockCheckoutData.walletBalance) {
       toast.error("Số dư ví không đủ. Vui lòng nạp thêm tiền.");
       router.push("/customer/wallet");
       return;
@@ -101,10 +101,11 @@ export default function CheckoutPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)}>
+            <div className="grid lg:grid-cols-3 gap-8">
+              {/* Main Content */}
+              <div className="lg:col-span-2 space-y-6">
               {/* Order Review */}
               <Card>
                 <CardHeader>
@@ -154,82 +155,162 @@ export default function CheckoutPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Wallet Payment */}
-                  <div
-                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                      paymentMethod === "wallet"
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                    onClick={() => setPaymentMethod("wallet")}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="radio"
-                        name="payment"
-                        value="wallet"
-                        checked={paymentMethod === "wallet"}
-                        onChange={() => setPaymentMethod("wallet")}
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Wallet className="h-5 w-5" />
-                          <span className="font-semibold">Ví điện tử</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Số dư hiện tại:{" "}
-                          <span className="font-medium text-primary">
-                            {formatPrice(mockCheckoutData.walletBalance)}
-                          </span>
-                        </p>
-                        {insufficientBalance && (
-                          <Alert variant="warning" className="mt-2">
-                            <AlertIcon.warning className="h-4 w-4" />
-                            <AlertDescription className="text-xs">
-                              Số dư không đủ.{" "}
-                              <Link
-                                href="/customer/wallet"
-                                className="underline font-medium"
-                              >
-                                Nạp thêm tiền
-                              </Link>
-                            </AlertDescription>
-                          </Alert>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem className="space-y-4">
+                        <FormControl>
+                          <>
+                            {/* Wallet Payment */}
+                            <div
+                              className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                                field.value === "wallet"
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border hover:border-primary/50"
+                              }`}
+                              onClick={() => field.onChange("wallet")}
+                            >
+                              <div className="flex items-start gap-3">
+                                <input
+                                  type="radio"
+                                  checked={field.value === "wallet"}
+                                  onChange={() => field.onChange("wallet")}
+                                  className="mt-1"
+                                  aria-label="Ví điện tử"
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Wallet className="h-5 w-5" />
+                                    <span className="font-semibold">Ví điện tử</span>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mb-2">
+                                    Số dư hiện tại:{" "}
+                                    <span className="font-medium text-primary">
+                                      {formatPrice(mockCheckoutData.walletBalance)}
+                                    </span>
+                                  </p>
+                                  {insufficientBalance && (
+                                    <Alert variant="warning" className="mt-2">
+                                      <AlertIcon.warning className="h-4 w-4" />
+                                      <AlertDescription className="text-xs">
+                                        Số dư không đủ.{" "}
+                                        <Link
+                                          href="/customer/wallet"
+                                          className="underline font-medium"
+                                        >
+                                          Nạp thêm tiền
+                                        </Link>
+                                      </AlertDescription>
+                                    </Alert>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
 
-                  {/* Other Payment Methods */}
-                  <div
-                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                      paymentMethod === "other"
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                    onClick={() => setPaymentMethod("other")}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="radio"
-                        name="payment"
-                        value="other"
-                        checked={paymentMethod === "other"}
-                        onChange={() => setPaymentMethod("other")}
-                        className="mt-1"
+                            {/* Other Payment Methods */}
+                            <div
+                              className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                                field.value === "other"
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border hover:border-primary/50"
+                              }`}
+                              onClick={() => field.onChange("other")}
+                            >
+                              <div className="flex items-start gap-3">
+                                <input
+                                  type="radio"
+                                  checked={field.value === "other"}
+                                  onChange={() => field.onChange("other")}
+                                  className="mt-1"
+                                  aria-label="Thẻ tín dụng/ghi nợ"
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <CreditCard className="h-5 w-5" />
+                                    <span className="font-semibold">Thẻ tín dụng/ghi nợ</span>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    Thanh toán trực tiếp bằng thẻ ngân hàng
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Card Information Fields (shown when "other" is selected) */}
+                  {paymentMethod === "other" && (
+                    <div className="space-y-4 pt-4 border-t">
+                      <FormField
+                        control={form.control}
+                        name="cardNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Số thẻ</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="1234 5678 9012 3456"
+                                {...field}
+                                maxLength={19}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <CreditCard className="h-5 w-5" />
-                          <span className="font-semibold">Thẻ tín dụng/ghi nợ</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Thanh toán trực tiếp bằng thẻ ngân hàng
-                        </p>
+                      <FormField
+                        control={form.control}
+                        name="cardHolder"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tên chủ thẻ</FormLabel>
+                            <FormControl>
+                              <Input placeholder="NGUYEN VAN A" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="expiryDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Ngày hết hạn</FormLabel>
+                              <FormControl>
+                                <Input placeholder="MM/YY" {...field} maxLength={5} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="cvv"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>CVV</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="password"
+                                  placeholder="123"
+                                  {...field}
+                                  maxLength={4}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -300,6 +381,7 @@ export default function CheckoutPage() {
             </div>
           </div>
         </form>
+        </Form>
       </div>
     </div>
     </RequireAuth>

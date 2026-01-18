@@ -65,6 +65,8 @@ class ApiClient {
       withCredentials: true, // Important for cookies
       headers: {
         "Content-Type": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
       },
     });
 
@@ -75,6 +77,18 @@ class ApiClient {
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        
+        // Disable cache cho tất cả requests, đặc biệt là /auth/me
+        if (config.headers) {
+          config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+          config.headers["Pragma"] = "no-cache";
+          
+          // Thêm timestamp để bypass cache cho /auth/me
+          if (config.url?.includes("/auth/me")) {
+            config.params = { ...config.params, _t: Date.now() };
+          }
+        }
+        
         return config;
       },
       (error) => {
@@ -85,6 +99,53 @@ class ApiClient {
     // Response interceptor - Handle errors
     this.axiosInstance.interceptors.response.use(
       (response) => {
+        // Xử lý đặc biệt cho /auth/me endpoint
+        if (typeof globalThis.window !== "undefined" && response.config.url?.includes("/auth/me")) {
+          const hasCookie = globalThis.document.cookie.includes("accessToken=");
+          const hasLocalStorage = !!globalThis.localStorage?.getItem("accessToken");
+          
+          // Nếu nhận 304 (Not Modified) - browser đang dùng cache
+          // Kiểm tra cookie ngay lập tức vì 304 không có body, chỉ có headers
+          if (response.status === 304) {
+            if (!hasCookie && !hasLocalStorage) {
+              // Cookie đã bị xóa nhưng browser vẫn cache - clear auth state
+              this.clearToken();
+              useAuthStore.getState().logout();
+              
+              // Redirect to login if not on public page
+              const currentPath = globalThis.window.location.pathname;
+              const publicPaths = ["/", "/login", "/register", "/products", "/categories", "/sellers"];
+              const isPublicPath = publicPaths.some((path) => currentPath.startsWith(path)) || 
+                                   currentPath === "/404" || 
+                                   currentPath.startsWith("/_next");
+              
+              if (!isPublicPath) {
+                globalThis.window.location.href = "/login";
+              }
+              // Reject để không tiếp tục xử lý response 304 này
+              return Promise.reject(new Error("Cookie deleted - authentication required"));
+            }
+            // Nếu có cookie nhưng nhận 304, reject để AuthProvider retry với timestamp mới
+            // Điều này đảm bảo luôn có data mới nhất từ server
+            return Promise.reject({
+              response: {
+                status: 304,
+                statusText: "Not Modified",
+                data: null,
+              },
+              config: response.config,
+              message: "304 Not Modified - retry needed",
+              isAxiosError: true,
+            });
+          }
+          
+          // Với response 200, kiểm tra cookie
+          if (!hasCookie && !hasLocalStorage) {
+            // Cookie đã bị xóa - clear auth state
+            this.clearToken();
+            useAuthStore.getState().logout();
+          }
+        }
         return response;
       },
       (error: AxiosError<ApiResponse>) => {

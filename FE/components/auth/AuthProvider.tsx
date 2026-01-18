@@ -60,10 +60,35 @@ function minimalUserFromJwt(payload: { userId: string; email: string; roleKey?: 
  */
 export function AuthProvider({ children }: { readonly children: React.ReactNode }) {
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = async (retryCount = 0) => {
       try {
         await authService.getMe();
-      } catch {
+      } catch (error: any) {
+        // Kiểm tra cookie trước khi quyết định
+        const hasCookie = typeof globalThis.window !== "undefined" && 
+                         globalThis.document.cookie.includes("accessToken=");
+        const hasLocalStorage = !!globalThis.localStorage?.getItem("accessToken");
+        
+        // Nếu không còn cookie và localStorage, clear auth state
+        if (!hasCookie && !hasLocalStorage) {
+          apiClient.clearToken();
+          useAuthStore.getState().setUser(null);
+          return;
+        }
+        
+        // Nếu lỗi là 304 Not Modified và chưa retry, retry với timestamp mới
+        const is304 = error?.response?.status === 304 || 
+                     error?.message?.includes("304 Not Modified");
+        
+        if (is304 && retryCount < 2 && (hasCookie || hasLocalStorage)) {
+          // Retry với timestamp mới để bypass cache
+          setTimeout(() => {
+            checkAuth(retryCount + 1);
+          }, 100);
+          return;
+        }
+        
+        // Nếu đã retry hoặc không phải 304, dùng JWT fallback
         const token = globalThis.localStorage?.getItem("accessToken");
         const payload = token ? decodeJwtPayload(token) : null;
         if (payload?.userId && payload?.email) {
@@ -87,6 +112,26 @@ export function AuthProvider({ children }: { readonly children: React.ReactNode 
     } else {
       useAuthStore.getState().setUser(null);
     }
+
+    // Kiểm tra cookie định kỳ để phát hiện khi cookie bị xóa
+    const checkCookieInterval = setInterval(() => {
+      if (typeof globalThis.window === "undefined") return;
+      
+      const hasCookie = globalThis.document.cookie.includes("accessToken=");
+      const hasLocalStorage = !!globalThis.localStorage?.getItem("accessToken");
+      const { isAuthenticated } = useAuthStore.getState();
+      
+      // Nếu đang authenticated nhưng không còn cookie và localStorage
+      if (isAuthenticated && !hasCookie && !hasLocalStorage) {
+        // Cookie đã bị xóa - đăng xuất ngay
+        apiClient.clearToken();
+        useAuthStore.getState().setUser(null);
+      }
+    }, 1000); // Kiểm tra mỗi giây
+
+    return () => {
+      clearInterval(checkCookieInterval);
+    };
   }, []);
 
   return <>{children}</>;

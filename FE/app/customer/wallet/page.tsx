@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +22,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { depositSchema, type DepositInput } from "@/lib/validations";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 // Mock data
 const mockWalletData = {
@@ -70,10 +81,17 @@ const mockWalletData = {
 const quickAmounts = [100000, 200000, 500000, 1000000, 2000000];
 
 export default function WalletPage() {
-  const [amount, setAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("bank");
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactions] = useState(mockWalletData.transactions);
+
+  const form = useForm<DepositInput>({
+    resolver: zodResolver(depositSchema),
+    defaultValues: {
+      paymentMethod: "bank",
+    },
+  });
+
+  const amount = form.watch("amount");
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -83,26 +101,18 @@ export default function WalletPage() {
   };
 
   const handleQuickAmount = (value: number) => {
-    setAmount(value.toString());
+    form.setValue("amount", value, { shouldValidate: true });
   };
 
-  const handleDeposit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const depositAmount = parseInt(amount);
-    if (!depositAmount || depositAmount < 50000) {
-      toast.error("Số tiền nạp tối thiểu là 50,000 VND");
-      return;
-    }
-
+  const handleDeposit = async (data: DepositInput) => {
     setIsProcessing(true);
     toast.info("Đang xử lý nạp tiền...");
 
     // Simulate API call
     setTimeout(() => {
       setIsProcessing(false);
-      toast.success(`Đã gửi yêu cầu nạp ${formatPrice(depositAmount)}. Vui lòng chờ xử lý.`);
-      setAmount("");
+      toast.success(`Đã gửi yêu cầu nạp ${formatPrice(data.amount)}. Vui lòng chờ xử lý.`);
+      form.reset();
     }, 2000);
   };
 
@@ -228,100 +238,121 @@ export default function WalletPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleDeposit} className="space-y-6">
-                  {/* Amount Input */}
-                  <div className="space-y-2">
-                    <Label htmlFor="amount">Số tiền nạp (VND)</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      placeholder="Nhập số tiền"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      min="50000"
-                      step="10000"
-                      required
-                      className="text-lg"
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleDeposit)} className="space-y-6">
+                    {/* Amount Input */}
+                    <FormField
+                      control={form.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Số tiền nạp (VND)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="Nhập số tiền"
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseInt(e.target.value) : undefined;
+                                field.onChange(value);
+                              }}
+                              min="50000"
+                              step="10000"
+                              className="text-lg"
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            Số tiền tối thiểu: 50,000 VND, tối đa: 50,000,000 VND
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Số tiền tối thiểu: 50,000 VND
-                    </p>
-                  </div>
 
-                  {/* Quick Amount Buttons */}
-                  <div className="space-y-2">
-                    <Label>Chọn nhanh:</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {quickAmounts.map((value) => (
-                        <Button
-                          key={value}
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleQuickAmount(value)}
-                        >
-                          {formatPrice(value)}
-                        </Button>
-                      ))}
+                    {/* Quick Amount Buttons */}
+                    <div className="space-y-2">
+                      <Label>Chọn nhanh:</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {quickAmounts.map((value) => (
+                          <Button
+                            key={value}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleQuickAmount(value)}
+                          >
+                            {formatPrice(value)}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Payment Method */}
-                  <div className="space-y-2">
-                    <Label htmlFor="payment-method">Phương thức thanh toán</Label>
-                    <Select
-                      value={paymentMethod}
-                      onValueChange={setPaymentMethod}
-                    >
-                      <SelectTrigger id="payment-method">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="bank">
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="h-4 w-4" />
-                            Chuyển khoản ngân hàng
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="momo">Ví MoMo</SelectItem>
-                        <SelectItem value="zalopay">Ví ZaloPay</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    {/* Payment Method */}
+                    <FormField
+                      control={form.control}
+                      name="paymentMethod"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phương thức thanh toán</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="bank">
+                                <div className="flex items-center gap-2">
+                                  <CreditCard className="h-4 w-4" />
+                                  Chuyển khoản ngân hàng
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="momo">Ví MoMo</SelectItem>
+                              <SelectItem value="zalopay">Ví ZaloPay</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  {/* Summary */}
-                  {amount && parseInt(amount) >= 50000 && (
-                    <Alert variant="info">
-                      <AlertIcon.info className="h-4 w-4" />
-                      <AlertDescription>
-                        Bạn sẽ nạp:{" "}
-                        <strong className="text-lg">
-                          {formatPrice(parseInt(amount))}
-                        </strong>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    size="lg"
-                    disabled={isProcessing || !amount || parseInt(amount) < 50000}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                        Đang xử lý...
-                      </>
-                    ) : (
-                      <>
-                        <ArrowDownCircle className="mr-2 h-4 w-4" />
-                        Nạp tiền
-                      </>
+                    {/* Summary */}
+                    {amount && amount >= 50000 && (
+                      <Alert variant="info">
+                        <AlertIcon.info className="h-4 w-4" />
+                        <AlertDescription>
+                          Bạn sẽ nạp:{" "}
+                          <strong className="text-lg">
+                            {formatPrice(amount)}
+                          </strong>
+                        </AlertDescription>
+                      </Alert>
                     )}
-                  </Button>
-                </form>
+
+                    {/* Submit Button */}
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      size="lg"
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        <>
+                          <ArrowDownCircle className="mr-2 h-4 w-4" />
+                          Nạp tiền
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
 

@@ -23,9 +23,17 @@ export function RequireAuth({
     if (globalThis.window === undefined) return;
 
     // First check if we have token in cookie or localStorage
-    const hasToken = 
-      globalThis.document.cookie.includes("accessToken=") || 
-      globalThis.localStorage.getItem("accessToken") !== null;
+    const hasCookie = globalThis.document.cookie.includes("accessToken=");
+    const hasLocalStorage = globalThis.localStorage.getItem("accessToken") !== null;
+    const hasToken = hasCookie || hasLocalStorage;
+
+    // Nếu đang authenticated nhưng không còn cookie và localStorage, clear auth state
+    if (isAuthenticated && !hasCookie && !hasLocalStorage) {
+      useAuthStore.getState().logout();
+      const currentPath = globalThis.window.location.pathname;
+      router.replace(redirectTo || `/login?redirect=${encodeURIComponent(currentPath)}`);
+      return;
+    }
 
     // If no token at all, redirect immediately without waiting
     if (!hasToken) {
@@ -40,8 +48,13 @@ export function RequireAuth({
         const state = useAuthStore.getState();
         const stillNotAuth = !state.isAuthenticated;
         const stillLoading = state.isLoading;
-        // Chỉ redirect khi đã hết loading mà vẫn chưa đăng nhập (tránh cắt getMe đang chạy)
-        if (stillNotAuth && !stillLoading) {
+        
+        // Kiểm tra lại cookie trước khi redirect
+        const stillHasCookie = globalThis.document.cookie.includes("accessToken=");
+        const stillHasLocalStorage = !!globalThis.localStorage.getItem("accessToken");
+        
+        // Chỉ redirect khi đã hết loading mà vẫn chưa đăng nhập và không còn token (tránh cắt getMe đang chạy)
+        if (stillNotAuth && !stillLoading && !stillHasCookie && !stillHasLocalStorage) {
           const currentPath = globalThis.window.location.pathname;
           router.replace(redirectTo || `/login?redirect=${encodeURIComponent(currentPath)}`);
         }
