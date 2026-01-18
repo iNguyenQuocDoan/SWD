@@ -1,6 +1,7 @@
 import { BaseService } from "@/services/base.service";
 import { User, IUser } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
+import { MESSAGES } from "@/constants/messages";
 
 export class UserService extends BaseService<IUser> {
   constructor() {
@@ -43,7 +44,7 @@ export class UserService extends BaseService<IUser> {
     trustLevel: number
   ): Promise<IUser | null> {
     if (trustLevel < 0 || trustLevel > 100) {
-      throw new AppError("Trust level must be between 0 and 100", 400);
+      throw new AppError(MESSAGES.ERROR.USER.TRUST_LEVEL_INVALID, 400);
     }
 
     return this.model

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "@/config/env";
 import { User } from "@/models";
+import { MESSAGES } from "@/constants/messages";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -24,7 +25,7 @@ export const authenticate = async (
       req.cookies?.accessToken;
 
     if (!token) {
-      res.status(401).json({ success: false, message: "No token provided" });
+      res.status(401).json({ success: false, message: MESSAGES.ERROR.AUTH.NO_TOKEN });
       return;
     }
 
@@ -38,7 +39,7 @@ export const authenticate = async (
       .select("-passwordHash");
 
     if (!user || user.isDeleted || user.status !== "Active") {
-      res.status(401).json({ success: false, message: "User not found or inactive" });
+      res.status(401).json({ success: false, message: MESSAGES.ERROR.AUTH.USER_NOT_FOUND_OR_INACTIVE });
       return;
     }
 
@@ -54,21 +55,21 @@ export const authenticate = async (
     if (error instanceof Error) {
       console.error("Authentication error:", error.message);
     }
-    res.status(401).json({ success: false, message: "Invalid token" });
+    res.status(401).json({ success: false, message: MESSAGES.ERROR.AUTH.INVALID_TOKEN });
   }
 };
 
 export const authorize = (...allowedRoles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({ success: false, message: "Unauthorized" });
+      res.status(401).json({ success: false, message: MESSAGES.ERROR.AUTH.UNAUTHORIZED });
       return;
     }
 
     if (!allowedRoles.includes(req.user.roleKey)) {
       res.status(403).json({ 
         success: false, 
-        message: "Forbidden - Insufficient permissions" 
+        message: MESSAGES.ERROR.AUTH.FORBIDDEN 
       });
       return;
     }

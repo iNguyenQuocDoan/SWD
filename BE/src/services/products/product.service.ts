@@ -2,6 +2,7 @@ import { BaseService } from "@/services/base.service";
 import { Product, IProduct, Shop, PlatformCatalog } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
 import { PlanType } from "@/types";
+import { MESSAGES } from "@/constants/messages";
 
 export interface CreateProductData {
   shopId: string;
@@ -28,13 +29,13 @@ export class ProductService extends BaseService<IProduct> {
       isDeleted: false,
     });
     if (!shop) {
-      throw new AppError("Shop not found or access denied", 404);
+      throw new AppError(MESSAGES.ERROR.PRODUCT.SHOP_NOT_FOUND_OR_ACCESS_DENIED, 404);
     }
 
     // Verify platform exists
     const platform = await PlatformCatalog.findById(data.platformId);
     if (!platform || platform.status !== "Active") {
-      throw new AppError("Platform not found", 404);
+      throw new AppError(MESSAGES.ERROR.PRODUCT.PLATFORM_NOT_FOUND, 404);
     }
 
     // Create product
@@ -61,7 +62,7 @@ export class ProductService extends BaseService<IProduct> {
     );
 
     if (!product) {
-      throw new AppError("Product not found", 404);
+      throw new AppError(MESSAGES.ERROR.PRODUCT.NOT_FOUND, 404);
     }
 
     return product;
@@ -82,7 +83,7 @@ export class ProductService extends BaseService<IProduct> {
     );
 
     if (!product) {
-      throw new AppError("Product not found", 404);
+      throw new AppError(MESSAGES.ERROR.PRODUCT.NOT_FOUND, 404);
     }
 
     return product;

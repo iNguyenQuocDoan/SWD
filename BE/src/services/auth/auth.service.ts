@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { User, IUser, Role } from "@/models";
 import { env } from "@/config/env";
 import { AppError } from "@/middleware/errorHandler";
+import { MESSAGES } from "@/constants/messages";
 
 export interface LoginResult {
   user: {
@@ -25,13 +26,13 @@ export class AuthService {
     // Check if user exists
     const existingUser = await User.findOne({ email, isDeleted: false });
     if (existingUser) {
-      throw new AppError("Email already exists", 400);
+      throw new AppError(MESSAGES.ERROR.AUTH.EMAIL_ALREADY_EXISTS, 400);
     }
 
     // Get role
     const role = await Role.findOne({ roleKey, status: "Active" });
     if (!role) {
-      throw new AppError("Invalid role", 400);
+      throw new AppError(MESSAGES.ERROR.AUTH.INVALID_ROLE, 400);
     }
 
     // Hash password
@@ -59,24 +60,24 @@ export class AuthService {
         "roleId"
       );
       if (!user) {
-        throw new AppError("Invalid email or password", 401);
+        throw new AppError(MESSAGES.ERROR.AUTH.INVALID_EMAIL_OR_PASSWORD, 401);
       }
 
       // Check if roleId is populated
       if (!user.roleId || typeof user.roleId === "string") {
         console.error("User roleId not populated:", user._id);
-        throw new AppError("User role not found", 500);
+        throw new AppError(MESSAGES.ERROR.AUTH.USER_ROLE_NOT_FOUND, 500);
       }
 
       // Check status
       if (user.status !== "Active") {
-        throw new AppError("Account is locked or banned", 403);
+        throw new AppError(MESSAGES.ERROR.AUTH.ACCOUNT_LOCKED_OR_BANNED, 403);
       }
 
       // Verify password
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
-        throw new AppError("Invalid email or password", 401);
+        throw new AppError(MESSAGES.ERROR.AUTH.INVALID_EMAIL_OR_PASSWORD, 401);
       }
 
       // Update last login
@@ -86,7 +87,7 @@ export class AuthService {
       const roleKey = (user.roleId as any).roleKey;
       if (!roleKey) {
         console.error("Role key not found for user:", user._id);
-        throw new AppError("User role configuration error", 500);
+        throw new AppError(MESSAGES.ERROR.AUTH.USER_ROLE_CONFIG_ERROR, 500);
       }
 
       const token = this.generateToken(user._id.toString(), user.email, roleKey);
@@ -124,7 +125,7 @@ export class AuthService {
       
       // Wrap other errors
       throw new AppError(
-        error instanceof Error ? error.message : "Login failed",
+        error instanceof Error ? error.message : MESSAGES.ERROR.AUTH.LOGIN_FAILED,
         500
       );
     }
@@ -139,7 +140,7 @@ export class AuthService {
 
       const user = await User.findById(decoded.userId).populate("roleId");
       if (!user || user.isDeleted || user.status !== "Active") {
-        throw new AppError("Invalid refresh token", 401);
+        throw new AppError(MESSAGES.ERROR.AUTH.INVALID_REFRESH_TOKEN, 401);
       }
 
       const roleKey = (user.roleId as any).roleKey;
@@ -157,7 +158,7 @@ export class AuthService {
       if (error instanceof AppError) {
         throw error;
       }
-      throw new AppError("Invalid refresh token", 401);
+      throw new AppError(MESSAGES.ERROR.AUTH.INVALID_REFRESH_TOKEN, 401);
     }
   }
 
@@ -175,13 +176,13 @@ export class AuthService {
     // Find user
     const user = await User.findById(userId);
     if (!user || user.isDeleted) {
-      throw new AppError("User not found", 404);
+      throw new AppError(MESSAGES.ERROR.USER.NOT_FOUND, 404);
     }
 
     // Verify current password
     const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isPasswordValid) {
-      throw new AppError("Current password is incorrect", 400);
+      throw new AppError(MESSAGES.ERROR.AUTH.CURRENT_PASSWORD_INCORRECT, 400);
     }
 
     // Hash new password

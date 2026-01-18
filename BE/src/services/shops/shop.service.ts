@@ -1,6 +1,7 @@
 import { BaseService } from "@/services/base.service";
 import { Shop, IShop, User } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
+import { MESSAGES } from "@/constants/messages";
 
 export class ShopService extends BaseService<IShop> {
   constructor() {
@@ -18,13 +19,13 @@ export class ShopService extends BaseService<IShop> {
       isDeleted: false,
     });
     if (existingShop) {
-      throw new AppError("User already has a shop", 400);
+      throw new AppError(MESSAGES.ERROR.SHOP.ALREADY_EXISTS, 400);
     }
 
     // Verify user exists
     const user = await User.findById(ownerUserId);
     if (!user || user.isDeleted) {
-      throw new AppError("User not found", 404);
+      throw new AppError(MESSAGES.ERROR.USER.NOT_FOUND, 404);
     }
 
     // Create shop
@@ -62,7 +63,7 @@ export class ShopService extends BaseService<IShop> {
     );
 
     if (!shop) {
-      throw new AppError("Shop not found", 404);
+      throw new AppError(MESSAGES.ERROR.SHOP.NOT_FOUND, 404);
     }
 
     return shop;
@@ -79,7 +80,7 @@ export class ShopService extends BaseService<IShop> {
     );
 
     if (!shop) {
-      throw new AppError("Shop not found", 404);
+      throw new AppError(MESSAGES.ERROR.SHOP.NOT_FOUND, 404);
     }
 
     return shop;

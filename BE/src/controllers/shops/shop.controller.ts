@@ -3,6 +3,7 @@ import { AuthRequest } from "@/middleware/auth";
 import { ShopService } from "@/services/shops/shop.service";
 import { createShopSchema, updateShopSchema } from "@/validators/shops/shop.schema";
 import { AppError } from "@/middleware/errorHandler";
+import { MESSAGES } from "@/constants/messages";
 
 export class ShopController {
   private shopService: ShopService;
@@ -28,7 +29,7 @@ export class ShopController {
 
       res.status(201).json({
         success: true,
-        message: "Shop created successfully",
+        message: MESSAGES.SUCCESS.SHOP_CREATED,
         data: shop,
       });
     } catch (error) {
@@ -46,7 +47,7 @@ export class ShopController {
       const shop = await this.shopService.getShopByOwnerId(userId);
 
       if (!shop) {
-        throw new AppError("Shop not found", 404);
+        throw new AppError(MESSAGES.ERROR.SHOP.NOT_FOUND, 404);
       }
 
       res.status(200).json({
@@ -68,7 +69,7 @@ export class ShopController {
       const shop = await this.shopService.findById(shopId);
 
       if (!shop || shop.isDeleted) {
-        throw new AppError("Shop not found", 404);
+        throw new AppError(MESSAGES.ERROR.SHOP.NOT_FOUND, 404);
       }
 
       res.status(200).json({
@@ -93,18 +94,18 @@ export class ShopController {
       // Verify ownership
       const shop = await this.shopService.getShopByOwnerId(userId);
       if (!shop || shop._id.toString() !== shopId) {
-        throw new AppError("Access denied", 403);
+        throw new AppError(MESSAGES.ERROR.SHOP.ACCESS_DENIED, 403);
       }
 
       const updatedShop = await this.shopService.updateById(shopId, validatedData);
 
       if (!updatedShop) {
-        throw new AppError("Shop not found", 404);
+        throw new AppError(MESSAGES.ERROR.SHOP.NOT_FOUND, 404);
       }
 
       res.status(200).json({
         success: true,
-        message: "Shop updated successfully",
+        message: MESSAGES.SUCCESS.SHOP_UPDATED,
         data: updatedShop,
       });
     } catch (error) {

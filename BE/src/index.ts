@@ -11,6 +11,7 @@ import connectDB from "@/config/database";
 import { env } from "@/config/env";
 import apiRoutes from "@/routes";
 import { errorHandler } from "@/middleware/errorHandler";
+import { MESSAGES } from "@/constants/messages";
 
 const app = express();
 
@@ -74,7 +75,7 @@ app.use("/api", apiRoutes);
 app.use((_req, res) => {
   res.status(404).json({
     success: false,
-    message: "Route not found",
+    message: MESSAGES.ERROR.GENERAL.ROUTE_NOT_FOUND,
   });
 });
 

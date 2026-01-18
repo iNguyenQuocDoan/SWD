@@ -4,6 +4,7 @@ import { ProductService } from "@/services/products/product.service";
 import { ShopService } from "@/services/shops/shop.service";
 import { createProductSchema } from "@/validators/products/product.schema";
 import { AppError } from "@/middleware/errorHandler";
+import { MESSAGES } from "@/constants/messages";
 
 export class ProductController {
   private productService: ProductService;
@@ -28,7 +29,7 @@ export class ProductController {
 
       res.status(201).json({
         success: true,
-        message: "Product created successfully, pending approval",
+        message: MESSAGES.SUCCESS.PRODUCT_CREATED,
         data: product,
       });
     } catch (error) {
@@ -90,7 +91,7 @@ export class ProductController {
       const product = await this.productService.findById(productId);
 
       if (!product || product.isDeleted || product.status !== "Approved") {
-        throw new AppError("Product not found", 404);
+        throw new AppError(MESSAGES.ERROR.PRODUCT.NOT_FOUND, 404);
       }
 
       res.status(200).json({
@@ -116,7 +117,7 @@ export class ProductController {
       const shop = await shopService.getShopByOwnerId(userId);
       
       if (!shop || shop._id.toString() !== shopId) {
-        throw new AppError("Access denied", 403);
+        throw new AppError(MESSAGES.ERROR.SHOP.ACCESS_DENIED, 403);
       }
 
       const products = await this.productService.getProductsByShop(shopId);

@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthRequest } from "@/middleware/auth";
 import { UserService } from "@/services/users/user.service";
+import { updateProfileSchema } from "@/validators/users/user.schema";
 import { AppError } from "@/middleware/errorHandler";
+import { MESSAGES } from "@/constants/messages";
 
 export class UserController {
   private userService: UserService;
@@ -20,7 +22,7 @@ export class UserController {
       const user = await this.userService.getUserById(userId);
 
       if (!user) {
-        throw new AppError("User not found", 404);
+        throw new AppError(MESSAGES.ERROR.USER.NOT_FOUND, 404);
       }
 
       res.status(200).json({
@@ -39,21 +41,21 @@ export class UserController {
   ): Promise<void> => {
     try {
       const userId = req.user!.id;
-      const { fullName, phone, avatarUrl } = req.body;
+      const validatedData = updateProfileSchema.parse(req.body);
 
       const updatedUser = await this.userService.updateUserProfile(userId, {
-        fullName,
-        phone,
-        avatarUrl,
+        fullName: validatedData.fullName,
+        phone: validatedData.phone ?? undefined,
+        avatarUrl: validatedData.avatarUrl ?? undefined,
       });
 
       if (!updatedUser) {
-        throw new AppError("User not found", 404);
+        throw new AppError(MESSAGES.ERROR.USER.NOT_FOUND, 404);
       }
 
       res.status(200).json({
         success: true,
-        message: "Profile updated successfully",
+        message: MESSAGES.SUCCESS.PROFILE_UPDATED,
         data: updatedUser,
       });
     } catch (error) {
@@ -71,7 +73,7 @@ export class UserController {
       const user = await this.userService.getUserById(userId);
 
       if (!user) {
-        throw new AppError("User not found", 404);
+        throw new AppError(MESSAGES.ERROR.USER.NOT_FOUND, 404);
       }
 
       res.status(200).json({

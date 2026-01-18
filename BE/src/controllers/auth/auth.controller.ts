@@ -5,6 +5,7 @@ import { UserService } from "@/services/users/user.service";
 import { registerSchema, loginSchema, changePasswordSchema } from "@/validators/auth/auth.schema";
 import { AppError } from "@/middleware/errorHandler";
 import { env } from "@/config/env";
+import { MESSAGES } from "@/constants/messages";
 
 export class AuthController {
   private authService: AuthService;
@@ -30,7 +31,7 @@ export class AuthController {
 
       res.status(201).json({
         success: true,
-        message: "User registered successfully",
+        message: MESSAGES.SUCCESS.USER_REGISTERED,
         data: {
           id: user._id.toString(),
           email: user.email,
@@ -61,7 +62,7 @@ export class AuthController {
 
       res.status(201).json({
         success: true,
-        message: "Seller registered successfully",
+        message: MESSAGES.SUCCESS.SELLER_REGISTERED,
         data: {
           id: user._id.toString(),
           email: user.email,
@@ -133,7 +134,7 @@ export class AuthController {
 
       res.status(200).json({
         success: true,
-        message: "Login successful",
+        message: MESSAGES.SUCCESS.LOGIN_SUCCESS,
         data: result,
       });
     } catch (error) {
@@ -151,7 +152,7 @@ export class AuthController {
         req.body.refreshToken || req.cookies.refreshToken;
 
       if (!refreshToken) {
-        throw new AppError("Refresh token is required", 400);
+        throw new AppError(MESSAGES.ERROR.AUTH.REFRESH_TOKEN_REQUIRED, 400);
       }
 
       const result = await this.authService.refreshToken(refreshToken);
@@ -219,7 +220,7 @@ export class AuthController {
       });
       res.status(200).json({
         success: true,
-        message: "Logout successful",
+        message: MESSAGES.SUCCESS.LOGOUT_SUCCESS,
       });
     } catch (error) {
       next(error);
@@ -236,8 +237,14 @@ export class AuthController {
       const user = await this.userService.getUserById(userId);
 
       if (!user) {
-        throw new AppError("User not found", 404);
+        throw new AppError(MESSAGES.ERROR.USER.NOT_FOUND, 404);
       }
+
+      // Prevent caching of authentication responses
+      // This ensures the browser always checks with the server
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
 
       res.status(200).json({
         success: true,
@@ -279,7 +286,7 @@ export class AuthController {
 
       res.status(200).json({
         success: true,
-        message: "Password changed successfully",
+        message: MESSAGES.SUCCESS.PASSWORD_CHANGED,
       });
     } catch (error) {
       next(error);
