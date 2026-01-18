@@ -102,21 +102,33 @@ jobs:
             - name: Install Vercel CLI
               run: npm install -g vercel@latest
 
+            - name: Remove unnecessary files to reduce file count
+              run: |
+                echo "Removing unnecessary files to reduce file count..."
+                rm -rf BE/node_modules FE/node_modules
+                rm -rf BE/dist FE/.next FE/out
+                rm -rf .git
+                find . -name "*.map" -type f -delete || true
+                find . -name "*.log" -type f -delete || true
+                find . -name ".DS_Store" -type f -delete || true
+                find . -name "Thumbs.db" -type f -delete || true
+                echo "Unnecessary files removed"
+
             - name: Link Vercel Project
               run: |
-                  mkdir -p .vercel
-                  cat > .vercel/project.json << EOF
-                  {
-                    "projectId": "${{ secrets.VERCEL_PROJECT_ID }}",
-                    "orgId": "${{ secrets.VERCEL_ORG_ID }}"
-                  }
-                  EOF
+                mkdir -p .vercel
+                cat > .vercel/project.json << EOF
+                {
+                  "projectId": "${{ secrets.VERCEL_PROJECT_ID }}",
+                  "orgId": "${{ secrets.VERCEL_ORG_ID }}"
+                }
+                EOF
               env:
-                  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-                  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+                VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+                VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-            - name: Deploy to Vercel
-              run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+            - name: Deploy to Vercel with Archive Mode
+              run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes --archive=tgz
               env:
-                  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-                  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+                VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+                VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
