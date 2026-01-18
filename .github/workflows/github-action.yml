@@ -17,11 +17,17 @@ jobs:
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
 
-      - name: Remove node_modules to reduce file count
+      - name: Remove unnecessary files to reduce file count
         run: |
-          echo "Removing node_modules to reduce file count..."
+          echo "Removing unnecessary files to reduce file count..."
           rm -rf BE/node_modules FE/node_modules
-          echo "node_modules removed"
+          rm -rf BE/dist FE/.next FE/out
+          rm -rf .git
+          find . -name "*.map" -type f -delete || true
+          find . -name "*.log" -type f -delete || true
+          find . -name ".DS_Store" -type f -delete || true
+          find . -name "Thumbs.db" -type f -delete || true
+          echo "Unnecessary files removed"
 
       - name: Pull preview env
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
@@ -41,11 +47,17 @@ jobs:
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
 
-      - name: Remove node_modules to reduce file count
+      - name: Remove unnecessary files to reduce file count
         run: |
-          echo "Removing node_modules to reduce file count..."
+          echo "Removing unnecessary files to reduce file count..."
           rm -rf BE/node_modules FE/node_modules
-          echo "node_modules removed"
+          rm -rf BE/dist FE/.next FE/out
+          rm -rf .git
+          find . -name "*.map" -type f -delete || true
+          find . -name "*.log" -type f -delete || true
+          find . -name ".DS_Store" -type f -delete || true
+          find . -name "Thumbs.db" -type f -delete || true
+          echo "Unnecessary files removed"
 
       - name: Pull production env
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
