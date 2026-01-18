@@ -18,22 +18,18 @@ jobs:
         run: npm i -g vercel@latest
 
       - name: Remove node_modules to reduce file count
-        working-directory: ./src
         run: |
           echo "Removing node_modules to reduce file count..."
           rm -rf BE/node_modules FE/node_modules
           echo "node_modules removed"
 
       - name: Pull preview env
-        working-directory: ./src
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build
-        working-directory: ./src
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy preview
-        working-directory: ./src
         run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} --archive=tgz
 
   deploy_production:
@@ -46,20 +42,16 @@ jobs:
         run: npm i -g vercel@latest
 
       - name: Remove node_modules to reduce file count
-        working-directory: ./src
         run: |
           echo "Removing node_modules to reduce file count..."
           rm -rf BE/node_modules FE/node_modules
           echo "node_modules removed"
 
       - name: Pull production env
-        working-directory: ./src
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build production
-        working-directory: ./src
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy production
-        working-directory: ./src
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} --archive=tgz
