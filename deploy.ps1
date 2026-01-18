@@ -4,4 +4,4 @@
 Write-Host "Deploying to Vercel with archive mode (tgz)..." -ForegroundColor Green
 Write-Host "This will reduce upload time and avoid the 5000 file limit." -ForegroundColor Yellow
 
-vercel --prod --archive=tgz
+vercel --prod --yes --archive=tgz

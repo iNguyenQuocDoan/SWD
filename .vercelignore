@@ -1,9 +1,11 @@
 # Dependencies - CRITICAL: Must ignore all node_modules
-node_modules
-**/node_modules
-**/node_modules/**
+# Use absolute patterns from root
+/node_modules
+/BE/node_modules
+/FE/node_modules
 BE/node_modules
 FE/node_modules
+**/node_modules
 
 # Build outputs
 dist
