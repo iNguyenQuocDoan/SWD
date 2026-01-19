@@ -60,34 +60,34 @@ export function ModeratorHeader() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 md:h-20 items-center justify-between gap-4">
+        <div className="flex h-14 sm:h-16 items-center justify-between gap-3 sm:gap-4">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-4 md:gap-6 flex-shrink-0">
+          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
             <Link
               href="/moderator"
-              className="flex items-center space-x-2 md:space-x-3 hover:opacity-80 transition-opacity"
+              className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
             >
-              <Shield className="h-6 w-6 md:h-7 md:w-7 text-primary" />
-              <span className="font-bold text-lg md:text-xl lg:text-2xl">
+              <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              <span className="font-bold text-base sm:text-lg">
                 Moderator Panel
               </span>
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex gap-1">
+            <nav className="hidden lg:flex gap-0.5">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                       isActive(item.href)
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     }`}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-3.5 w-3.5" />
                     <span>{item.label}</span>
                   </Link>
                 );
@@ -96,9 +96,9 @@ export function ModeratorHeader() {
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Moderator Badge */}
-            <Badge variant="secondary" className="hidden sm:flex">
+            <Badge variant="secondary" className="hidden sm:flex text-xs">
               <Shield className="h-3 w-3 mr-1" />
               Moderator
             </Badge>
@@ -109,52 +109,52 @@ export function ModeratorHeader() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="relative h-10 w-10 md:h-11 md:w-11 rounded-full"
+                    className="relative h-9 w-9 rounded-full"
                   >
-                    <Avatar className="h-10 w-10 md:h-11 md:w-11">
+                    <Avatar className="h-9 w-9">
                       <AvatarImage src={user?.avatar} alt={user?.name} />
-                      <AvatarFallback className="text-base md:text-lg">
+                      <AvatarFallback className="text-sm">
                         {user?.name?.charAt(0) || "M"}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-64" align="end" forceMount>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-base font-medium leading-none">
+                      <p className="text-sm font-medium leading-none">
                         {user?.name}
                       </p>
-                      <p className="text-sm leading-none text-muted-foreground">
+                      <p className="text-xs leading-none text-muted-foreground">
                         {user?.email}
                       </p>
-                      <Badge variant="secondary" className="w-fit mt-1">
+                      <Badge variant="secondary" className="w-fit mt-1 text-xs">
                         Moderator
                       </Badge>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="text-base">
+                  <DropdownMenuItem asChild className="text-sm">
                     <Link href="/moderator">
-                      <Home className="mr-2 h-5 w-5" />
+                      <Home className="mr-2 h-4 w-4" />
                       <span>Dashboard</span>
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-base">
+                  <DropdownMenuItem asChild className="text-sm">
                     <Link href="/moderator/review">
-                      <Package className="mr-2 h-5 w-5" />
+                      <Package className="mr-2 h-4 w-4" />
                       <span>Duyệt sản phẩm</span>
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-base">
+                  <DropdownMenuItem asChild className="text-sm">
                     <Link href="/products">
-                      <Store className="mr-2 h-5 w-5" />
+                      <Store className="mr-2 h-4 w-4" />
                       <span>Về trang chủ</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-base">
-                    <LogOut className="mr-2 h-5 w-5" />
+                  <DropdownMenuItem onClick={handleLogout} className="text-sm">
+                    <LogOut className="mr-2 h-4 w-4" />
                     <span>Đăng xuất</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -165,13 +165,13 @@ export function ModeratorHeader() {
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden h-10 w-10"
+              className="lg:hidden h-9 w-9"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               ) : (
-                <Menu className="h-6 w-6" />
+                <Menu className="h-5 w-5" />
               )}
             </Button>
           </div>
@@ -179,22 +179,22 @@ export function ModeratorHeader() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t py-4 space-y-2">
-            <nav className="flex flex-col gap-1 px-2">
+          <div className="lg:hidden border-t py-3 space-y-1">
+            <nav className="flex flex-col gap-0.5 px-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       isActive(item.href)
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-4 w-4" />
                     <span>{item.label}</span>
                   </Link>
                 );
