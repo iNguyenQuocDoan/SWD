@@ -78,9 +78,10 @@ class VNPayService {
       returnUrl,
     } = params;
 
-    const date = new Date();
-    const createDate = this.formatDate(date);
-    const expireDate = this.formatDate(new Date(date.getTime() + 15 * 60 * 1000)); // 15 minutes
+    // VNPay expects time in GMT+7. Serverless (e.g. Vercel) runs UTC, so adjust to VN timezone.
+    const nowVN = this.toVNTime();
+    const createDate = this.formatDate(nowVN);
+    const expireDate = this.formatDate(new Date(nowVN.getTime() + 15 * 60 * 1000)); // +15 minutes
 
     const vnp_Params: Record<string, string> = {
       vnp_Version: "2.1.0",
@@ -218,6 +219,17 @@ class VNPayService {
     const seconds = String(date.getSeconds()).padStart(2, "0");
     
     return `${year}${month}${day}${hours}${minutes}${seconds}`;
+  }
+
+  /**
+   * Convert current server time to Vietnam time (GMT+7).
+   * Serverless (Vercel) runs UTC; this prevents immediate timeout on VNPay.
+   */
+  private toVNTime(date: Date = new Date()): Date {
+    const targetOffsetMinutes = 7 * 60; // GMT+7
+    const localOffsetMinutes = -date.getTimezoneOffset(); // local offset in minutes
+    const diffMinutes = targetOffsetMinutes - localOffsetMinutes;
+    return new Date(date.getTime() + diffMinutes * 60 * 1000);
   }
 
   /**
