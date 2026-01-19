@@ -29,6 +29,11 @@ export type { IWallet } from "./wallets/wallet.model";
 export { default as WalletTransaction } from "./wallets/wallet-transaction.model";
 export type { IWalletTransaction } from "./wallets/wallet-transaction.model";
 
+// Payment models
+export { default as Payment } from "./payments/payment.model";
+export type { IPayment } from "./payments/payment.model";
+export type { PaymentStatus, PaymentProvider } from "./payments/payment.model";
+
 // Review models
 export { default as Review } from "./reviews/review.model";
 export type { IReview } from "./reviews/review.model";

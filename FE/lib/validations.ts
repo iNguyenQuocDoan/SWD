@@ -203,7 +203,7 @@ export const depositSchema = z.object({
     .min(50000, VALIDATION_MESSAGES.WALLET.AMOUNT_MIN_DEPOSIT)
     .max(50000000, VALIDATION_MESSAGES.WALLET.AMOUNT_MAX_DEPOSIT)
     .int(VALIDATION_MESSAGES.WALLET.AMOUNT_INTEGER),
-  paymentMethod: z.enum(["bank", "momo", "zalopay"], {
+  paymentMethod: z.enum(["bank", "vnpay", "momo", "zalopay"], {
     message: VALIDATION_MESSAGES.WALLET.PAYMENT_METHOD_REQUIRED,
   }),
 });

@@ -10,7 +10,8 @@
         "start": "node dist/index.js",
         "lint": "eslint src --ext .ts",
         "type-check": "tsc --noEmit",
-        "seed:users": "tsx src/scripts/seed-users.ts"
+        "seed:users": "tsx src/scripts/seed-users.ts",
+        "force:topup-success": "tsx src/scripts/force-topup-success.ts"
     },
     "keywords": [
         "marketplace",

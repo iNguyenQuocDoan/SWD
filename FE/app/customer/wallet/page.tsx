@@ -1,6 +1,9 @@
 "use client";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -12,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle, XCircle, CreditCard } from "lucide-react";
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle, XCircle, CreditCard, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
@@ -31,67 +34,71 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-
-// Mock data
-const mockWalletData = {
-  balance: 500000,
-  pendingBalance: 100000,
-  transactions: [
-    {
-      id: "TXN-001",
-      type: "deposit" as const,
-      amount: 500000,
-      status: "completed" as const,
-      description: "Nạp tiền vào ví",
-      method: "Chuyển khoản ngân hàng",
-      createdAt: "2026-01-07 10:00",
-      completedAt: "2026-01-07 10:05",
-    },
-    {
-      id: "TXN-002",
-      type: "withdrawal" as const,
-      amount: 200000,
-      status: "completed" as const,
-      description: "Rút tiền về tài khoản",
-      method: "Chuyển khoản ngân hàng",
-      createdAt: "2026-01-06 14:30",
-      completedAt: "2026-01-06 15:00",
-    },
-    {
-      id: "TXN-003",
-      type: "payment" as const,
-      amount: 299000,
-      status: "completed" as const,
-      description: "Thanh toán đơn hàng ORD-202601061234",
-      method: "Ví điện tử",
-      createdAt: "2026-01-05 16:20",
-    },
-    {
-      id: "TXN-004",
-      type: "deposit" as const,
-      amount: 100000,
-      status: "pending" as const,
-      description: "Nạp tiền vào ví",
-      method: "Chuyển khoản ngân hàng",
-      createdAt: "2026-01-07 15:00",
-    },
-  ],
-};
+import { paymentService, type WalletBalanceResponse, type WalletTransactionResponse } from "@/lib/services/payment.service";
 
 const quickAmounts = [100000, 200000, 500000, 1000000, 2000000];
 
-export default function WalletPage() {
+function WalletPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [transactions] = useState(mockWalletData.transactions);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<WalletBalanceResponse | null>(null);
+  const [transactions, setTransactions] = useState<WalletTransactionResponse[]>([]);
 
   const form = useForm<DepositInput>({
     resolver: zodResolver(depositSchema),
     defaultValues: {
-      paymentMethod: "bank",
+      paymentMethod: "vnpay",
     },
   });
 
   const amount = form.watch("amount");
+
+  // Fetch wallet data
+  const fetchWalletData = async () => {
+    try {
+      setRefreshing(true);
+      const [balanceData, transactionsData] = await Promise.all([
+        paymentService.getWalletBalance(),
+        paymentService.getWalletTransactions({ limit: 50 }),
+      ]);
+      
+      setWalletBalance(balanceData);
+      setTransactions(transactionsData);
+    } catch (error: any) {
+      console.error("Error fetching wallet data:", error);
+      toast.error(error.message || "Không thể tải dữ liệu ví");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWalletData();
+    
+    // Handle redirect from payment return
+    const topupStatus = searchParams.get("topup");
+    const transactionRef = searchParams.get("ref");
+    
+    if (topupStatus && transactionRef) {
+      // Remove query params from URL
+      router.replace("/customer/wallet", { scroll: false });
+      
+      // Show toast and refresh wallet data
+      if (topupStatus === "success") {
+        toast.success("Nạp tiền thành công! Số dư đã được cập nhật.");
+        // Refresh wallet data to show updated balance
+        setTimeout(() => {
+          fetchWalletData();
+        }, 500);
+      } else if (topupStatus === "failed") {
+        toast.error("Thanh toán thất bại. Vui lòng thử lại.");
+      }
+    }
+  }, [searchParams, router]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -100,120 +107,181 @@ export default function WalletPage() {
     }).format(price);
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  };
+
   const handleQuickAmount = (value: number) => {
     form.setValue("amount", value, { shouldValidate: true });
   };
 
+  const handleRefresh = () => {
+    fetchWalletData();
+  };
+
   const handleDeposit = async (data: DepositInput) => {
     setIsProcessing(true);
-    toast.info("Đang xử lý nạp tiền...");
+    
+    try {
+      // Only VNPay is currently implemented
+      if (data.paymentMethod !== "vnpay") {
+        toast.error("Hiện tại chỉ hỗ trợ thanh toán qua VNPay. Các phương thức khác đang được phát triển.");
+        setIsProcessing(false);
+        return;
+      }
 
-    // Simulate API call
-    setTimeout(() => {
+      toast.info("Đang tạo yêu cầu nạp tiền...");
+
+      // Create payment request
+      const response = await paymentService.createTopUp({
+        amount: data.amount,
+      });
+
+      // Redirect to VNPay
+      if (response.paymentUrl) {
+        window.location.href = response.paymentUrl;
+      } else {
+        throw new Error("Không nhận được URL thanh toán");
+      }
+    } catch (error: any) {
       setIsProcessing(false);
-      toast.success(`Đã gửi yêu cầu nạp ${formatPrice(data.amount)}. Vui lòng chờ xử lý.`);
-      form.reset();
-    }, 2000);
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "pending":
-        return <Clock className="h-4 w-4 text-orange-600" />;
-      case "failed":
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      default:
-        return null;
+      toast.error(error.message || "Có lỗi xảy ra khi tạo yêu cầu nạp tiền");
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "Hoàn thành";
-      case "pending":
-        return "Đang xử lý";
-      case "failed":
-        return "Thất bại";
+  const getTransactionType = (type: string, direction: string) => {
+    if (type === "Topup") return "deposit";
+    if (type === "Purchase" || type === "Hold") return "payment";
+    if (type === "Refund" || type === "Release") return "refund";
+    return direction === "In" ? "deposit" : "withdrawal";
+  };
+
+  const getTransactionDescription = (txn: WalletTransactionResponse) => {
+    switch (txn.type) {
+      case "Topup":
+        return "Nạp tiền vào ví";
+      case "Purchase":
+        return "Thanh toán đơn hàng";
+      case "Hold":
+        return "Giữ tiền đơn hàng";
+      case "Release":
+        return "Giải phóng tiền";
+      case "Refund":
+        return "Hoàn tiền";
+      case "Adjustment":
+        return "Điều chỉnh số dư";
       default:
-        return status;
+        return txn.note || "Giao dịch ví";
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "default" as const;
-      case "pending":
-        return "secondary" as const;
-      case "failed":
-        return "destructive" as const;
-      default:
-        return "secondary" as const;
-    }
+  const getStatusIcon = (type: string) => {
+    // Wallet transactions are always completed once created
+    return <CheckCircle className="h-4 w-4 text-green-600" />;
+  };
+
+  const getStatusLabel = () => {
+    return "Hoàn thành";
+  };
+
+  const getStatusBadgeVariant = () => {
+    return "default" as const;
   };
 
   return (
     <RequireAuth>
-      <div className="container py-6 md:py-8 max-w-6xl">
+        <div className="container py-6 md:py-8 max-w-6xl">
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Ví điện tử</h1>
-          <p className="text-muted-foreground">
-            Quản lý số dư và giao dịch của bạn
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Ví điện tử</h1>
+            <p className="text-muted-foreground">
+              Quản lý số dư và giao dịch của bạn
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+            Làm mới
+          </Button>
         </div>
 
         {/* Balance Cards */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Số dư hiện tại</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">
-                {formatPrice(mockWalletData.balance)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Sẵn sàng sử dụng ngay
-              </p>
-            </CardContent>
-          </Card>
+        {loading ? (
+          <div className="grid md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-32 mb-2" />
+                  <Skeleton className="h-3 w-20" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Số dư hiện tại</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-primary">
+                  {walletBalance ? formatPrice(walletBalance.balance) : formatPrice(0)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sẵn sàng sử dụng ngay
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Đang xử lý</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-orange-600">
-                {formatPrice(mockWalletData.pendingBalance)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Chờ xác nhận giao dịch
-              </p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Đang giữ</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-orange-600">
+                  {walletBalance ? formatPrice(walletBalance.holdBalance) : formatPrice(0)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tiền đang giữ cho đơn hàng
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tổng số dư</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">
-                {formatPrice(mockWalletData.balance + mockWalletData.pendingBalance)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Bao gồm đang xử lý
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tổng số dư</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  {walletBalance ? formatPrice(walletBalance.totalBalance) : formatPrice(0)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Bao gồm đang giữ
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="deposit" className="w-full">
@@ -304,6 +372,12 @@ export default function WalletPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
+                              <SelectItem value="vnpay">
+                                <div className="flex items-center gap-2">
+                                  <CreditCard className="h-4 w-4" />
+                                  VNPay
+                                </div>
+                              </SelectItem>
                               <SelectItem value="bank">
                                 <div className="flex items-center gap-2">
                                   <CreditCard className="h-4 w-4" />
@@ -368,7 +442,29 @@ export default function WalletPage() {
 
           {/* Transactions Tab */}
           <TabsContent value="transactions" className="space-y-4 mt-6">
-            {transactions.length === 0 ? (
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1">
+                          <Skeleton className="h-5 w-5 rounded-full" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-48" />
+                            <Skeleton className="h-3 w-32" />
+                          </div>
+                        </div>
+                        <div className="text-right space-y-2">
+                          <Skeleton className="h-6 w-24" />
+                          <Skeleton className="h-5 w-20" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : transactions.length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12 px-4 text-center">
                   <Wallet className="h-12 w-12 text-muted-foreground mb-4" />
@@ -380,64 +476,73 @@ export default function WalletPage() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {transactions.map((txn) => (
-                  <Card key={txn.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div className="mt-1">
-                            {txn.type === "deposit" ? (
-                              <ArrowDownCircle className="h-5 w-5 text-green-600" />
-                            ) : txn.type === "withdrawal" ? (
-                              <ArrowUpCircle className="h-5 w-5 text-blue-600" />
-                            ) : (
-                              <CreditCard className="h-5 w-5 text-orange-600" />
-                            )}
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <p className="font-medium">{txn.description}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span>{txn.method}</span>
-                              <span>•</span>
-                              <span>{txn.createdAt}</span>
+                {transactions.map((txn) => {
+                  const txnType = getTransactionType(txn.type, txn.direction);
+                  const description = getTransactionDescription(txn);
+                  
+                  return (
+                    <Card key={txn.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-3 flex-1">
+                            <div className="mt-1">
+                              {txnType === "deposit" || txn.direction === "In" ? (
+                                <ArrowDownCircle className="h-5 w-5 text-green-600" />
+                              ) : txnType === "withdrawal" ? (
+                                <ArrowUpCircle className="h-5 w-5 text-blue-600" />
+                              ) : (
+                                <CreditCard className="h-5 w-5 text-orange-600" />
+                              )}
                             </div>
-                            {txn.status === "pending" && (
-                              <p className="text-xs text-orange-600">
-                                Giao dịch đang được xử lý...
-                              </p>
-                            )}
+                            <div className="flex-1 space-y-1">
+                              <p className="font-medium">{description}</p>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>{txn.type}</span>
+                                <span>•</span>
+                                <span>{formatDate(txn.createdAt)}</span>
+                              </div>
+                              {txn.note && (
+                                <p className="text-xs text-muted-foreground">{txn.note}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <p
+                              className={`font-bold text-lg ${
+                                txn.direction === "In"
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              {txn.direction === "In" ? "+" : "-"}
+                              {formatPrice(txn.amount)}
+                            </p>
+                            <Badge variant={getStatusBadgeVariant()}>
+                              <div className="flex items-center gap-1">
+                                {getStatusIcon(txn.type)}
+                                {getStatusLabel()}
+                              </div>
+                            </Badge>
                           </div>
                         </div>
-                        <div className="text-right space-y-1">
-                          <p
-                            className={`font-bold text-lg ${
-                              txn.type === "deposit"
-                                ? "text-green-600"
-                                : txn.type === "payment"
-                                ? "text-red-600"
-                                : "text-blue-600"
-                            }`}
-                          >
-                            {txn.type === "deposit" ? "+" : txn.type === "payment" ? "-" : "-"}
-                            {formatPrice(txn.amount)}
-                          </p>
-                          <Badge variant={getStatusBadgeVariant(txn.status)}>
-                            <div className="flex items-center gap-1">
-                              {getStatusIcon(txn.status)}
-                              {getStatusLabel(txn.status)}
-                            </div>
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
         </Tabs>
       </div>
     </div>
-    </RequireAuth>
+  </RequireAuth>
+  );
+}
+
+export default function WalletPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Đang tải ví...</div>}>
+      <WalletPageContent />
+    </Suspense>
   );
 }

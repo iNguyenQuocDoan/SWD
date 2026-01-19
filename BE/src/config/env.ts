@@ -13,6 +13,12 @@ interface EnvConfig {
   corsOrigin: string;
   rateLimitWindowMs: number;
   rateLimitMaxRequests: number;
+  vnpayTmnCode: string;
+  vnpaySecretKey: string;
+  vnpayUrl: string;
+  vnpayReturnUrl: string;
+  vnpayIpnUrl: string;
+  backendUrl: string;
 }
 
 const getEnvConfig = (): EnvConfig => {
@@ -47,6 +53,14 @@ const getEnvConfig = (): EnvConfig => {
       process.env.RATE_LIMIT_MAX_REQUESTS || "100",
       10
     ),
+    vnpayTmnCode: process.env.VNPAY_TMN_CODE || "FEO4I1LY",
+    vnpaySecretKey: process.env.VNPAY_SECRET_KEY || "OFB6MUKNV0DJQQO0J53GVSIDUSMY25IF",
+    vnpayUrl: process.env.VNPAY_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+    // VNPay should return to backend so we can validate/lookup and then redirect to frontend with ref/status
+    vnpayReturnUrl:
+      process.env.VNPAY_RETURN_URL || `${process.env.BACKEND_URL || "http://localhost:3001"}/api/payments/vnpay/return`,
+    vnpayIpnUrl: process.env.VNPAY_IPN_URL || "",
+    backendUrl: process.env.BACKEND_URL || "http://localhost:3001",
   };
 };
 
