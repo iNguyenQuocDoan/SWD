@@ -20,7 +20,6 @@ import {
   ShoppingCart,
   User,
   LogOut,
-  Settings,
   Store,
   Shield,
   Menu,
@@ -29,6 +28,7 @@ import {
   Package,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { CustomerMenuStats } from "./CustomerMenuStats";
 
 export function Header() {
   const { user, isAuthenticated } = useAuthStore();
@@ -40,18 +40,6 @@ export function Header() {
     router.push("/");
   };
 
-  const getDashboardLink = () => {
-    switch (user?.role) {
-      case "seller":
-        return "/seller";
-      case "moderator":
-        return "/moderator";
-      case "customer":
-        return "/customer";
-      default:
-        return "/";
-    }
-  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -201,6 +189,7 @@ export function Header() {
                         <span>Lịch sử đơn hàng</span>
                       </Link>
                     </DropdownMenuItem>
+                    {user?.role === "customer" && <CustomerMenuStats />}
                     {user?.role === "seller" && (
                       <DropdownMenuItem asChild className="text-base">
                         <Link href="/seller/shop">
@@ -214,6 +203,14 @@ export function Header() {
                         <Link href="/moderator/review">
                           <Shield className="mr-2 h-5 w-5" />
                           <span>Kiểm duyệt</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {user?.role === "admin" && (
+                      <DropdownMenuItem asChild className="text-base">
+                        <Link href="/admin">
+                          <Shield className="mr-2 h-5 w-5" />
+                          <span>Quản trị</span>
                         </Link>
                       </DropdownMenuItem>
                     )}

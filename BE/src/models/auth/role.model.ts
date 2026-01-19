@@ -1,11 +1,13 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { RoleKey, RoleStatus } from "@/types";
+import { ROLE_KEYS, ROLE_STATUS } from "@/constants/roles";
 
 export interface IRole extends Document {
   roleKey: RoleKey;
   roleName: string;
   description?: string | null;
   status: RoleStatus;
+  permissions: string[]; // Array of permission keys
   createdAt: Date;
 }
 
@@ -15,7 +17,7 @@ const RoleSchema = new Schema<IRole>(
       type: String,
       required: true,
       unique: true,
-      enum: ["CUSTOMER", "SELLER", "ADMIN", "MODERATOR"],
+      enum: Object.values(ROLE_KEYS),
     },
     roleName: {
       type: String,
@@ -28,8 +30,12 @@ const RoleSchema = new Schema<IRole>(
     status: {
       type: String,
       required: true,
-      enum: ["Active", "Hidden"],
-      default: "Active",
+      enum: Object.values(ROLE_STATUS),
+      default: ROLE_STATUS.ACTIVE,
+    },
+    permissions: {
+      type: [String],
+      default: [],
     },
     createdAt: {
       type: Date,

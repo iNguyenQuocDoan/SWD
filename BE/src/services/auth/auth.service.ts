@@ -4,6 +4,7 @@ import { User, IUser, Role } from "@/models";
 import { env } from "@/config/env";
 import { AppError } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
+import { ROLE_KEYS } from "@/constants/roles";
 
 export interface LoginResult {
   user: {
@@ -21,7 +22,7 @@ export class AuthService {
     email: string,
     password: string,
     fullName: string,
-    roleKey: string = "CUSTOMER"
+    roleKey: string = ROLE_KEYS.CUSTOMER
   ): Promise<IUser> {
     // Check if user exists
     const existingUser = await User.findOne({ email, isDeleted: false });

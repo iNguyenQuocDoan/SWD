@@ -4,6 +4,7 @@ import {
   AuditEntityType,
   AuditSeverity,
 } from "@/types";
+import { ROLE_KEYS } from "@/constants/roles";
 
 export interface IAuditLog extends Document {
   actorUserId: mongoose.Types.ObjectId;
@@ -28,7 +29,7 @@ const AuditLogSchema = new Schema<IAuditLog>(
     actorRoleKey: {
       type: String,
       required: true,
-      enum: ["CUSTOMER", "SELLER", "ADMIN", "MODERATOR", "SYSTEM"],
+      enum: [...Object.values(ROLE_KEYS), "SYSTEM"],
     },
     action: {
       type: String,

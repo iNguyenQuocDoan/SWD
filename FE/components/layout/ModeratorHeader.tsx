@@ -1,0 +1,208 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuthStore } from "@/lib/auth";
+import { authService } from "@/lib/services/auth.service";
+import {
+  LogOut,
+  Shield,
+  Package,
+  MessageSquare,
+  AlertTriangle,
+  Store,
+  Menu,
+  X,
+  Home,
+  FileText,
+  Ban,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+export function ModeratorHeader() {
+  const { user, isAuthenticated } = useAuthStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const handleLogout = async () => {
+    await authService.logout();
+    router.push("/");
+  };
+
+  const navItems = [
+    { href: "/moderator", label: "Dashboard", icon: Home },
+    { href: "/moderator/review", label: "Duyệt sản phẩm", icon: Package },
+    { href: "/moderator/reports", label: "Xử lý báo cáo", icon: AlertTriangle },
+    { href: "/moderator/reviews", label: "Kiểm duyệt review", icon: MessageSquare },
+    { href: "/moderator/comments", label: "Kiểm duyệt comment", icon: FileText },
+    { href: "/moderator/shops", label: "Quản lý shop", icon: Store },
+  ];
+
+  const isActive = (href: string) => {
+    if (href === "/moderator") {
+      return pathname === "/moderator";
+    }
+    return pathname.startsWith(href);
+  };
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 md:h-20 items-center justify-between gap-4">
+          {/* Logo & Brand */}
+          <div className="flex items-center gap-4 md:gap-6 flex-shrink-0">
+            <Link
+              href="/moderator"
+              className="flex items-center space-x-2 md:space-x-3 hover:opacity-80 transition-opacity"
+            >
+              <Shield className="h-6 w-6 md:h-7 md:w-7 text-primary" />
+              <span className="font-bold text-lg md:text-xl lg:text-2xl">
+                Moderator Panel
+              </span>
+            </Link>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex gap-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive(item.href)
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Right Side Actions */}
+          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+            {/* Moderator Badge */}
+            <Badge variant="secondary" className="hidden sm:flex">
+              <Shield className="h-3 w-3 mr-1" />
+              Moderator
+            </Badge>
+
+            {/* User Menu */}
+            {isAuthenticated && user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="relative h-10 w-10 md:h-11 md:w-11 rounded-full"
+                  >
+                    <Avatar className="h-10 w-10 md:h-11 md:w-11">
+                      <AvatarImage src={user?.avatar} alt={user?.name} />
+                      <AvatarFallback className="text-base md:text-lg">
+                        {user?.name?.charAt(0) || "M"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-base font-medium leading-none">
+                        {user?.name}
+                      </p>
+                      <p className="text-sm leading-none text-muted-foreground">
+                        {user?.email}
+                      </p>
+                      <Badge variant="secondary" className="w-fit mt-1">
+                        Moderator
+                      </Badge>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild className="text-base">
+                    <Link href="/moderator">
+                      <Home className="mr-2 h-5 w-5" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="text-base">
+                    <Link href="/moderator/review">
+                      <Package className="mr-2 h-5 w-5" />
+                      <span>Duyệt sản phẩm</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="text-base">
+                    <Link href="/products">
+                      <Store className="mr-2 h-5 w-5" />
+                      <span>Về trang chủ</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-base">
+                    <LogOut className="mr-2 h-5 w-5" />
+                    <span>Đăng xuất</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* Mobile Menu Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden h-10 w-10"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t py-4 space-y-2">
+            <nav className="flex flex-col gap-1 px-2">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive(item.href)
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    }`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}

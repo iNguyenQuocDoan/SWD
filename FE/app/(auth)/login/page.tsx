@@ -26,6 +26,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { authService } from "@/lib/services/auth.service";
+import { useAuthStore } from "@/lib/auth";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +56,26 @@ export default function LoginPage() {
       }
 
       toast.success("Đăng nhập thành công!");
+      
+      // Get user role from auth store
+      const user = useAuthStore.getState().user;
+      
+      // Determine redirect based on role
+      const getDashboardByRole = (role?: string) => {
+        switch (role) {
+          case "admin":
+            return "/admin";
+          case "moderator":
+            return "/moderator";
+          case "seller":
+            return "/seller";
+          case "customer":
+            return "/"; // Customer goes to home page
+          default:
+            return "/";
+        }
+      };
+
       const redirect =
         typeof window !== "undefined"
           ? new URLSearchParams(window.location.search).get("redirect")
@@ -63,7 +84,10 @@ export default function LoginPage() {
         redirect && redirect.startsWith("/") && !redirect.startsWith("//")
           ? redirect
           : null;
-      router.push(safeRedirect || "/");
+      
+      // Use role-based dashboard if no specific redirect
+      const finalRedirect = safeRedirect || getDashboardByRole(user?.role) || "/";
+      router.push(finalRedirect);
     } catch (error: any) {
       toast.error(error.message || "Đăng nhập thất bại. Vui lòng thử lại.");
     } finally {

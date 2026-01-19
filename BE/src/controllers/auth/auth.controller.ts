@@ -6,6 +6,7 @@ import { registerSchema, loginSchema, changePasswordSchema } from "@/validators/
 import { AppError } from "@/middleware/errorHandler";
 import { env } from "@/config/env";
 import { MESSAGES } from "@/constants/messages";
+import { ROLE_KEYS } from "@/constants/roles";
 
 export class AuthController {
   private authService: AuthService;
@@ -26,7 +27,7 @@ export class AuthController {
         validatedData.email,
         validatedData.password,
         validatedData.fullName,
-        "CUSTOMER" // Default role
+        ROLE_KEYS.CUSTOMER // Default role
       );
 
       res.status(201).json({
@@ -57,7 +58,7 @@ export class AuthController {
         validatedData.email,
         validatedData.password,
         validatedData.fullName,
-        "SELLER"
+        ROLE_KEYS.SELLER
       );
 
       res.status(201).json({
@@ -67,7 +68,7 @@ export class AuthController {
           id: user._id.toString(),
           email: user.email,
           fullName: user.fullName,
-          role: "SELLER",
+          role: ROLE_KEYS.SELLER,
         },
       });
     } catch (error) {

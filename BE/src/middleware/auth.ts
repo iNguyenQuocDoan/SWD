@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { env } from "@/config/env";
 import { User } from "@/models";
 import { MESSAGES } from "@/constants/messages";
+import { USER_STATUS } from "@/constants/roles";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -38,7 +39,7 @@ export const authenticate = async (
       .populate("roleId")
       .select("-passwordHash");
 
-    if (!user || user.isDeleted || user.status !== "Active") {
+    if (!user || user.isDeleted || user.status !== USER_STATUS.ACTIVE) {
       res.status(401).json({ success: false, message: MESSAGES.ERROR.AUTH.USER_NOT_FOUND_OR_INACTIVE });
       return;
     }
