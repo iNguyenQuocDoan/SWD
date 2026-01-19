@@ -14,7 +14,7 @@ const connectDB = async (retries = MAX_RETRIES): Promise<void> => {
     const conn = await mongoose.connect(mongoURI, {
       serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
     });
-
+  console.log("Database connected");
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error("Database connection error:", error);
