@@ -23,38 +23,24 @@ import {
   Package,
 } from "lucide-react";
 
-// Mock data - sẽ thay thế bằng API call
+// TODO: Fetch from API - GET /api/products
 // Product structure theo context: platform, planType, durationDays
-const mockProducts = Array.from({ length: 20 }, (_, i) => {
-  const platforms = ["Netflix", "Spotify", "Disney+", "YouTube Premium"];
-  const planTypes = ["Cá nhân", "Gia đình", "Slot"];
-  const durations = [
-    { label: "1 tháng", days: 30 },
-    { label: "3 tháng", days: 90 },
-    { label: "1 năm", days: 365 },
-  ];
-
-  const duration = durations[i % 3];
-  const platform = platforms[i % 4];
-  const planType = planTypes[i % 3];
-
-  return {
-    id: i + 1,
-    title: `${platform} Premium - ${planType} ${duration.label}`,
-    platform: platform,
-    planType: planType,
-    durationDays: duration.days,
-    durationLabel: duration.label,
-    price: 100000 + i * 50000,
-    shopId: Math.floor(i / 2) + 1,
-    shopName: `Shop ${String.fromCharCode(65 + (i % 26))}`,
-    shopRating: 4.5 + (i % 5) * 0.1,
-    soldCount: 100 + i * 50,
-    inventoryCount: 50 - (i % 10), // Số lượng inventory còn lại
-    inStock: i % 10 !== 0,
-    status: "approved", // pending_review | approved | rejected | hidden
-  };
-});
+const products: Array<{
+  id: number;
+  title: string;
+  platform: string;
+  planType: string;
+  durationDays: number;
+  durationLabel: string;
+  price: number;
+  shopId: number;
+  shopName: string;
+  shopRating: number;
+  soldCount: number;
+  inventoryCount: number;
+  inStock: boolean;
+  status: string;
+}> = [];
 
 type SortOption = "newest" | "price_low" | "price_high" | "rating";
 type PlatformFilter = "all" | "netflix" | "spotify" | "disney" | "youtube";
@@ -74,7 +60,7 @@ export default function ProductsPage() {
 
   // Filter và sort products
   const filteredAndSortedProducts = useMemo(() => {
-    let filtered = [...mockProducts];
+    let filtered = [...products];
 
     // Search filter
     if (searchQuery) {

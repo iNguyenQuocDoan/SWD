@@ -27,4 +27,41 @@ router.get(
   wrapRequestHandler(productController.getMyProducts)
 );
 
+router.get(
+  "/me/:productId",
+  checkPermission(PERMISSIONS.PRODUCT_VIEW_OWN),
+  wrapRequestHandler(productController.getMyProductById)
+);
+
+router.put(
+  "/:productId",
+  checkPermission(PERMISSIONS.PRODUCT_UPDATE),
+  wrapRequestHandler(productController.updateProduct)
+);
+
+router.delete(
+  "/:productId",
+  checkPermission(PERMISSIONS.PRODUCT_DELETE),
+  wrapRequestHandler(productController.deleteProduct)
+);
+
+// Moderator routes - Approve/reject products
+router.get(
+  "/applications/pending",
+  checkPermission(PERMISSIONS.PRODUCT_APPROVE),
+  wrapRequestHandler(productController.getPendingProducts)
+);
+
+router.patch(
+  "/:productId/approve",
+  checkPermission(PERMISSIONS.PRODUCT_APPROVE),
+  wrapRequestHandler(productController.approveProduct)
+);
+
+router.patch(
+  "/:productId/reject",
+  checkPermission(PERMISSIONS.PRODUCT_REJECT),
+  wrapRequestHandler(productController.rejectProduct)
+);
+
 export default router;

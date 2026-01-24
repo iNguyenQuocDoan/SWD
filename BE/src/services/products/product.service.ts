@@ -136,4 +136,110 @@ export class ProductService extends BaseService<IProduct> {
 
     return this.model.find(query).populate("platformId").populate("shopId");
   }
+
+  async updateProduct(
+    productId: string,
+    sellerUserId: string,
+    data: Partial<CreateProductData>
+  ): Promise<IProduct | null> {
+    // Find the product
+    const product = await this.model.findById(productId);
+    if (!product || product.isDeleted) {
+      throw new AppError(MESSAGES.ERROR.PRODUCT.NOT_FOUND, 404);
+    }
+
+    // Verify shop ownership
+    const shop = await Shop.findOne({
+      _id: product.shopId,
+      ownerUserId: sellerUserId,
+      isDeleted: false,
+    });
+    if (!shop) {
+      throw new AppError(MESSAGES.ERROR.PRODUCT.SHOP_NOT_FOUND_OR_ACCESS_DENIED, 403);
+    }
+
+    // If platform is being changed, verify new platform exists
+    if (data.platformId && data.platformId !== product.platformId.toString()) {
+      const platform = await PlatformCatalog.findById(data.platformId);
+      if (!platform || platform.status !== "Active") {
+        throw new AppError(MESSAGES.ERROR.PRODUCT.PLATFORM_NOT_FOUND, 404);
+      }
+    }
+
+    // Update product - set status back to Pending if significant changes
+    const updateData: any = { ...data };
+    if (data.title || data.description || data.price || data.platformId) {
+      updateData.status = "Pending";
+      updateData.approvedByUserId = null;
+      updateData.approvedAt = null;
+    }
+
+    const updatedProduct = await this.model.findByIdAndUpdate(
+      productId,
+      updateData,
+      { new: true }
+    ).populate("platformId");
+
+    return updatedProduct;
+  }
+
+  async deleteProduct(
+    productId: string,
+    sellerUserId: string
+  ): Promise<boolean> {
+    // Find the product
+    const product = await this.model.findById(productId);
+    if (!product || product.isDeleted) {
+      throw new AppError(MESSAGES.ERROR.PRODUCT.NOT_FOUND, 404);
+    }
+
+    // Verify shop ownership
+    const shop = await Shop.findOne({
+      _id: product.shopId,
+      ownerUserId: sellerUserId,
+      isDeleted: false,
+    });
+    if (!shop) {
+      throw new AppError(MESSAGES.ERROR.PRODUCT.SHOP_NOT_FOUND_OR_ACCESS_DENIED, 403);
+    }
+
+    // Soft delete the product
+    await this.model.findByIdAndUpdate(productId, { isDeleted: true });
+
+    return true;
+  }
+
+  async getPendingProducts(): Promise<IProduct[]> {
+    return this.model
+      .find({ status: "Pending", isDeleted: false })
+      .populate("platformId")
+      .populate("shopId")
+      .sort({ createdAt: -1 });
+  }
+
+  async getProductByIdForSeller(
+    productId: string,
+    sellerUserId: string
+  ): Promise<IProduct | null> {
+    const product = await this.model
+      .findById(productId)
+      .populate("platformId")
+      .populate("shopId");
+
+    if (!product || product.isDeleted) {
+      throw new AppError(MESSAGES.ERROR.PRODUCT.NOT_FOUND, 404);
+    }
+
+    // Verify shop ownership
+    const shop = await Shop.findOne({
+      _id: product.shopId,
+      ownerUserId: sellerUserId,
+      isDeleted: false,
+    });
+    if (!shop) {
+      throw new AppError(MESSAGES.ERROR.PRODUCT.SHOP_NOT_FOUND_OR_ACCESS_DENIED, 403);
+    }
+
+    return product;
+  }
 }

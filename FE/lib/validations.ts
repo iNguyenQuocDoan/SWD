@@ -47,7 +47,12 @@ export const registerSellerSchema = z
     shopName: z
       .string()
       .min(2, VALIDATION_MESSAGES.SHOP.NAME_MIN_LENGTH)
-      .max(50, VALIDATION_MESSAGES.SHOP.NAME_MAX_LENGTH),
+      .max(100, VALIDATION_MESSAGES.SHOP.NAME_MAX_LENGTH),
+    description: z
+      .string()
+      .max(500, VALIDATION_MESSAGES.SHOP.DESCRIPTION_MAX_LENGTH)
+      .optional()
+      .nullable(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: VALIDATION_MESSAGES.AUTH.PASSWORD_MISMATCH,
@@ -59,7 +64,12 @@ export const createShopSchema = z.object({
   shopName: z
     .string()
     .min(2, VALIDATION_MESSAGES.SHOP.NAME_MIN_LENGTH)
-    .max(50, VALIDATION_MESSAGES.SHOP.NAME_MAX_LENGTH),
+    .max(100, VALIDATION_MESSAGES.SHOP.NAME_MAX_LENGTH),
+  description: z
+    .string()
+    .max(500, VALIDATION_MESSAGES.SHOP.DESCRIPTION_MAX_LENGTH)
+    .optional()
+    .nullable(),
 });
 
 export const verifyEmailSchema = z.object({

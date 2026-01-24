@@ -28,42 +28,25 @@ import {
   FileText,
 } from "lucide-react";
 
-// Mock data
-const mockStats = {
-  totalOrders: 24,
-  activeOrders: 3,
-  totalSpent: 2450000,
-  walletBalance: 500000,
-  pendingTickets: 2,
-  reviewsGiven: 8,
+// TODO: Replace with API data from backend
+const stats = {
+  totalOrders: 0,
+  activeOrders: 0,
+  totalSpent: 0,
+  walletBalance: 0,
+  pendingTickets: 0,
+  reviewsGiven: 0,
 };
 
-const mockRecentOrders = [
-  {
-    id: "ORD-001",
-    product: "Netflix Premium - Gói gia đình 3 tháng",
-    amount: 299000,
-    status: "paid",
-    date: "2026-01-07",
-    shop: "Shop ABC",
-  },
-  {
-    id: "ORD-002",
-    product: "Spotify Premium - 1 năm",
-    amount: 49980,
-    status: "completed",
-    date: "2026-01-05",
-    shop: "Shop XYZ",
-  },
-  {
-    id: "ORD-003",
-    product: "Disney+ Premium - 1 năm",
-    amount: 599000,
-    status: "pending_payment",
-    date: "2026-01-07",
-    shop: "Shop DEF",
-  },
-];
+// TODO: Fetch from API - GET /api/orders?limit=5&sort=createdAt
+const recentOrders: Array<{
+  id: string;
+  product: string;
+  amount: number;
+  status: string;
+  date: string;
+  shop: string;
+}> = [];
 
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat("vi-VN", {
@@ -107,10 +90,10 @@ export default function CustomerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl md:text-4xl font-bold">
-                {mockStats.totalOrders}
+                {stats.totalOrders}
               </div>
               <p className="text-sm md:text-base text-muted-foreground mt-2">
-                {mockStats.activeOrders} đang xử lý
+                {stats.activeOrders} đang xử lý
               </p>
             </CardContent>
           </Card>
@@ -124,7 +107,7 @@ export default function CustomerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl md:text-4xl font-bold text-green-600">
-                {formatPrice(mockStats.totalSpent)}
+                {formatPrice(stats.totalSpent)}
               </div>
               <p className="text-sm md:text-base text-muted-foreground mt-2">
                 Tất cả thời gian
@@ -141,7 +124,7 @@ export default function CustomerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl md:text-4xl font-bold text-blue-600">
-                {formatPrice(mockStats.walletBalance)}
+                {formatPrice(stats.walletBalance)}
               </div>
               <p className="text-sm md:text-base text-muted-foreground mt-2">
                 <Link
@@ -163,7 +146,7 @@ export default function CustomerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl md:text-4xl font-bold text-orange-600">
-                {mockStats.pendingTickets}
+                {stats.pendingTickets}
               </div>
               <p className="text-sm md:text-base text-muted-foreground mt-2">
                 <Link
@@ -239,7 +222,7 @@ export default function CustomerDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockRecentOrders.map((order) => (
+                  {recentOrders.map((order) => (
                     <div
                       key={order.id}
                       className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -308,7 +291,7 @@ export default function CustomerDashboard() {
                     <div>
                       <p className="text-sm text-muted-foreground">Số dư khả dụng</p>
                       <p className="text-2xl font-bold">
-                        {formatPrice(mockStats.walletBalance)}
+                        {formatPrice(stats.walletBalance)}
                       </p>
                     </div>
                     <Button asChild>
@@ -336,7 +319,7 @@ export default function CustomerDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockRecentOrders.map((order) => (
+                  {recentOrders.map((order) => (
                     <div
                       key={order.id}
                       className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border rounded-lg"
@@ -392,7 +375,7 @@ export default function CustomerDashboard() {
                   <div>
                     <CardTitle>Đánh giá của tôi</CardTitle>
                     <CardDescription>
-                      {mockStats.reviewsGiven} đánh giá đã đăng
+                      {stats.reviewsGiven} đánh giá đã đăng
                     </CardDescription>
                   </div>
                   <Button variant="outline" asChild>
@@ -420,7 +403,7 @@ export default function CustomerDashboard() {
                   <div>
                     <CardTitle>Ticket hỗ trợ</CardTitle>
                     <CardDescription>
-                      {mockStats.pendingTickets} ticket đang mở
+                      {stats.pendingTickets} ticket đang mở
                     </CardDescription>
                   </div>
                   <Button asChild>

@@ -15,6 +15,8 @@ export const MESSAGES = {
     PROFILE_UPDATED: "Profile updated successfully",
     SHOP_CREATED: "Shop created successfully",
     SHOP_UPDATED: "Shop updated successfully",
+    SHOP_APPROVED: "Shop approved successfully",
+    SHOP_REJECTED: "Shop rejected successfully",
     PRODUCT_CREATED: "Product created successfully, pending approval",
   },
 

@@ -18,6 +18,14 @@ export interface RegisterRequest {
   phone?: string;
 }
 
+export interface RegisterSellerRequest {
+  email: string;
+  password: string;
+  fullName: string;
+  shopName: string;
+  description?: string | null;
+}
+
 export interface LoginResponse {
   user: {
     id: string;
@@ -99,8 +107,14 @@ class AuthService {
   /**
    * Register seller
    */
-  async registerSeller(data: RegisterRequest): Promise<RegisterResponse> {
-    const response = await apiClient.post<RegisterResponse>("/auth/register-seller", data);
+  async registerSeller(data: RegisterSellerRequest): Promise<any> {
+    const response = await apiClient.post<any>("/auth/register/seller", {
+      email: data.email,
+      password: data.password,
+      fullName: data.fullName,
+      shopName: data.shopName,
+      description: data.description || null,
+    });
     
     if (response.success && response.data) {
       return response.data;

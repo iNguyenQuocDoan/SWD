@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -11,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
   Select,
@@ -30,35 +29,38 @@ import {
   AlertCircle,
   ShoppingBag,
   CheckCircle,
+  Store,
 } from "lucide-react";
 
-// Mock data
-const mockProducts = [
-  {
-    id: "1",
-    title: "Netflix Premium - Gói gia đình 3 tháng",
-    status: "approved",
-    price: 299000,
-    stock: 50,
-    sales: 234,
-  },
-  {
-    id: "2",
-    title: "Spotify Premium - 1 năm",
-    status: "approved",
-    price: 49980,
-    stock: 30,
-    sales: 156,
-  },
-  {
-    id: "3",
-    title: "Disney+ Premium - 1 năm",
-    status: "pending_review",
-    price: 599000,
-    stock: 20,
-    sales: 0,
-  },
-];
+// Types for backend data
+interface Product {
+  id: string;
+  title: string;
+  status: "approved" | "pending_review" | "draft" | "suspended";
+  price: number;
+  stock: number;
+  sales: number;
+}
+
+interface SellerStats {
+  escrowAmount: number;
+  availableAmount: number;
+  paidOutAmount: number;
+  activeProducts: number;
+  pendingProducts: number;
+  totalOrders: number;
+  weeklyOrders: number;
+  avgRating: number;
+  totalReviews: number;
+}
+
+interface Order {
+  id: string;
+  product: string;
+  amount: number;
+  status: "processing" | "pending" | "completed";
+  date: string;
+}
 
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat("vi-VN", {
@@ -69,12 +71,47 @@ const formatPrice = (price: number) => {
 
 export default function SellerDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [stats, setStats] = useState<SellerStats>({
+    escrowAmount: 0,
+    availableAmount: 0,
+    paidOutAmount: 0,
+    activeProducts: 0,
+    pendingProducts: 0,
+    totalOrders: 0,
+    weeklyOrders: 0,
+    avgRating: 0,
+    totalReviews: 0,
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // TODO: Fetch from backend
+        // const [productsRes, ordersRes, statsRes] = await Promise.all([
+        //   productService.getMyProducts(),
+        //   orderService.getMyOrders(),
+        //   sellerService.getStats(),
+        // ]);
+        // setProducts(productsRes);
+        // setOrders(ordersRes);
+        // setStats(statsRes);
+      } catch (error) {
+        console.error("Failed to fetch seller data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const filteredProducts =
     statusFilter === "all"
-      ? mockProducts
-      : mockProducts.filter((p) => p.status === statusFilter);
+      ? products
+      : products.filter((p) => p.status === statusFilter);
 
   return (
     <RequireAuth requiredRole="seller">
@@ -87,12 +124,20 @@ export default function SellerDashboard() {
             Quản lý shop và sản phẩm của bạn
           </p>
         </div>
-        <Button size="lg" className="h-12 md:h-14 text-base md:text-lg" asChild>
-          <Link href="/seller/products/create">
-            <Plus className="mr-2 h-5 w-5" />
-            Thêm sản phẩm
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="lg" className="h-12 md:h-14 text-base md:text-lg" asChild>
+            <Link href="/seller/shop">
+              <Store className="mr-2 h-5 w-5" />
+              Xem Shop
+            </Link>
+          </Button>
+          <Button size="lg" className="h-12 md:h-14 text-base md:text-lg" asChild>
+            <Link href="/seller/products/create">
+              <Plus className="mr-2 h-5 w-5" />
+              Thêm sản phẩm
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Financial Stats */}
@@ -105,12 +150,18 @@ export default function SellerDashboard() {
             <Clock className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl md:text-4xl font-bold text-orange-600">
-              {formatPrice(10450000)}
-            </div>
-            <p className="text-sm md:text-base text-muted-foreground mt-2">
-              Đang chờ customer xác nhận
-            </p>
+            {isLoading ? (
+              <Skeleton className="h-10 w-40" />
+            ) : (
+              <>
+                <div className="text-3xl md:text-4xl font-bold text-orange-600">
+                  {formatPrice(stats.escrowAmount)}
+                </div>
+                <p className="text-sm md:text-base text-muted-foreground mt-2">
+                  Đang chờ customer xác nhận
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -120,12 +171,18 @@ export default function SellerDashboard() {
             <DollarSign className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl md:text-4xl font-bold text-green-600">
-              {formatPrice(29250000)}
-            </div>
-            <p className="text-sm md:text-base text-muted-foreground mt-2">
-              Sẵn sàng để chi trả
-            </p>
+            {isLoading ? (
+              <Skeleton className="h-10 w-40" />
+            ) : (
+              <>
+                <div className="text-3xl md:text-4xl font-bold text-green-600">
+                  {formatPrice(stats.availableAmount)}
+                </div>
+                <p className="text-sm md:text-base text-muted-foreground mt-2">
+                  Sẵn sàng để chi trả
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -135,10 +192,16 @@ export default function SellerDashboard() {
             <TrendingUp className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl md:text-4xl font-bold">
-              {formatPrice(136890000)}
-            </div>
-            <p className="text-sm md:text-base text-muted-foreground mt-2">Tổng đã nhận</p>
+            {isLoading ? (
+              <Skeleton className="h-10 w-40" />
+            ) : (
+              <>
+                <div className="text-3xl md:text-4xl font-bold">
+                  {formatPrice(stats.paidOutAmount)}
+                </div>
+                <p className="text-sm md:text-base text-muted-foreground mt-2">Tổng đã nhận</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -153,8 +216,14 @@ export default function SellerDashboard() {
             <Package className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl md:text-4xl font-bold">24</div>
-            <p className="text-sm md:text-base text-muted-foreground mt-2">Đang bán</p>
+            {isLoading ? (
+              <Skeleton className="h-10 w-20" />
+            ) : (
+              <>
+                <div className="text-3xl md:text-4xl font-bold">{stats.activeProducts}</div>
+                <p className="text-sm md:text-base text-muted-foreground mt-2">Đang bán</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -166,8 +235,14 @@ export default function SellerDashboard() {
             <AlertCircle className="h-6 w-6 md:h-7 md:w-7 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl md:text-4xl font-bold text-orange-600">3</div>
-            <p className="text-sm md:text-base text-muted-foreground mt-2">Đang kiểm duyệt</p>
+            {isLoading ? (
+              <Skeleton className="h-10 w-20" />
+            ) : (
+              <>
+                <div className="text-3xl md:text-4xl font-bold text-orange-600">{stats.pendingProducts}</div>
+                <p className="text-sm md:text-base text-muted-foreground mt-2">Đang kiểm duyệt</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -177,8 +252,16 @@ export default function SellerDashboard() {
             <ShoppingBag className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl md:text-4xl font-bold">156</div>
-            <p className="text-sm md:text-base text-muted-foreground mt-2">+12 tuần này</p>
+            {isLoading ? (
+              <Skeleton className="h-10 w-20" />
+            ) : (
+              <>
+                <div className="text-3xl md:text-4xl font-bold">{stats.totalOrders}</div>
+                <p className="text-sm md:text-base text-muted-foreground mt-2">
+                  {stats.weeklyOrders > 0 ? `+${stats.weeklyOrders} tuần này` : "Tuần này"}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -188,8 +271,16 @@ export default function SellerDashboard() {
             <CheckCircle className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl md:text-4xl font-bold">4.8 ⭐</div>
-            <p className="text-sm md:text-base text-muted-foreground mt-2">89 đánh giá</p>
+            {isLoading ? (
+              <Skeleton className="h-10 w-20" />
+            ) : (
+              <>
+                <div className="text-3xl md:text-4xl font-bold">
+                  {stats.avgRating > 0 ? `${stats.avgRating} ⭐` : "- ⭐"}
+                </div>
+                <p className="text-sm md:text-base text-muted-foreground mt-2">{stats.totalReviews} đánh giá</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -315,64 +406,64 @@ export default function SellerDashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[
-              {
-                id: "ORD-001",
-                product: "Netflix Premium - 3 tháng",
-                amount: 299000,
-                status: "processing",
-                date: "2026-01-07 10:30",
-              },
-              {
-                id: "ORD-002",
-                product: "Spotify Premium - 1 năm",
-                amount: 99960,
-                status: "pending",
-                date: "2026-01-07 09:15",
-              },
-            ].map((order) => (
-              <div
-                key={order.id}
-                className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border rounded-lg"
-              >
-                <div className="flex-1">
-                  <p className="font-medium">{order.product}</p>
-                  <div className="flex items-center gap-3 mt-2 flex-wrap">
-                    <span className="text-sm text-muted-foreground">
-                      {order.id}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {order.date}
-                    </span>
-                    <Badge
-                      variant={
-                        order.status === "processing"
-                          ? "default"
+          {isLoading ? (
+            <div className="space-y-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="text-center py-8">
+              <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground">
+                Chưa có đơn hàng nào.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {orders.slice(0, 5).map((order) => (
+                <div
+                  key={order.id}
+                  className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border rounded-lg"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium">{order.product}</p>
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                      <span className="text-sm text-muted-foreground">
+                        {order.id}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {order.date}
+                      </span>
+                      <Badge
+                        variant={
+                          order.status === "processing"
+                            ? "default"
+                            : order.status === "pending"
+                            ? "secondary"
+                            : "outline"
+                        }
+                      >
+                        {order.status === "processing"
+                          ? "Đang xử lý"
                           : order.status === "pending"
-                          ? "secondary"
-                          : "outline"
-                      }
-                    >
-                      {order.status === "processing"
-                        ? "Đang xử lý"
-                        : order.status === "pending"
-                        ? "Chờ xử lý"
-                        : "Hoàn tất"}
-                    </Badge>
+                          ? "Chờ xử lý"
+                          : "Hoàn tất"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <p className="font-bold text-lg">
+                      {formatPrice(order.amount)}
+                    </p>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/seller/orders/${order.id}`}>Xem chi tiết</Link>
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <p className="font-bold text-lg">
-                    {formatPrice(order.amount)}
-                  </p>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/seller/orders/${order.id}`}>Xem chi tiết</Link>
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

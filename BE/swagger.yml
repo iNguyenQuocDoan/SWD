@@ -385,6 +385,234 @@ paths:
         '401':
           description: Unauthorized
 
+  # Shop endpoints
+  /api/shops:
+    post:
+      summary: Create shop (Seller application)
+      description: Customer creates a shop to become a seller. Shop will be pending until approved by moderator.
+      tags:
+        - Shops
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - shopName
+              properties:
+                shopName:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                  example: My Awesome Shop
+                description:
+                  type: string
+                  maxLength: 500
+                  nullable: true
+                  example: This is my shop description
+      responses:
+        '201':
+          description: Shop created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+        '400':
+          description: Bad request (shop already exists, validation error)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (no permission)
+
+  /api/shops/me/my-shop:
+    get:
+      summary: Get my shop
+      description: Get the current user's shop
+      tags:
+        - Shops
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Shop details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Shop not found
+
+  /api/shops/applications/pending:
+    get:
+      summary: Get pending shop applications (Moderator)
+      description: Get all shops pending approval. Requires SELLER_VIEW_APPLICATIONS permission.
+      tags:
+        - Shops
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of pending shops
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Shop'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (no permission)
+
+  /api/shops/{shopId}:
+    get:
+      summary: Get shop by ID
+      description: Get shop details by ID (public)
+      tags:
+        - Shops
+      parameters:
+        - name: shopId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Shop details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+        '404':
+          description: Shop not found
+    put:
+      summary: Update shop
+      description: Update shop details. Only shop owner can update.
+      tags:
+        - Shops
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: shopId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shopName:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                description:
+                  type: string
+                  maxLength: 500
+                  nullable: true
+      responses:
+        '200':
+          description: Shop updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (not shop owner)
+        '404':
+          description: Shop not found
+
+  /api/shops/{shopId}/approve:
+    patch:
+      summary: Approve shop (Moderator)
+      description: Approve a pending shop application. Requires SELLER_APPROVE permission.
+      tags:
+        - Shops
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: shopId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                moderatorNote:
+                  type: string
+                  maxLength: 1000
+                  example: Approved. Welcome to the platform!
+      responses:
+        '200':
+          description: Shop approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (no permission)
+        '404':
+          description: Shop not found
+
+  /api/shops/{shopId}/reject:
+    patch:
+      summary: Reject shop (Moderator)
+      description: Reject a pending shop application. Requires SELLER_REJECT permission.
+      tags:
+        - Shops
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: shopId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                moderatorNote:
+                  type: string
+                  maxLength: 1000
+                  example: Please provide more details about your shop.
+      responses:
+        '200':
+          description: Shop rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (no permission)
+        '404':
+          description: Shop not found
+
 components:
   securitySchemes:
     bearerAuth:
@@ -392,3 +620,50 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enter JWT token
+
+  schemas:
+    Shop:
+      type: object
+      properties:
+        _id:
+          type: string
+        ownerUserId:
+          type: string
+        shopName:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [Pending, Active, Suspended, Closed]
+        approvedByUserId:
+          type: string
+          nullable: true
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        moderatorNote:
+          type: string
+          nullable: true
+        ratingAvg:
+          type: number
+        totalSales:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ShopResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/Shop'

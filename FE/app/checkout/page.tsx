@@ -26,26 +26,24 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-// Mock data
-const mockCheckoutData = {
-  items: [
-    {
-      id: "1",
-      title: "Netflix Premium - Gói gia đình 3 tháng",
-      quantity: 1,
-      price: 299000,
-    },
-    {
-      id: "2",
-      title: "Spotify Premium - 1 năm",
-      quantity: 2,
-      price: 49980,
-    },
-  ],
-  subtotal: 399780,
-  serviceFee: 7996,
-  total: 407776,
-  walletBalance: 500000,
+// TODO: Fetch from API - GET /api/cart/checkout
+const checkoutData: {
+  items: Array<{
+    id: string;
+    title: string;
+    quantity: number;
+    price: number;
+  }>;
+  subtotal: number;
+  serviceFee: number;
+  total: number;
+  walletBalance: number;
+} = {
+  items: [],
+  subtotal: 0,
+  serviceFee: 0,
+  total: 0,
+  walletBalance: 0,
 };
 
 export default function CheckoutPage() {
@@ -69,7 +67,7 @@ export default function CheckoutPage() {
   };
 
   const handleSubmit = async (data: CheckoutInput) => {
-    if (data.paymentMethod === "wallet" && mockCheckoutData.total > mockCheckoutData.walletBalance) {
+    if (data.paymentMethod === "wallet" && checkoutData.total > checkoutData.walletBalance) {
       toast.error("Số dư ví không đủ. Vui lòng nạp thêm tiền.");
       router.push("/customer/wallet");
       return;
@@ -87,7 +85,7 @@ export default function CheckoutPage() {
 
   const insufficientBalance =
     paymentMethod === "wallet" &&
-    mockCheckoutData.total > mockCheckoutData.walletBalance;
+    checkoutData.total > checkoutData.walletBalance;
 
   return (
     <RequireAuth>
@@ -112,7 +110,7 @@ export default function CheckoutPage() {
                   <CardTitle>Đơn hàng của bạn</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {mockCheckoutData.items.map((item) => (
+                  {checkoutData.items.map((item) => (
                     <div key={item.id} className="flex justify-between items-start gap-4">
                       <div className="flex-1">
                         <p className="font-medium">{item.title}</p>
@@ -129,17 +127,17 @@ export default function CheckoutPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tạm tính:</span>
-                      <span>{formatPrice(mockCheckoutData.subtotal)}</span>
+                      <span>{formatPrice(checkoutData.subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Phí dịch vụ (2%):</span>
-                      <span>{formatPrice(mockCheckoutData.serviceFee)}</span>
+                      <span>{formatPrice(checkoutData.serviceFee)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <span>Tổng cộng:</span>
                       <span className="text-primary">
-                        {formatPrice(mockCheckoutData.total)}
+                        {formatPrice(checkoutData.total)}
                       </span>
                     </div>
                   </div>
@@ -187,7 +185,7 @@ export default function CheckoutPage() {
                                   <p className="text-sm text-muted-foreground mb-2">
                                     Số dư hiện tại:{" "}
                                     <span className="font-medium text-primary">
-                                      {formatPrice(mockCheckoutData.walletBalance)}
+                                      {formatPrice(checkoutData.walletBalance)}
                                     </span>
                                   </p>
                                   {insufficientBalance && (
@@ -335,17 +333,17 @@ export default function CheckoutPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tạm tính:</span>
-                      <span>{formatPrice(mockCheckoutData.subtotal)}</span>
+                      <span>{formatPrice(checkoutData.subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Phí dịch vụ:</span>
-                      <span>{formatPrice(mockCheckoutData.serviceFee)}</span>
+                      <span>{formatPrice(checkoutData.serviceFee)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <span>Tổng cộng:</span>
                       <span className="text-primary">
-                        {formatPrice(mockCheckoutData.total)}
+                        {formatPrice(checkoutData.total)}
                       </span>
                     </div>
                   </div>

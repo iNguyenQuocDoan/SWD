@@ -50,7 +50,8 @@ export class ShopService extends BaseService<IShop> {
 
   async approveShop(
     shopId: string,
-    approvedByUserId: string
+    approvedByUserId: string,
+    moderatorNote?: string
   ): Promise<IShop | null> {
     const shop = await this.model.findByIdAndUpdate(
       shopId,
@@ -58,6 +59,7 @@ export class ShopService extends BaseService<IShop> {
         status: "Active",
         approvedByUserId,
         approvedAt: new Date(),
+        moderatorNote: moderatorNote || null,
       },
       { new: true }
     );
@@ -67,6 +69,70 @@ export class ShopService extends BaseService<IShop> {
     }
 
     return shop;
+  }
+
+  async rejectShop(
+    shopId: string,
+    _moderatorUserId: string,
+    moderatorNote?: string
+  ): Promise<IShop | null> {
+    const shop = await this.model.findByIdAndUpdate(
+      shopId,
+      {
+        status: "Closed",
+        approvedByUserId: null,
+        approvedAt: null,
+        moderatorNote: moderatorNote || null,
+      },
+      { new: true }
+    );
+
+    if (!shop) {
+      throw new AppError(MESSAGES.ERROR.SHOP.NOT_FOUND, 404);
+    }
+
+    return shop;
+  }
+
+  async getPendingShops(): Promise<any[]> {
+    try {
+      console.log("=== GET PENDING SHOPS SERVICE ===");
+      
+      const shops = await this.model
+        .find({ status: "Pending", isDeleted: false })
+        .populate({
+          path: "ownerUserId",
+          select: "_id email fullName",
+          match: { isDeleted: false }, // Only populate if user is not deleted
+        })
+        .populate({
+          path: "approvedByUserId",
+          select: "_id email fullName",
+        })
+        .sort({ createdAt: -1 })
+        .lean(); // Use lean() for better performance and to avoid Mongoose document issues
+
+      console.log("Raw shops from DB:", shops.length);
+      
+      // Filter out shops where ownerUserId is null (user was deleted)
+      const validShops = shops.filter((shop: any) => {
+        const hasOwner = shop.ownerUserId !== null && shop.ownerUserId !== undefined;
+        if (!hasOwner) {
+          console.warn("Shop without owner:", shop._id);
+        }
+        return hasOwner;
+      });
+      
+      console.log("Valid shops after filter:", validShops.length);
+      return validShops;
+    } catch (error) {
+      console.error("Error in getPendingShops service:", error);
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      throw error;
+    }
   }
 
   async updateShopStatus(

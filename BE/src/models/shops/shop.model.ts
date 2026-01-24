@@ -10,6 +10,7 @@ export interface IShop extends Document {
   status: ShopStatus;
   approvedByUserId?: mongoose.Types.ObjectId | null; // ADMIN
   approvedAt?: Date | null;
+  moderatorNote?: string | null; // Ghi chú từ moderator khi duyệt/từ chối
   ratingAvg: number;
   totalSales: number;
   createdAt: Date;
@@ -57,6 +58,11 @@ const ShopSchema = new Schema<IShop>(
     approvedAt: {
       type: Date,
       default: null,
+    },
+    moderatorNote: {
+      type: String,
+      default: null,
+      maxlength: 1000,
     },
     ratingAvg: {
       type: Number,

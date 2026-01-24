@@ -942,6 +942,11 @@ export const ROLE_PERMISSIONS = {
     // Profile
     PERMISSIONS.PROFILE_VIEW,
     PERMISSIONS.PROFILE_UPDATE,
+    // Shop - Allow customer to register as seller
+    PERMISSIONS.SHOP_CREATE,
+    PERMISSIONS.SHOP_VIEW_OWN,
+    // Product - Allow viewing own products while waiting for shop approval
+    PERMISSIONS.PRODUCT_VIEW_OWN,
     // Cart
     PERMISSIONS.CART_VIEW,
     PERMISSIONS.CART_ADD,
@@ -1042,6 +1047,10 @@ export const ROLE_PERMISSIONS = {
     // Shop management
     PERMISSIONS.SHOP_SUSPEND,
     PERMISSIONS.SHOP_UNSUSPEND,
+    // Seller application management
+    PERMISSIONS.SELLER_VIEW_APPLICATIONS,
+    PERMISSIONS.SELLER_APPROVE,
+    PERMISSIONS.SELLER_REJECT,
     // User restrictions
     PERMISSIONS.USER_RESTRICT,
     PERMISSIONS.USER_UNRESTRICT,

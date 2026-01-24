@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { AuthRequest } from "@/middleware/auth";
 import { AuthService } from "@/services/auth/auth.service";
 import { UserService } from "@/services/users/user.service";
-import { registerSchema, loginSchema, changePasswordSchema } from "@/validators/auth/auth.schema";
+import { registerSchema, loginSchema, changePasswordSchema, registerSellerSchema } from "@/validators/auth/auth.schema";
 import { AppError } from "@/middleware/errorHandler";
 import { env } from "@/config/env";
 import { MESSAGES } from "@/constants/messages";
@@ -50,25 +50,52 @@ export class AuthController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      // Validate input
-      const validatedData = registerSchema.parse(req.body);
+      // Validate input - includes shopName and description
+      const validatedData = registerSellerSchema.parse(req.body);
 
-      // Create user with SELLER role
-      const user = await this.authService.register(
+      // Create user with SELLER role and shop
+      const { shop } = await this.authService.registerSeller(
         validatedData.email,
         validatedData.password,
         validatedData.fullName,
-        ROLE_KEYS.SELLER
+        validatedData.shopName,
+        validatedData.description || null
       );
 
+      // Convert shop to plain object and format for response
+      const shopObj = shop.toObject ? shop.toObject() : shop;
+      
+      // Return shop data in the format expected by frontend
       res.status(201).json({
         success: true,
-        message: MESSAGES.SUCCESS.SELLER_REGISTERED,
+        message: MESSAGES.SUCCESS.SHOP_CREATED,
         data: {
-          id: user._id.toString(),
-          email: user.email,
-          fullName: user.fullName,
-          role: ROLE_KEYS.SELLER,
+          ownerUserId: shopObj.ownerUserId?.toString() || shopObj.ownerUserId,
+          shopName: shopObj.shopName,
+          description: shopObj.description || null,
+          payoutMethod: shopObj.payoutMethod || null,
+          payoutAccount: shopObj.payoutAccount || null,
+          status: shopObj.status,
+          approvedByUserId: shopObj.approvedByUserId
+            ? shopObj.approvedByUserId.toString()
+            : null,
+          approvedAt: shopObj.approvedAt
+            ? (shopObj.approvedAt instanceof Date
+                ? shopObj.approvedAt.toISOString()
+                : new Date(shopObj.approvedAt).toISOString())
+            : null,
+          moderatorNote: shopObj.moderatorNote || null,
+          ratingAvg: shopObj.ratingAvg || 0,
+          totalSales: shopObj.totalSales || 0,
+          isDeleted: shopObj.isDeleted || false,
+          _id: shopObj._id?.toString() || shopObj._id,
+          createdAt: shopObj.createdAt instanceof Date
+            ? shopObj.createdAt.toISOString()
+            : new Date(shopObj.createdAt).toISOString(),
+          updatedAt: shopObj.updatedAt instanceof Date
+            ? shopObj.updatedAt.toISOString()
+            : new Date(shopObj.updatedAt).toISOString(),
+          __v: shopObj.__v || 0,
         },
       });
     } catch (error) {
