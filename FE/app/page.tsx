@@ -13,23 +13,41 @@ export default function Home() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-primary/10 to-background py-16 md:py-24 lg:py-32">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center space-y-6 md:space-y-8">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight">
-              Marketplace Sản Phẩm Số Uy Tín
-            </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Mua bán license key, subscription và các sản phẩm số với hệ thống
-              bảo vệ người mua toàn diện
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Button size="lg" className="text-base md:text-lg h-12 md:h-14 px-8 md:px-10" asChild>
-                <Link href="/products">Khám phá sản phẩm</Link>
-              </Button>
-              <Button size="lg" variant="outline" className="text-base md:text-lg h-12 md:h-14 px-8 md:px-10" asChild>
-                <Link href="/seller/register">Đăng ký bán hàng</Link>
-              </Button>
+      <section className="relative w-full overflow-hidden">
+        {/* Background Image Container - 16:9 Aspect Ratio */}
+        <div className="relative w-full aspect-video">
+          {/* Background Image */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: "url('/hero-background.jpg')", // Thay đổi đường dẫn ảnh của bạn
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
+          {/* Overlay để text dễ đọc hơn - 16:9 */}
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-primary/10 to-background/80" />
+        </div>
+        
+        {/* Content - Centered over 16:9 background */}
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-4xl mx-auto text-center space-y-6 md:space-y-8">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-foreground drop-shadow-lg">
+                Marketplace Sản Phẩm Số Uy Tín
+              </h1>
+              <p className="text-lg sm:text-xl md:text-2xl text-foreground/90 max-w-3xl mx-auto leading-relaxed drop-shadow-md">
+                Mua bán license key, subscription và các sản phẩm số với hệ thống
+                bảo vệ người mua toàn diện
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                <Button size="lg" className="text-base md:text-lg h-12 md:h-14 px-8 md:px-10 shadow-lg" asChild>
+                  <Link href="/products">Khám phá sản phẩm</Link>
+                </Button>
+                <Button size="lg" variant="outline" className="text-base md:text-lg h-12 md:h-14 px-8 md:px-10 bg-background/90 backdrop-blur-sm shadow-lg" asChild>
+                  <Link href="/seller/register">Đăng ký bán hàng</Link>
+                </Button>
+              </div>
             </div>
           </div>
         </div>

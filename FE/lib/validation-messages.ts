@@ -36,9 +36,7 @@ export const VALIDATION_MESSAGES = {
   // Shop
   SHOP: {
     NAME_MIN_LENGTH: "Tên shop phải có ít nhất 2 ký tự",
-    NAME_MAX_LENGTH: "Tên shop không được quá 50 ký tự",
-    NAME_UPDATE_MIN: "Tên shop phải có ít nhất 3 ký tự",
-    NAME_UPDATE_MAX: "Tên shop không được quá 100 ký tự",
+    NAME_MAX_LENGTH: "Tên shop không được quá 100 ký tự",
     DESCRIPTION_MAX_LENGTH: "Mô tả không được quá 500 ký tự",
     LOGO_INVALID_URL: "URL logo không hợp lệ",
   },

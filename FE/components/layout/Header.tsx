@@ -15,6 +15,7 @@ import {
 import { useAuthStore } from "@/lib/auth";
 import { authService } from "@/lib/services/auth.service";
 import { useRouter } from "next/navigation";
+import { useShop } from "@/lib/hooks/useShop";
 import {
   Search,
   ShoppingCart,
@@ -34,6 +35,7 @@ export function Header() {
   const { user, isAuthenticated } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
+  const { hasActiveShop, shop } = useShop();
 
   const handleLogout = async () => {
     await authService.logout();
@@ -190,21 +192,57 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
                     {user?.role === "customer" && <CustomerMenuStats />}
-                    {user?.role === "seller" && (
+                    {/* Hiển thị "Đăng ký bán hàng" nếu user là customer và chưa có shop */}
+                    {user?.role === "customer" && !shop && (
+                      <DropdownMenuItem asChild className="text-base">
+                        <Link href="/customer/become-seller">
+                          <Store className="mr-2 h-5 w-5" />
+                          <span>Đăng ký bán hàng</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {/* Hiển thị "Trạng thái đơn đăng ký" nếu user có shop đang chờ duyệt */}
+                    {shop && shop.status === "Pending" && (
+                      <DropdownMenuItem asChild className="text-base">
+                        <Link href="/customer/seller-application-status">
+                          <Store className="mr-2 h-5 w-5" />
+                          <span>Trạng thái đơn đăng ký</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {/* Hiển thị "Shop của tôi" nếu user có shop đã được duyệt (status = Active) */}
+                    {hasActiveShop && (
                       <DropdownMenuItem asChild className="text-base">
                         <Link href="/seller/shop">
                           <Store className="mr-2 h-5 w-5" />
-                          <span>Quản lý Shop</span>
+                          <span>Shop của tôi</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {/* Hiển thị "Quản lý Shop" cho seller role cũ (backward compatibility) */}
+                    {user?.role === "seller" && !hasActiveShop && !shop && (
+                      <DropdownMenuItem asChild className="text-base">
+                        <Link href="/customer/become-seller">
+                          <Store className="mr-2 h-5 w-5" />
+                          <span>Tạo Shop</span>
                         </Link>
                       </DropdownMenuItem>
                     )}
                     {user?.role === "moderator" && (
-                      <DropdownMenuItem asChild className="text-base">
-                        <Link href="/moderator/review">
-                          <Shield className="mr-2 h-5 w-5" />
-                          <span>Kiểm duyệt</span>
-                        </Link>
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuItem asChild className="text-base">
+                          <Link href="/moderator/shops">
+                            <Store className="mr-2 h-5 w-5" />
+                            <span>Quản lý Shop</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild className="text-base">
+                          <Link href="/moderator/review">
+                            <Shield className="mr-2 h-5 w-5" />
+                            <span>Kiểm duyệt sản phẩm</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
                     )}
                     {user?.role === "admin" && (
                       <DropdownMenuItem asChild className="text-base">

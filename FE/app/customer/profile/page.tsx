@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuthStore } from "@/lib/auth";
 import {
   Card,
   CardContent,
@@ -9,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -21,8 +22,50 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { RequireAuth } from "@/components/auth/RequireAuth";
+import Link from "next/link";
+
+// Helper function to get initials from name
+function getInitials(name: string): string {
+  if (!name) return "U";
+  const parts = name.trim().split(" ");
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+// Helper function to map trust level to display text
+function getTrustLevelText(trustLevel: string): string {
+  const map: Record<string, string> = {
+    new: "New",
+    basic: "Basic",
+    trusted: "Trusted",
+    verified: "Verified",
+    blacklisted: "Blacklisted",
+  };
+  return map[trustLevel] || trustLevel;
+}
+
+// Helper function to map role to display text
+function getRoleText(role: string): string {
+  const map: Record<string, string> = {
+    customer: "Customer",
+    seller: "Seller",
+    moderator: "Moderator",
+    admin: "Admin",
+  };
+  return map[role] || role;
+}
 
 export default function CustomerProfilePage() {
+  const { user } = useAuthStore();
+
+  if (!user) {
+    return null;
+  }
+
+  const initials = getInitials(user.name);
+  const trustLevelText = getTrustLevelText(user.trustLevel);
+  const roleText = getRoleText(user.role);
+
   return (
     <RequireAuth>
       <div className="container py-8">
@@ -32,51 +75,76 @@ export default function CustomerProfilePage() {
           <CardHeader>
             <div className="flex items-start gap-4">
               <Avatar className="h-20 w-20">
-                <AvatarFallback className="text-2xl">NV</AvatarFallback>
+                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 space-y-2">
                 <div>
-                  <h1 className="text-2xl font-bold">Nguyễn Văn A</h1>
-                  <p className="text-muted-foreground">customer@example.com</p>
+                  <h1 className="text-2xl font-bold">{user.name}</h1>
+                  <p className="text-muted-foreground">{user.email}</p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <Badge
-                    variant="secondary"
-                    className="flex items-center gap-1"
-                  >
-                    <CheckCircle className="h-3 w-3" />
-                    Email Verified
-                  </Badge>
+                  {user.emailVerified && (
+                    <Badge
+                      variant="secondary"
+                      className="flex items-center gap-1"
+                    >
+                      <CheckCircle className="h-3 w-3" />
+                      Email Verified
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="bg-green-50">
-                    Trust Level: Basic
+                    Trust Level: {trustLevelText}
                   </Badge>
-                  <Badge variant="secondary">Customer</Badge>
+                  <Badge variant="secondary">{roleText}</Badge>
                 </div>
               </div>
-              <Button variant="outline">Chỉnh sửa</Button>
+              <Button variant="outline" asChild>
+                <Link href="/customer/profile/change-password">Chỉnh sửa</Link>
+              </Button>
             </div>
           </CardHeader>
         </Card>
 
         {/* Email Verification Notice */}
-        <Card className="border-orange-200 bg-orange-50/50">
-          <CardHeader>
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />
-              <div className="flex-1">
-                <CardTitle className="text-base">Xác minh email</CardTitle>
-                <CardDescription>
-                  Email của bạn đã được xác minh. Điều này giúp tăng độ tin cậy
-                  của tài khoản.
-                </CardDescription>
+        {!user.emailVerified && (
+          <Card className="border-orange-200 bg-orange-50/50">
+            <CardHeader>
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />
+                <div className="flex-1">
+                  <CardTitle className="text-base">Xác minh email</CardTitle>
+                  <CardDescription>
+                    Email của bạn chưa được xác minh. Vui lòng xác minh email để tăng độ tin cậy
+                    của tài khoản.
+                  </CardDescription>
+                </div>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/verify-email">
+                    <Mail className="mr-2 h-4 w-4" />
+                    Xác minh email
+                  </Link>
+                </Button>
               </div>
-              <Button size="sm" variant="outline">
-                <Mail className="mr-2 h-4 w-4" />
-                Gửi lại email
-              </Button>
-            </div>
-          </CardHeader>
-        </Card>
+            </CardHeader>
+          </Card>
+        )}
+        {user.emailVerified && (
+          <Card className="border-green-200 bg-green-50/50">
+            <CardHeader>
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                <div className="flex-1">
+                  <CardTitle className="text-base">Email đã được xác minh</CardTitle>
+                  <CardDescription>
+                    Email của bạn đã được xác minh. Điều này giúp tăng độ tin cậy
+                    của tài khoản.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+        )}
 
         {/* Trust Level Card */}
         <Card>
@@ -92,20 +160,23 @@ export default function CustomerProfilePage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <p className="text-2xl font-bold">Basic</p>
+                <p className="text-2xl font-bold">{trustLevelText}</p>
                 <p className="text-xs text-muted-foreground">Trust Level</p>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <p className="text-2xl font-bold text-green-600">12</p>
+                <p className="text-2xl font-bold text-green-600">-</p>
                 <p className="text-xs text-muted-foreground">Đơn hàng</p>
+                <p className="text-xs text-muted-foreground mt-1">(Sẽ cập nhật khi có API)</p>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <p className="text-2xl font-bold text-blue-600">$350</p>
+                <p className="text-2xl font-bold text-blue-600">-</p>
                 <p className="text-xs text-muted-foreground">Tổng chi</p>
+                <p className="text-xs text-muted-foreground mt-1">(Sẽ cập nhật khi có API)</p>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">-</p>
                 <p className="text-xs text-muted-foreground">Tranh chấp</p>
+                <p className="text-xs text-muted-foreground mt-1">(Sẽ cập nhật khi có API)</p>
               </div>
             </div>
 

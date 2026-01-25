@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -10,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
@@ -27,110 +29,39 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-// Mock data
-const mockOrder = {
-  id: "ORD-2026010712345",
-  date: "2026-01-07 10:30",
-  status: "completed" as const,
-  paymentMethod: "Ví điện tử",
-  totalAmount: 348980,
-  subOrders: [
-    {
-      id: "SUB-001",
-      productTitle: "Netflix Premium - Gói gia đình 3 tháng",
-      sellerName: "NetflixStore Official",
-      amount: 299000,
-      status: "completed" as const,
-      paymentStatus: "paid_out" as const,
-      licenseKey: "NF-ABC123-XYZ789-DEF456-GHI012",
-      activatedAt: "2026-01-07 11:00",
-      completedAt: "2026-01-07 12:00",
-      timeline: [
-        {
-          status: "paid",
-          title: "Đã thanh toán",
-          description: "Tiền đã vào Escrow",
-          timestamp: "2026-01-07 10:30",
-          completed: true,
-        },
-        {
-          status: "processing",
-          title: "Đang xử lý",
-          description: "Seller đang chuẩn bị giao hàng",
-          timestamp: "2026-01-07 10:32",
-          completed: true,
-        },
-        {
-          status: "delivered",
-          title: "Đã giao hàng",
-          description: "License key đã được gửi",
-          timestamp: "2026-01-07 10:35",
-          completed: true,
-        },
-        {
-          status: "activated",
-          title: "Đã kích hoạt",
-          description: "Bạn đã xác nhận kích hoạt thành công",
-          timestamp: "2026-01-07 11:00",
-          completed: true,
-        },
-        {
-          status: "completed",
-          title: "Hoàn tất",
-          description: "Tiền đã chuyển cho seller",
-          timestamp: "2026-01-07 12:00",
-          completed: true,
-        },
-      ],
-    },
-    {
-      id: "SUB-002",
-      productTitle: "Spotify Premium - 1 năm",
-      sellerName: "MusicStore",
-      amount: 49980,
-      status: "processing" as const,
-      paymentStatus: "escrow" as const,
-      licenseKey: "SP-PREMIUM-2026-ACTIVE",
-      timeline: [
-        {
-          status: "paid",
-          title: "Đã thanh toán",
-          description: "Tiền đã vào Escrow",
-          timestamp: "2026-01-07 10:30",
-          completed: true,
-        },
-        {
-          status: "processing",
-          title: "Đang xử lý",
-          description: "Seller đang chuẩn bị giao hàng",
-          timestamp: "2026-01-07 10:32",
-          completed: true,
-        },
-        {
-          status: "delivered",
-          title: "Đã giao hàng",
-          description: "Thông tin tài khoản đã được gửi",
-          timestamp: "2026-01-07 10:40",
-          completed: true,
-        },
-        {
-          status: "activated",
-          title: "Chờ xác nhận",
-          description: "Vui lòng xác nhận sau khi kích hoạt thành công",
-          timestamp: null,
-          completed: false,
-        },
-        {
-          status: "completed",
-          title: "Hoàn tất",
-          description: "Tiền sẽ chuyển cho seller sau khi bạn xác nhận",
-          timestamp: null,
-          completed: false,
-        },
-      ],
-    },
-  ],
-};
+// Types for backend data
+type OrderStatus = "pending_payment" | "paid" | "processing" | "completed" | "refunded" | "cancelled";
+type PaymentStatus = "pending" | "escrow" | "available" | "paid_out";
+
+interface TimelineItem {
+  status: string;
+  title: string;
+  description: string;
+  timestamp: string | null;
+  completed: boolean;
+}
+
+interface SubOrder {
+  id: string;
+  productTitle: string;
+  sellerName: string;
+  amount: number;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  licenseKey: string;
+  activatedAt?: string;
+  completedAt?: string;
+  timeline: TimelineItem[];
+}
+
+interface Order {
+  id: string;
+  date: string;
+  status: OrderStatus;
+  paymentMethod: string;
+  totalAmount: number;
+  subOrders: SubOrder[];
+}
 
 const statusConfig = {
   pending_payment: {
@@ -194,6 +125,25 @@ export default function CustomerOrderDetailPage({
   params: { id: string };
 }) {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [order, setOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    const fetchOrder = async () => {
+      setIsLoading(true);
+      try {
+        // TODO: Fetch from backend
+        // const orderData = await orderService.getOrderById(params.id);
+        // setOrder(orderData);
+      } catch (error) {
+        console.error("Failed to fetch order:", error);
+        toast.error("Không thể tải thông tin đơn hàng");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchOrder();
+  }, [params.id]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -207,14 +157,57 @@ export default function CustomerOrderDetailPage({
     toast.success("Đã sao chép vào clipboard");
   };
 
-  const handleConfirmActivation = (subOrderId: string) => {
-    toast.success("Đã xác nhận kích hoạt thành công. Tiền sẽ được chuyển cho seller.");
-    // TODO: Implement API call
+  const handleConfirmActivation = async (subOrderId: string) => {
+    try {
+      // TODO: Call backend API
+      // await orderService.confirmActivation(subOrderId);
+      toast.success("Đã xác nhận kích hoạt thành công. Tiền sẽ được chuyển cho seller.");
+      // Refresh order data
+      // fetchOrder();
+    } catch (error) {
+      console.error("Failed to confirm activation:", error);
+      toast.error("Không thể xác nhận kích hoạt");
+    }
   };
 
   const handleReportIssue = (subOrderId: string) => {
     router.push(`/customer/tickets/create?order=${subOrderId}`);
   };
+
+  if (isLoading) {
+    return (
+      <RequireAuth>
+        <div className="container py-6 md:py-8 max-w-5xl">
+          <div className="space-y-6">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </div>
+      </RequireAuth>
+    );
+  }
+
+  if (!order) {
+    return (
+      <RequireAuth>
+        <div className="container py-6 md:py-8 max-w-5xl">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <Package className="h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Không tìm thấy đơn hàng</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mb-4">
+                Đơn hàng này không tồn tại hoặc bạn không có quyền xem.
+              </p>
+              <Button onClick={() => router.push("/customer/orders")} variant="default">
+                Quay lại danh sách
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </RequireAuth>
+    );
+  }
 
   return (
     <RequireAuth>
@@ -223,16 +216,16 @@ export default function CustomerOrderDetailPage({
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Đơn hàng #{mockOrder.id}</h1>
+            <h1 className="text-3xl font-bold mb-2">Đơn hàng #{order.id}</h1>
             <p className="text-muted-foreground">
-              Ngày đặt: {mockOrder.date}
+              Ngày đặt: {order.date}
             </p>
           </div>
           <Badge
-            variant={statusConfig[mockOrder.status].variant}
+            variant={statusConfig[order.status].variant}
             className="text-sm px-3 py-1"
           >
-            {statusConfig[mockOrder.status].label}
+            {statusConfig[order.status].label}
           </Badge>
         </div>
 
@@ -245,24 +238,24 @@ export default function CustomerOrderDetailPage({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Mã đơn hàng</p>
-                <p className="font-medium">{mockOrder.id}</p>
+                <p className="font-medium">{order.id}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Trạng thái</p>
-                <Badge variant={statusConfig[mockOrder.status].variant}>
-                  {statusConfig[mockOrder.status].label}
+                <Badge variant={statusConfig[order.status].variant}>
+                  {statusConfig[order.status].label}
                 </Badge>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
                   Phương thức thanh toán
                 </p>
-                <p className="font-medium">{mockOrder.paymentMethod}</p>
+                <p className="font-medium">{order.paymentMethod}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Tổng tiền</p>
                 <p className="font-bold text-lg text-primary">
-                  {formatPrice(mockOrder.totalAmount)}
+                  {formatPrice(order.totalAmount)}
                 </p>
               </div>
             </div>
@@ -273,7 +266,7 @@ export default function CustomerOrderDetailPage({
         <div className="space-y-6">
           <h2 className="text-xl font-semibold">Chi tiết đơn hàng</h2>
 
-          {mockOrder.subOrders.map((subOrder, index) => {
+          {order.subOrders.map((subOrder, index) => {
             const PaymentStatusIcon = paymentStatusConfig[subOrder.paymentStatus].icon;
             const currentStatus = statusConfig[subOrder.status];
 
@@ -501,7 +494,7 @@ export default function CustomerOrderDetailPage({
           <CardContent className="flex flex-wrap gap-3">
             <Button
               variant="default"
-              onClick={() => router.push(`/customer/tickets/create?order=${mockOrder.id}`)}
+              onClick={() => router.push(`/customer/tickets/create?order=${order.id}`)}
             >
               Tạo yêu cầu hỗ trợ
             </Button>

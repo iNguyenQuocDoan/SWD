@@ -1,10 +1,11 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { User, IUser, Role } from "@/models";
+import { User, IUser, Role, Shop } from "@/models";
 import { env } from "@/config/env";
 import { AppError } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
 import { ROLE_KEYS } from "@/constants/roles";
+import { SHOP_STATUS } from "@/constants/shopStatus";
 
 export interface LoginResult {
   user: {
@@ -52,6 +53,44 @@ export class AuthService {
     });
 
     return user;
+  }
+
+  async registerSeller(
+    email: string,
+    password: string,
+    fullName: string,
+    shopName: string,
+    description: string | null = null
+  ): Promise<{ user: IUser; shop: any }> {
+    // Register user with SELLER role
+    const user = await this.register(
+      email,
+      password,
+      fullName,
+      ROLE_KEYS.SELLER
+    );
+
+    // Check if shop already exists (shouldn't happen, but safety check)
+    const existingShop = await Shop.findOne({
+      ownerUserId: user._id,
+      isDeleted: false,
+    });
+
+    if (existingShop) {
+      throw new AppError(MESSAGES.ERROR.SHOP.ALREADY_EXISTS, 400);
+    }
+
+    // Create shop with provided information
+    const shop = await Shop.create({
+      ownerUserId: user._id,
+      shopName,
+      description: description || null,
+      status: SHOP_STATUS.PENDING,
+      ratingAvg: 0,
+      totalSales: 0,
+    });
+
+    return { user, shop };
   }
 
   async login(email: string, password: string): Promise<LoginResult> {

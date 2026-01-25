@@ -23,18 +23,48 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Store, User } from "lucide-react";
+import { Store, User, Clock, CheckCircle, XCircle, AlertCircle, Calendar, MessageSquare, ArrowRight } from "lucide-react";
+import { authService } from "@/lib/services/auth.service";
+import { shopService, Shop } from "@/lib/services/shop.service";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function RegisterSellerPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingShop, setIsCheckingShop] = useState(true);
+  const [existingShop, setExistingShop] = useState<Shop | null>(null);
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
 
   // Nếu đã đăng nhập, chỉ cần form tạo shop đơn giản
   const isLoggedIn = isAuthenticated && user;
+
+  // Kiểm tra xem user đã có shop chưa
+  useEffect(() => {
+    const checkExistingShop = async () => {
+      if (isLoggedIn) {
+        try {
+          setIsCheckingShop(true);
+          const shop = await shopService.getMyShop();
+          setExistingShop(shop);
+        } catch (error) {
+          console.error("Error checking existing shop:", error);
+          setExistingShop(null);
+        } finally {
+          setIsCheckingShop(false);
+        }
+      } else {
+        setIsCheckingShop(false);
+      }
+    };
+
+    checkExistingShop();
+  }, [isLoggedIn]);
 
   // Dùng schema khác nhau tùy vào trạng thái đăng nhập
   const sellerForm = useForm<RegisterSellerInput>({
@@ -45,6 +75,7 @@ export default function RegisterSellerPage() {
       confirmPassword: "",
       name: "",
       shopName: "",
+      description: "",
     },
   });
 
@@ -52,6 +83,7 @@ export default function RegisterSellerPage() {
     resolver: zodResolver(createShopSchema),
     defaultValues: {
       shopName: "",
+      description: "",
     },
   });
 
@@ -63,23 +95,11 @@ export default function RegisterSellerPage() {
     try {
       if (isLoggedIn && user) {
         // Trường hợp 1: User đã đăng nhập → Chỉ tạo Shop mới
-        // Logic: Tạo Shop collection với ownerUserId = user._id
-        // Email là của User, Shop không có email riêng (dùng ownerUserId để reference)
         const shopData = data as CreateShopInput;
         
-        // TODO: API call để tạo shop
-        // POST /api/shops
-        // Body: {
-        //   shopName: shopData.shopName,
-        //   ownerUserId: user.id,  // Reference đến User
-        //   description: null,      // Optional, có thể thêm sau
-        //   status: "Pending"       // Cần admin approve
-        // }
-        
-        console.log("Create shop - API payload:", { 
-          shopName: shopData.shopName, 
-          ownerUserId: user.id,  // Reference đến User collection
-          // Email không cần vì đã có trong User collection
+        await shopService.createShop({
+          shopName: shopData.shopName,
+          description: shopData.description || undefined,
         });
         
         toast.success(
@@ -87,58 +107,254 @@ export default function RegisterSellerPage() {
         );
         router.push("/seller");
       } else {
-        // Trường hợp 2: Chưa đăng nhập → Tạo User TRƯỚC, sau đó tạo Shop
-        // Logic: 
-        // 1. Tạo User collection với email, password, name
-        // 2. Lấy user._id từ response
-        // 3. Tạo Shop collection với ownerUserId = user._id
+        // Trường hợp 2: Chưa đăng nhập → Tạo User + Shop cùng lúc
         const sellerData = data as RegisterSellerInput;
         
-        // TODO: API call để đăng ký user + tạo shop
-        // Step 1: POST /api/auth/register
-        // Body: {
-        //   email: sellerData.email,
-        //   password: sellerData.password,
-        //   fullName: sellerData.name,
-        //   roleId: "seller_role_id"  // Set role là seller
-        // }
-        // Response: { user: { _id: "...", email: "...", ... } }
-        
-        // Step 2: POST /api/shops
-        // Body: {
-        //   shopName: sellerData.shopName,
-        //   ownerUserId: user._id,  // Reference đến User vừa tạo
-        //   description: null,
-        //   status: "Pending"
-        // }
-        
-        console.log("Register seller - API payload:", {
-          // Step 1: Create User
-          user: {
-            email: sellerData.email,
-            password: sellerData.password,
-            fullName: sellerData.name,
-            // roleId sẽ được set là seller
-          },
-          // Step 2: Create Shop (sau khi có user._id)
-          shop: {
-            shopName: sellerData.shopName,
-            ownerUserId: "user._id_from_step1", // Reference đến User
-          }
+        await authService.registerSeller({
+          email: sellerData.email,
+          password: sellerData.password,
+          fullName: sellerData.name,
+          shopName: sellerData.shopName,
+          description: sellerData.description || null,
         });
         
         toast.success(
-          "Đăng ký seller thành công! Vui lòng kiểm tra email để xác minh tài khoản. Shop của bạn đang chờ phê duyệt."
+          "Đăng ký seller thành công! Shop của bạn đang chờ phê duyệt. Vui lòng đăng nhập để tiếp tục."
         );
         router.push("/login");
       }
-    } catch (error) {
-      toast.error("Đăng ký thất bại. Vui lòng thử lại.");
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast.error(
+        error?.message || "Đăng ký thất bại. Vui lòng thử lại."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const getShopStatusBadge = (status: Shop["status"]) => {
+    switch (status) {
+      case "Pending":
+        return (
+          <Badge variant="secondary" className="text-sm">
+            <Clock className="mr-1 h-3 w-3" />
+            Chờ duyệt
+          </Badge>
+        );
+      case "Active":
+        return (
+          <Badge variant="default" className="text-sm bg-green-600">
+            <CheckCircle className="mr-1 h-3 w-3" />
+            Hoạt động
+          </Badge>
+        );
+      case "Suspended":
+        return (
+          <Badge variant="destructive" className="text-sm">
+            <AlertCircle className="mr-1 h-3 w-3" />
+            Tạm ngưng
+          </Badge>
+        );
+      case "Closed":
+        return (
+          <Badge variant="outline" className="text-sm">
+            <XCircle className="mr-1 h-3 w-3" />
+            Đã đóng
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  // Loading state khi đang kiểm tra shop
+  if (isLoggedIn && isCheckingShop) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-2">
+            <Skeleton className="h-10 w-10 rounded-full mx-auto" />
+            <Skeleton className="h-8 w-48 mx-auto" />
+            <Skeleton className="h-4 w-64 mx-auto" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Hiển thị trạng thái đăng ký nếu đã có shop
+  if (isLoggedIn && existingShop) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
+        <Card className="w-full max-w-lg">
+          <CardHeader className="space-y-2">
+            <div className="flex items-center gap-3 justify-center">
+              <Store className="h-8 w-8 md:h-10 md:w-10 text-primary" />
+              <CardTitle className="text-2xl md:text-3xl text-center">
+                Trạng thái đăng ký
+              </CardTitle>
+            </div>
+            <CardDescription className="text-center text-base">
+              Bạn đã đăng ký bán hàng. Dưới đây là trạng thái đơn đăng ký của bạn.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Shop Info */}
+            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">{existingShop.shopName}</h3>
+                {getShopStatusBadge(existingShop.status)}
+              </div>
+              {existingShop.description && (
+                <p className="text-sm text-muted-foreground">{existingShop.description}</p>
+              )}
+            </div>
+
+            {/* Status Details */}
+            <div className="space-y-4">
+              {/* Status Message */}
+              {existingShop.status === "Pending" && (
+                <div className="p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-6 w-6 text-orange-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="font-medium text-orange-900 dark:text-orange-200">
+                        Đang chờ duyệt
+                      </p>
+                      <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                        Đơn đăng ký của bạn đang được moderator xem xét. Chúng tôi sẽ thông báo khi có kết quả.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {existingShop.status === "Active" && (
+                <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="h-6 w-6 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="font-medium text-green-900 dark:text-green-200">
+                        Shop đã được duyệt!
+                      </p>
+                      <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                        Chúc mừng! Bạn có thể bắt đầu thêm sản phẩm và bán hàng ngay bây giờ.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {existingShop.status === "Suspended" && (
+                <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-6 w-6 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="font-medium text-yellow-900 dark:text-yellow-200">
+                        Shop bị tạm ngưng
+                      </p>
+                      <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                        Shop của bạn đã bị tạm ngưng hoạt động. Vui lòng liên hệ admin để biết thêm chi tiết.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {existingShop.status === "Closed" && (
+                <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <div className="flex items-start gap-3">
+                    <XCircle className="h-6 w-6 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="font-medium text-red-900 dark:text-red-200">
+                        Shop đã bị từ chối
+                      </p>
+                      <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                        Đơn đăng ký của bạn đã bị từ chối. {existingShop.moderatorNote ? "Vui lòng xem ghi chú bên dưới." : "Vui lòng liên hệ admin để biết thêm chi tiết."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Registration Details */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Ngày đăng ký
+                  </Label>
+                  <p className="text-sm">{formatDate(existingShop.createdAt)}</p>
+                </div>
+                {existingShop.approvedAt && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      Ngày được duyệt
+                    </Label>
+                    <p className="text-sm">{formatDate(existingShop.approvedAt)}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Moderator Note */}
+              {existingShop.moderatorNote && (
+                <div className="space-y-2 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Ghi chú từ Moderator
+                  </Label>
+                  <p className="text-sm">{existingShop.moderatorNote}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3">
+              {existingShop.status === "Active" && (
+                <Button asChild className="w-full h-12 text-base">
+                  <Link href="/seller">
+                    Đi đến Dashboard Seller
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
+              
+              <Button variant="outline" asChild className="w-full h-12 text-base">
+                <Link href="/seller/shop">
+                  <Store className="mr-2 h-4 w-4" />
+                  Xem chi tiết Shop
+                </Link>
+              </Button>
+              
+              <Button variant="ghost" asChild className="w-full">
+                <Link href="/">
+                  Quay về trang chủ
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Form đăng ký (chưa có shop)
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
       <Card className="w-full max-w-md">
@@ -266,6 +482,28 @@ export default function RegisterSellerPage() {
                         Shop sẽ được tạo và liên kết với tài khoản {user?.email} của bạn (ownerUserId)
                       </p>
                     )}
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base">Mô tả Shop</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Mô tả về shop của bạn..."
+                        className="min-h-[100px] text-base resize-none"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-xs text-muted-foreground">
+                      Mô tả về shop của bạn (tùy chọn, tối đa 500 ký tự)
+                    </p>
                   </FormItem>
                 )}
               />
