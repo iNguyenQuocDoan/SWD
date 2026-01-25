@@ -26,11 +26,13 @@ export const VALIDATION_MESSAGES = {
     TITLE_MIN_LENGTH: "Tiêu đề phải có ít nhất 5 ký tự",
     TITLE_MAX_LENGTH: "Tiêu đề không được quá 200 ký tự",
     DESCRIPTION_MIN_LENGTH: "Mô tả phải có ít nhất 20 ký tự",
-    PRICE_MIN: "Giá phải lớn hơn 0",
-    CATEGORY_REQUIRED: "Vui lòng chọn danh mục",
-    TAGS_MIN: "Vui lòng thêm ít nhất 1 tag",
-    TAGS_MAX: "Tối đa 10 tags",
-    IMAGES_MIN: "Vui lòng thêm ít nhất 1 hình ảnh",
+    PRICE_MIN: "Giá phải lớn hơn hoặc bằng 0",
+    PLATFORM_REQUIRED: "Vui lòng chọn nền tảng",
+    WARRANTY_POLICY_MIN_LENGTH: "Chính sách bảo hành phải có ít nhất 10 ký tự",
+    HOW_TO_USE_MIN_LENGTH: "Hướng dẫn sử dụng phải có ít nhất 10 ký tự",
+    PLAN_TYPE_REQUIRED: "Vui lòng chọn loại gói",
+    DURATION_DAYS_MIN: "Thời hạn phải ít nhất 1 ngày",
+    DURATION_DAYS_MAX: "Thời hạn không được quá 3650 ngày (10 năm)",
   },
 
   // Shop

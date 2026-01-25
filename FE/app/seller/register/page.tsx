@@ -125,9 +125,23 @@ export default function RegisterSellerPage() {
       }
     } catch (error: any) {
       console.error("Registration error:", error);
-      toast.error(
-        error?.message || "Đăng ký thất bại. Vui lòng thử lại."
-      );
+      // Hiển thị thông báo lỗi rõ ràng hơn
+      const errorMessage = error?.message || "Đăng ký thất bại. Vui lòng thử lại.";
+      
+      // Nếu lỗi là "User already has a shop", hướng dẫn user xem trạng thái shop
+      if (errorMessage.includes("already has a shop") || errorMessage.includes("đã có shop")) {
+        toast.error(
+          "Bạn đã có shop. Vui lòng kiểm tra trạng thái shop của bạn.",
+          {
+            action: {
+              label: "Xem trạng thái",
+              onClick: () => router.push("/seller/register"),
+            },
+          }
+        );
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -197,8 +211,9 @@ export default function RegisterSellerPage() {
     );
   }
 
-  // Hiển thị trạng thái đăng ký nếu đã có shop
-  if (isLoggedIn && existingShop) {
+  // Hiển thị trạng thái đăng ký nếu đã có shop (trừ trường hợp shop bị reject - Closed)
+  // Nếu shop bị reject (Closed), cho phép tạo shop mới
+  if (isLoggedIn && existingShop && existingShop.status !== "Closed") {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
         <Card className="w-full max-w-lg">
@@ -287,6 +302,9 @@ export default function RegisterSellerPage() {
                       <p className="text-sm text-red-700 dark:text-red-300 mt-1">
                         Đơn đăng ký của bạn đã bị từ chối. {existingShop.moderatorNote ? "Vui lòng xem ghi chú bên dưới." : "Vui lòng liên hệ admin để biết thêm chi tiết."}
                       </p>
+                      <p className="text-sm text-red-700 dark:text-red-300 mt-2 font-medium">
+                        Bạn có thể đăng ký shop mới bằng cách điền form bên dưới.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -367,7 +385,9 @@ export default function RegisterSellerPage() {
           </div>
           <CardDescription className="text-center text-base">
             {isLoggedIn 
-              ? `Xin chào ${user?.name}! Tạo shop của bạn để bắt đầu bán sản phẩm số`
+              ? existingShop && existingShop.status === "Closed"
+                ? `Xin chào ${user?.name}! Shop trước đó của bạn đã bị từ chối. Bạn có thể tạo shop mới.`
+                : `Xin chào ${user?.name}! Tạo shop của bạn để bắt đầu bán sản phẩm số`
               : "Tạo tài khoản và shop của bạn để bắt đầu bán sản phẩm số"
             }
           </CardDescription>
@@ -511,10 +531,12 @@ export default function RegisterSellerPage() {
               <Button 
                 type="submit" 
                 className="w-full h-12 text-base md:text-lg" 
-                disabled={isLoading}
+                disabled={isLoading || (isLoggedIn && isCheckingShop)}
               >
                 {isLoading 
                   ? (isLoggedIn ? "Đang tạo shop..." : "Đang đăng ký...") 
+                  : (isLoggedIn && isCheckingShop)
+                  ? "Đang kiểm tra..."
                   : (isLoggedIn ? "Tạo Shop" : "Đăng ký bán hàng")
                 }
               </Button>
