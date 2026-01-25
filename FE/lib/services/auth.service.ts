@@ -189,16 +189,80 @@ class AuthService {
   }
 
   /**
-   * Change password
+   * Change password (authenticated user)
    */
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    const response = await apiClient.post("/auth/change-password", {
+    const response = await apiClient.put("/auth/change-password", {
       currentPassword,
       newPassword,
     });
     
     if (!response.success) {
       throw new Error(response.message || "Password change failed");
+    }
+  }
+
+  /**
+   * Verify email with code
+   * NOTE: Backend API needs to be implemented
+   */
+  async verifyEmail(code: string): Promise<void> {
+    const response = await apiClient.post("/auth/verify-email", {
+      code,
+    });
+    
+    if (!response.success) {
+      throw new Error(response.message || "Email verification failed");
+    }
+    
+    // Update emailVerified status in store if user is logged in
+    const user = useAuthStore.getState().user;
+    if (user) {
+      useAuthStore.getState().setUser({
+        ...user,
+        emailVerified: true,
+      });
+    }
+  }
+
+  /**
+   * Resend verification email
+   * NOTE: Backend API needs to be implemented
+   */
+  async resendVerificationEmail(): Promise<void> {
+    const response = await apiClient.post("/auth/resend-verification", {});
+    
+    if (!response.success) {
+      throw new Error(response.message || "Failed to resend verification email");
+    }
+  }
+
+  /**
+   * Request password reset (forgot password)
+   * NOTE: Backend API needs to be implemented
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const response = await apiClient.post("/auth/forgot-password", {
+      email,
+    });
+    
+    if (!response.success) {
+      throw new Error(response.message || "Failed to send password reset email");
+    }
+  }
+
+  /**
+   * Reset password with token
+   * NOTE: Backend API needs to be implemented
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const response = await apiClient.post("/auth/reset-password", {
+      token,
+      newPassword,
+    });
+    
+    if (!response.success) {
+      throw new Error(response.message || "Password reset failed");
     }
   }
 

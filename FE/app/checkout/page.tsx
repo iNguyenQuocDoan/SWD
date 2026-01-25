@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,29 +26,74 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-// TODO: Fetch from API - GET /api/cart/checkout
-const checkoutData: {
-  items: Array<{
-    id: string;
-    title: string;
-    quantity: number;
-    price: number;
-  }>;
+import { paymentService } from "@/lib/services/payment.service";
+
+interface CheckoutItem {
+  id: string;
+  title: string;
+  quantity: number;
+  price: number;
+}
+
+interface CheckoutData {
+  items: CheckoutItem[];
   subtotal: number;
   serviceFee: number;
   total: number;
   walletBalance: number;
-} = {
-  items: [],
-  subtotal: 0,
-  serviceFee: 0,
-  total: 0,
-  walletBalance: 0,
-};
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [checkoutData, setCheckoutData] = useState<CheckoutData>({
+    items: [],
+    subtotal: 0,
+    serviceFee: 0,
+    total: 0,
+    walletBalance: 0,
+  });
+
+  useEffect(() => {
+    const fetchCheckoutData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch wallet balance
+        const walletBalance = await paymentService.getWalletBalance();
+        
+        // TODO: Fetch cart items from API when available
+        // const cartData = await cartService.getCart();
+        // const items = cartData.items.map(item => ({
+        //   id: item.id,
+        //   title: item.product.title,
+        //   quantity: item.quantity,
+        //   price: item.product.price,
+        // }));
+        // const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        // const serviceFee = Math.round(subtotal * 0.02);
+        // const total = subtotal + serviceFee;
+        
+        // For now, use empty cart
+        setCheckoutData({
+          items: [],
+          subtotal: 0,
+          serviceFee: 0,
+          total: 0,
+          walletBalance: walletBalance.balance,
+        });
+      } catch (error: any) {
+        console.error("Failed to fetch checkout data:", error);
+        toast.error("Không thể tải dữ liệu thanh toán");
+        // Redirect to cart if checkout data fails
+        router.push("/customer/cart");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCheckoutData();
+  }, [router]);
 
   const form = useForm<CheckoutInput>({
     resolver: zodResolver(checkoutSchema),

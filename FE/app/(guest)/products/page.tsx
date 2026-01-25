@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,63 +23,91 @@ import {
   ChevronRight,
   Package,
 } from "lucide-react";
-
-// TODO: Fetch from API - GET /api/products
-// Product structure theo context: platform, planType, durationDays
-const products: Array<{
-  id: number;
-  title: string;
-  platform: string;
-  planType: string;
-  durationDays: number;
-  durationLabel: string;
-  price: number;
-  shopId: number;
-  shopName: string;
-  shopRating: number;
-  soldCount: number;
-  inventoryCount: number;
-  inStock: boolean;
-  status: string;
-}> = [];
+import { productService } from "@/lib/services/product.service";
+import { toast } from "sonner";
+import type { Product } from "@/types";
 
 type SortOption = "newest" | "price_low" | "price_high" | "rating";
-type PlatformFilter = "all" | "netflix" | "spotify" | "disney" | "youtube";
+type PlatformFilter = "all" | string;
 type DurationFilter = "all" | "1month" | "3months" | "1year";
-type PackageFilter = "all" | "personal" | "family" | "slot";
+type PackageFilter = "all" | "Personal" | "Family" | "Slot" | "Shared" | "InviteLink";
 
 export default function ProductsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const searchParams = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
   const [durationFilter, setDurationFilter] = useState<DurationFilter>("all");
   const [packageFilter, setPackageFilter] = useState<PackageFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+  });
 
   const itemsPerPage = 12;
 
-  // Filter và sort products
+  // Fetch products from API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      try {
+        const filter: any = {
+          page: currentPage,
+          limit: itemsPerPage,
+        };
+
+        // Apply filters
+        if (platformFilter !== "all") {
+          filter.platformId = platformFilter;
+        }
+        if (packageFilter !== "all") {
+          filter.planType = packageFilter;
+        }
+        if (searchQuery) {
+          // Backend should handle search, but for now we'll filter client-side
+        }
+
+        const response = await productService.getProducts(filter);
+        setProducts(response.products || []);
+        setPagination(response.pagination || {
+          page: currentPage,
+          limit: itemsPerPage,
+          total: 0,
+          totalPages: 1,
+        });
+      } catch (error: any) {
+        console.error("Failed to fetch products:", error);
+        toast.error("Không thể tải danh sách sản phẩm");
+        setProducts([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [currentPage, platformFilter, packageFilter, searchQuery]);
+
+  // Filter và sort products (client-side filtering for search)
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = [...products];
 
-    // Search filter
+    // Search filter (client-side if backend doesn't support)
     if (searchQuery) {
       filtered = filtered.filter(
         (p) =>
           p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.platform.toLowerCase().includes(searchQuery.toLowerCase())
+          (typeof p.platform === "object" 
+            ? p.platform.platformName?.toLowerCase().includes(searchQuery.toLowerCase())
+            : false)
       );
     }
 
-    // Platform filter
-    if (platformFilter !== "all") {
-      filtered = filtered.filter(
-        (p) => p.platform.toLowerCase() === platformFilter
-      );
-    }
-
-    // Duration filter
+    // Duration filter (client-side)
     if (durationFilter !== "all") {
       const durationDaysMap: Record<string, number> = {
         "1month": 30,
@@ -90,18 +119,6 @@ export default function ProductsPage() {
       );
     }
 
-    // Package filter (planType)
-    if (packageFilter !== "all") {
-      const planTypeMap: Record<string, string> = {
-        personal: "Cá nhân",
-        family: "Gia đình",
-        slot: "Slot",
-      };
-      filtered = filtered.filter(
-        (p) => p.planType === planTypeMap[packageFilter]
-      );
-    }
-
     // Sort
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -110,22 +127,21 @@ export default function ProductsPage() {
         case "price_high":
           return b.price - a.price;
         case "rating":
-          return b.shopRating - a.shopRating;
+          const aRating = typeof a.shop === "object" ? (a.shop as any).ratingAvg || 0 : 0;
+          const bRating = typeof b.shop === "object" ? (b.shop as any).ratingAvg || 0 : 0;
+          return bRating - aRating;
         case "newest":
         default:
-          return b.id - a.id;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
     });
 
     return filtered;
-  }, [searchQuery, sortBy, platformFilter, durationFilter, packageFilter]);
+  }, [products, searchQuery, sortBy, durationFilter]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
-  const paginatedProducts = filteredAndSortedProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = pagination.totalPages || Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
+  const paginatedProducts = filteredAndSortedProducts;
 
   const hasActiveFilters =
     platformFilter !== "all" ||
@@ -207,10 +223,7 @@ export default function ProductsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả nền tảng</SelectItem>
-              <SelectItem value="netflix">Netflix</SelectItem>
-              <SelectItem value="spotify">Spotify</SelectItem>
-              <SelectItem value="disney">Disney+</SelectItem>
-              <SelectItem value="youtube">YouTube Premium</SelectItem>
+              {/* TODO: Fetch platforms from API and populate dynamically */}
             </SelectContent>
           </Select>
 
@@ -244,9 +257,11 @@ export default function ProductsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả</SelectItem>
-              <SelectItem value="personal">Cá nhân</SelectItem>
-              <SelectItem value="family">Gia đình</SelectItem>
-              <SelectItem value="slot">Slot</SelectItem>
+              <SelectItem value="Personal">Cá nhân</SelectItem>
+              <SelectItem value="Family">Gia đình</SelectItem>
+              <SelectItem value="Slot">Slot</SelectItem>
+              <SelectItem value="Shared">Shared</SelectItem>
+              <SelectItem value="InviteLink">Invite Link</SelectItem>
             </SelectContent>
           </Select>
 
@@ -307,21 +322,23 @@ export default function ProductsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
               {paginatedProducts.map((product) => (
                 <Card
-                  key={product.id}
+                  key={product._id || product.id}
                   className="group hover:shadow-xl transition-all duration-300 cursor-pointer border hover:border-primary/30 h-full flex flex-col"
                 >
-                  <Link href={`/products/${product.id}`} className="flex-1 flex flex-col">
+                  <Link href={`/products/${product._id || product.id}`} className="flex-1 flex flex-col">
                     <CardContent className="p-5 md:p-6 space-y-4 flex-1 flex flex-col">
                       {/* Badges */}
                       <div className="flex gap-2 flex-wrap">
                         <Badge variant="secondary" className="text-sm px-2.5 py-1">
-                          {product.platform}
+                          {typeof product.platform === "object" 
+                            ? product.platform.platformName 
+                            : "N/A"}
                         </Badge>
                         <Badge variant="outline" className="text-sm px-2.5 py-1">
                           {product.planType}
                         </Badge>
                         <Badge variant="outline" className="text-sm px-2.5 py-1">
-                          {product.durationLabel}
+                          {product.durationDays} ngày
                         </Badge>
                       </div>
 
@@ -332,15 +349,23 @@ export default function ProductsPage() {
 
                       {/* Shop Rating */}
                       <div className="flex items-center gap-2 text-base">
-                        <div className="flex items-center">
-                          <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                          <span className="ml-1 font-medium">
-                            {product.shopRating.toFixed(1)}
+                        {typeof product.shop === "object" && (product.shop as any).ratingAvg ? (
+                          <>
+                            <div className="flex items-center">
+                              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                              <span className="ml-1 font-medium">
+                                {((product.shop as any).ratingAvg || 0).toFixed(1)}
+                              </span>
+                            </div>
+                            <span className="text-muted-foreground text-sm">
+                              Shop: {(product.shop as any).shopName || "N/A"}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">
+                            Shop: {typeof product.shop === "object" ? (product.shop as any).shopName : "N/A"}
                           </span>
-                        </div>
-                        <span className="text-muted-foreground text-sm">
-                          Shop: {product.shopName}
-                        </span>
+                        )}
                       </div>
 
                       {/* Price & Status */}
@@ -350,21 +375,16 @@ export default function ProductsPage() {
                             {formatPrice(product.price)}
                           </span>
                           <Badge
-                            variant={product.inStock ? "outline" : "secondary"}
+                            variant={product.status === "approved" ? "outline" : "secondary"}
                             className={
-                              product.inStock
+                              product.status === "approved"
                                 ? "bg-green-50 text-green-700 border-green-200 text-sm px-3 py-1"
                                 : "text-sm px-3 py-1"
                             }
                           >
-                            {product.inStock
-                              ? `Còn ${product.inventoryCount} gói`
-                              : "Hết hàng"}
+                            {product.status === "approved" ? "Có sẵn" : "Chờ duyệt"}
                           </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Đã bán: {product.soldCount.toLocaleString()}
-                        </p>
                       </div>
                     </CardContent>
                   </Link>

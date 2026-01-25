@@ -72,6 +72,22 @@ export const createShopSchema = z.object({
     .nullable(),
 });
 
+// Update shop schema (all fields optional)
+export const updateShopSchema = z.object({
+  shopName: z
+    .string()
+    .min(2, VALIDATION_MESSAGES.SHOP.NAME_MIN_LENGTH)
+    .max(100, VALIDATION_MESSAGES.SHOP.NAME_MAX_LENGTH)
+    .optional(),
+  description: z
+    .string()
+    .max(500, VALIDATION_MESSAGES.SHOP.DESCRIPTION_MAX_LENGTH)
+    .optional()
+    .nullable(),
+});
+
+export type UpdateShopInput = z.infer<typeof updateShopSchema>;
+
 export const verifyEmailSchema = z.object({
   code: z.string().length(6, VALIDATION_MESSAGES.AUTH.VERIFY_CODE_LENGTH),
 });
@@ -149,19 +165,6 @@ export const moderateProductSchema = z.object({
   notes: z.string().optional(),
 });
 
-// Shop/Seller schemas
-export const updateShopSchema = z.object({
-  shopName: z
-    .string()
-    .min(3, VALIDATION_MESSAGES.SHOP.NAME_UPDATE_MIN)
-    .max(100, VALIDATION_MESSAGES.SHOP.NAME_UPDATE_MAX),
-  shopDescription: z
-    .string()
-    .max(500, VALIDATION_MESSAGES.SHOP.DESCRIPTION_MAX_LENGTH)
-    .optional(),
-  shopLogo: z.string().url(VALIDATION_MESSAGES.SHOP.LOGO_INVALID_URL).optional(),
-});
-
 // Search/Filter schemas
 export const searchProductSchema = z.object({
   query: z.string().optional(),
@@ -234,12 +237,42 @@ export const withdrawalSchema = z.object({
   accountHolder: z.string().min(2, VALIDATION_MESSAGES.WALLET.ACCOUNT_HOLDER_MIN),
 });
 
+// Forgot/Reset Password schemas
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(VALIDATION_MESSAGES.AUTH.EMAIL_INVALID),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1, "Token is required"),
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: VALIDATION_MESSAGES.AUTH.PASSWORD_MISMATCH,
+    path: ["confirmPassword"],
+  });
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, VALIDATION_MESSAGES.AUTH.PASSWORD_REQUIRED),
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: VALIDATION_MESSAGES.AUTH.PASSWORD_MISMATCH,
+    path: ["confirmPassword"],
+  });
+
 // Type exports for use in components
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type RegisterSellerInput = z.infer<typeof registerSellerSchema>;
 export type CreateShopInput = z.infer<typeof createShopSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type AIAssistInput = z.infer<typeof aiAssistSchema>;
@@ -247,7 +280,6 @@ export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
 export type ReplyTicketInput = z.infer<typeof replyTicketSchema>;
 export type ModerateProductInput = z.infer<typeof moderateProductSchema>;
-export type UpdateShopInput = z.infer<typeof updateShopSchema>;
 export type SearchProductInput = z.infer<typeof searchProductSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type DepositInput = z.infer<typeof depositSchema>;
