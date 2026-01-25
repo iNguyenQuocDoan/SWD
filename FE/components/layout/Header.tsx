@@ -45,22 +45,22 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-20 md:h-24 items-center justify-between gap-4">
+      <div className="container mx-auto px-4 sm:px-5 lg:px-6">
+        <div className="flex h-14 md:h-16 items-center justify-between gap-3">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-4 md:gap-6 flex-shrink-0">
+          <div className="flex items-center gap-3 md:gap-4 flex-shrink-0">
             <Link 
               href="/" 
-              className="flex items-center space-x-2 md:space-x-3 hover:opacity-80 transition-opacity"
+              className="flex items-center space-x-1.5 md:space-x-2 hover:opacity-80 transition-opacity"
             >
-              <Store className="h-7 w-7 md:h-8 md:w-8" />
-              <span className="font-bold text-lg md:text-xl lg:text-2xl">
+              <Store className="h-5 w-5 md:h-6 md:w-6" />
+              <span className="font-bold text-base md:text-lg lg:text-xl">
                 Sàn Tài Khoản Số
               </span>
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex gap-6 xl:gap-8">
+            <nav className="hidden lg:flex gap-4 xl:gap-5">
               <Link
                 href="/products"
                 className="text-base font-medium transition-colors hover:text-primary"
@@ -83,7 +83,7 @@ export function Header() {
           </div>
 
           {/* Search Bar - Desktop */}
-          <div className="hidden md:flex items-center gap-4 flex-1 max-w-lg mx-4">
+          <div className="hidden md:flex items-center gap-3 flex-1 max-w-lg mx-3">
             <form
               action="/products"
               method="get"
@@ -99,19 +99,19 @@ export function Header() {
                 }
               }}
             >
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 type="search"
                 name="search"
                 placeholder="Tìm kiếm nền tảng, loại gói..."
-                className="pl-10 h-11 text-base w-full"
+                className="pl-9 h-9 text-sm w-full"
                 autoComplete="off"
               />
             </form>
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-2.5 flex-shrink-0">
             {/* Mobile Search Button */}
             <Button 
               variant="ghost" 
@@ -124,26 +124,26 @@ export function Header() {
 
             {!isAuthenticated ? (
               <>
-                <Button variant="ghost" size="sm" className="hidden sm:flex text-base" asChild>
+                <Button variant="ghost" size="sm" className="hidden sm:flex text-sm h-8" asChild>
                   <Link href="/login">Đăng nhập</Link>
                 </Button>
-                <Button size="sm" className="hidden sm:flex text-base" asChild>
+                <Button size="sm" className="hidden sm:flex text-sm h-8" asChild>
                   <Link href="/register">Đăng ký</Link>
                 </Button>
                 {/* Mobile Auth Buttons */}
-                <div className="sm:hidden flex gap-2">
-                  <Button variant="ghost" size="icon" asChild>
+                <div className="sm:hidden flex gap-1.5">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
                     <Link href="/login">
-                      <User className="h-5 w-5" />
+                      <User className="h-4 w-4" />
                     </Link>
                   </Button>
                 </div>
               </>
             ) : (
               <>
-                <Button variant="ghost" size="icon" className="h-10 w-10 md:h-11 md:w-11" asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9" asChild>
                   <Link href="/cart">
-                    <ShoppingCart className="h-5 w-5 md:h-6 md:w-6" />
+                    <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
                   </Link>
                 </Button>
 
@@ -151,11 +151,11 @@ export function Header() {
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
-                      className="relative h-10 w-10 md:h-11 md:w-11 rounded-full"
+                      className="relative h-8 w-8 md:h-9 md:w-9 rounded-full"
                     >
-                      <Avatar className="h-10 w-10 md:h-11 md:w-11">
+                      <Avatar className="h-8 w-8 md:h-9 md:w-9">
                         <AvatarImage src={user?.avatar} alt={user?.name} />
-                        <AvatarFallback className="text-base md:text-lg">
+                        <AvatarFallback className="text-sm md:text-base">
                           {user?.name?.charAt(0) || "U"}
                         </AvatarFallback>
                       </Avatar>
@@ -266,13 +266,13 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden h-10 w-10"
+              className="lg:hidden h-8 w-8"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               ) : (
-                <Menu className="h-6 w-6" />
+                <Menu className="h-5 w-5" />
               )}
             </Button>
           </div>
@@ -280,12 +280,12 @@ export function Header() {
 
         {/* Mobile Menu & Search */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t py-4 space-y-4">
+          <div className="lg:hidden border-t py-3 space-y-3">
             {/* Mobile Search */}
             <form
               action="/products"
               method="get"
-              className="relative px-4"
+              className="relative px-3"
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
@@ -298,52 +298,52 @@ export function Header() {
                 setMobileMenuOpen(false);
               }}
             >
-              <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 type="search"
                 name="search"
                 placeholder="Tìm kiếm nền tảng, loại gói..."
-                className="pl-11 h-12 text-base w-full"
+                className="pl-9 h-10 text-sm w-full"
                 autoComplete="off"
               />
             </form>
 
             {/* Mobile Navigation */}
-            <nav className="flex flex-col gap-2 px-4">
+            <nav className="flex flex-col gap-1.5 px-3">
               <Link
                 href="/products"
-                className="text-base font-medium py-3 px-4 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="text-sm font-medium py-2 px-3 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Sản phẩm
               </Link>
               <Link
                 href="/categories"
-                className="text-base font-medium py-3 px-4 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="text-sm font-medium py-2 px-3 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Danh mục
               </Link>
               <Link
                 href="/sellers"
-                className="text-base font-medium py-3 px-4 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="text-sm font-medium py-2 px-3 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Người bán
               </Link>
               {!isAuthenticated && (
                 <>
-                  <div className="border-t my-2"></div>
+                  <div className="border-t my-1.5"></div>
                   <Link
                     href="/login"
-                    className="text-base font-medium py-3 px-4 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
+                    className="text-sm font-medium py-2 px-3 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Đăng nhập
                   </Link>
                   <Link
                     href="/register"
-                    className="text-base font-medium py-3 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-center"
+                    className="text-sm font-medium py-2 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-center"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Đăng ký

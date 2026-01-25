@@ -164,10 +164,10 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 lg:py-16">
-      <div className="flex flex-col gap-6 md:gap-8">
+    <div className="container mx-auto px-4 sm:px-5 lg:px-6 py-6 md:py-8 lg:py-10">
+      <div className="flex flex-col gap-4 md:gap-6">
         {/* Header */}
-        <div className="space-y-2">
+        <div className="space-y-1">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">Danh mục sản phẩm</h1>
           <p className="text-base md:text-lg text-muted-foreground">
             Tìm kiếm và so sánh các gói tài khoản, thuê bao số theo nền tảng
@@ -175,7 +175,7 @@ export default function ProductsPage() {
         </div>
 
         {/* Search & Sort Bar */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
@@ -206,7 +206,7 @@ export default function ProductsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 md:gap-4 items-center">
+        <div className="flex flex-wrap gap-2 md:gap-3 items-center">
           <span className="text-base font-medium text-muted-foreground w-full sm:w-auto">
             Lọc theo:
           </span>
@@ -287,11 +287,11 @@ export default function ProductsPage() {
 
         {/* Loading State */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
             {Array.from({ length: 8 }).map((_, i) => (
               <Card key={i}>
                 <Skeleton className="aspect-video w-full rounded-t-lg" />
-                <CardContent className="p-4 space-y-3">
+                <CardContent className="p-4 space-y-2">
                   <Skeleton className="h-5 w-full" />
                   <Skeleton className="h-4 w-2/3" />
                   <Skeleton className="h-6 w-1/2" />
@@ -301,9 +301,9 @@ export default function ProductsPage() {
           </div>
         ) : paginatedProducts.length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12 px-4 text-center">
-              <Package className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
+            <CardContent className="flex flex-col items-center justify-center py-8 px-4 text-center">
+              <Package className="h-10 w-10 text-muted-foreground mb-3" />
+              <h3 className="text-lg font-semibold mb-1.5">
                 Không tìm thấy sản phẩm
               </h3>
               <p className="text-sm text-muted-foreground max-w-sm mb-4">
@@ -319,7 +319,7 @@ export default function ProductsPage() {
         ) : (
           <>
             {/* Product Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
               {paginatedProducts.map((product) => (
                 <Card
                   key={product._id || product.id}
@@ -328,7 +328,7 @@ export default function ProductsPage() {
                   <Link href={`/products/${product._id || product.id}`} className="flex-1 flex flex-col">
                     <CardContent className="p-5 md:p-6 space-y-4 flex-1 flex flex-col">
                       {/* Badges */}
-                      <div className="flex gap-2 flex-wrap">
+                      <div className="flex gap-1.5 flex-wrap">
                         <Badge variant="secondary" className="text-sm px-2.5 py-1">
                           {typeof product.platform === "object" 
                             ? product.platform.platformName 
@@ -369,8 +369,8 @@ export default function ProductsPage() {
                       </div>
 
                       {/* Price & Status */}
-                      <div className="space-y-3 pt-2 border-t">
-                        <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="space-y-2 pt-2 border-t">
+                        <div className="flex items-center justify-between flex-wrap gap-1.5">
                           <span className="text-2xl md:text-3xl font-bold text-primary">
                             {formatPrice(product.price)}
                           </span>
@@ -394,7 +394,7 @@ export default function ProductsPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 md:gap-3 mt-8 md:mt-12">
+              <div className="flex items-center justify-center gap-2 md:gap-3 mt-6 md:mt-8">
                 <Button
                   variant="outline"
                   size="icon"

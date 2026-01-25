@@ -139,10 +139,10 @@ export default function CustomerDashboard() {
 
   return (
     <RequireAuth requiredRole="customer">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 lg:py-16 space-y-8 md:space-y-10">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10 space-y-6 md:space-y-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
-          <div className="space-y-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+          <div className="space-y-1">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">
               Dashboard Khách hàng
             </h1>
@@ -150,7 +150,7 @@ export default function CustomerDashboard() {
               Quản lý đơn hàng, ví tiền và hỗ trợ của bạn
             </p>
           </div>
-          <Button size="lg" className="h-12 md:h-14 text-base md:text-lg" asChild>
+          <Button size="lg" className="h-11 md:h-12 text-base md:text-lg" asChild>
             <Link href="/products">
               <Plus className="mr-2 h-5 w-5" />
               Mua sắm
@@ -159,13 +159,13 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base md:text-lg font-medium">
                 Tổng đơn hàng
               </CardTitle>
-              <Package className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
+              <Package className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -184,11 +184,11 @@ export default function CustomerDashboard() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base md:text-lg font-medium">
                 Tổng chi tiêu
               </CardTitle>
-              <TrendingUp className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
+              <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -207,11 +207,11 @@ export default function CustomerDashboard() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base md:text-lg font-medium">
                 Số dư ví
               </CardTitle>
-              <Wallet className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
+              <Wallet className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -235,11 +235,11 @@ export default function CustomerDashboard() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base md:text-lg font-medium">
                 Ticket hỗ trợ
               </CardTitle>
-              <MessageSquare className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
+              <MessageSquare className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -270,7 +270,7 @@ export default function CustomerDashboard() {
             <CardDescription>Các chức năng thường dùng</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Button variant="outline" className="h-auto py-6 flex-col" asChild>
                 <Link href="/customer/cart">
                   <ShoppingCart className="h-6 w-6 mb-2" />
@@ -300,7 +300,7 @@ export default function CustomerDashboard() {
         </Card>
 
         {/* Tabs Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Tổng quan</TabsTrigger>
             <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
@@ -309,7 +309,7 @@ export default function CustomerDashboard() {
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-4">
             {/* Recent Orders */}
             <Card>
               <CardHeader>
@@ -466,44 +466,44 @@ export default function CustomerDashboard() {
                         key={order.id}
                         className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border rounded-lg"
                       >
-                      <div className="flex-1">
-                        <p className="font-medium">{order.product}</p>
-                        <div className="flex items-center gap-3 mt-2 flex-wrap">
-                          <span className="text-sm text-muted-foreground">
-                            {order.id}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            {order.date}
-                          </span>
-                          <Badge
-                            variant={
-                              order.status === "completed"
-                                ? "default"
+                        <div className="flex-1">
+                          <p className="font-medium">{order.product}</p>
+                          <div className="flex items-center gap-3 mt-2 flex-wrap">
+                            <span className="text-sm text-muted-foreground">
+                              {order.id}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              {order.date}
+                            </span>
+                            <Badge
+                              variant={
+                                order.status === "completed"
+                                  ? "default"
+                                  : order.status === "paid"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                            >
+                              {order.status === "completed"
+                                ? "Hoàn tất"
                                 : order.status === "paid"
-                                ? "secondary"
-                                : "outline"
-                            }
-                          >
-                            {order.status === "completed"
-                              ? "Hoàn tất"
-                              : order.status === "paid"
-                              ? "Đã thanh toán"
-                              : "Chờ thanh toán"}
-                          </Badge>
+                                ? "Đã thanh toán"
+                                : "Chờ thanh toán"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <p className="font-bold text-lg">
+                            {formatPrice(order.amount)}
+                          </p>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/customer/orders/${order.id}`}>
+                              Xem chi tiết
+                            </Link>
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <p className="font-bold text-lg">
-                          {formatPrice(order.amount)}
-                        </p>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/customer/orders/${order.id}`}>
-                            Xem chi tiết
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                   </div>
                 )}
               </CardContent>

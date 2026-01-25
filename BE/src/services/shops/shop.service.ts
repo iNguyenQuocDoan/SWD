@@ -13,13 +13,40 @@ export class ShopService extends BaseService<IShop> {
     shopName: string,
     description?: string
   ): Promise<IShop> {
-    // Check if user already has a shop
-    const existingShop = await Shop.findOne({
-      ownerUserId,
-      isDeleted: false,
-    });
+    // Check if user already has a shop (any status)
+    const existingShop = await Shop.findOne({ ownerUserId });
+
     if (existingShop) {
-      throw new AppError(MESSAGES.ERROR.SHOP.ALREADY_EXISTS, 400);
+      // If shop is active, pending, or suspended and not deleted - block
+      if (!existingShop.isDeleted && ["Pending", "Active", "Suspended"].includes(existingShop.status)) {
+        const statusMessage = existingShop.status === "Pending"
+          ? "đang chờ duyệt"
+          : existingShop.status === "Active"
+          ? "đang hoạt động"
+          : "đang bị tạm ngưng";
+        throw new AppError(
+          `Bạn đã có shop ${statusMessage}. Vui lòng kiểm tra trạng thái shop của bạn.`,
+          400
+        );
+      }
+
+      // If shop was rejected (Closed + isDeleted), allow re-registration by updating the old record
+      // This avoids duplicate key error on ownerUserId unique index
+      const updatedShop = await Shop.findByIdAndUpdate(
+        existingShop._id,
+        {
+          shopName,
+          description: description || null,
+          status: "Pending",
+          isDeleted: false,
+          approvedByUserId: null,
+          approvedAt: null,
+          moderatorNote: null,
+        },
+        { new: true }
+      );
+
+      return updatedShop!;
     }
 
     // Verify user exists
@@ -28,7 +55,7 @@ export class ShopService extends BaseService<IShop> {
       throw new AppError(MESSAGES.ERROR.USER.NOT_FOUND, 404);
     }
 
-    // Create shop
+    // Create new shop (first time registration)
     const shop = await Shop.create({
       ownerUserId,
       shopName,
@@ -83,6 +110,7 @@ export class ShopService extends BaseService<IShop> {
         approvedByUserId: null,
         approvedAt: null,
         moderatorNote: moderatorNote || null,
+        isDeleted: true, // Soft delete để user có thể đăng ký lại
       },
       { new: true }
     );

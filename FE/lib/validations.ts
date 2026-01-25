@@ -92,22 +92,24 @@ export const verifyEmailSchema = z.object({
   code: z.string().length(6, VALIDATION_MESSAGES.AUTH.VERIFY_CODE_LENGTH),
 });
 
-// Product schemas
+// Product schemas - khớp với BE model
 export const createProductSchema = z.object({
+  platformId: z.string().min(1, VALIDATION_MESSAGES.PRODUCT.PLATFORM_REQUIRED),
   title: z
     .string()
     .min(5, VALIDATION_MESSAGES.PRODUCT.TITLE_MIN_LENGTH)
     .max(200, VALIDATION_MESSAGES.PRODUCT.TITLE_MAX_LENGTH),
   description: z.string().min(20, VALIDATION_MESSAGES.PRODUCT.DESCRIPTION_MIN_LENGTH),
+  warrantyPolicy: z.string().min(10, VALIDATION_MESSAGES.PRODUCT.WARRANTY_POLICY_MIN_LENGTH),
+  howToUse: z.string().min(10, VALIDATION_MESSAGES.PRODUCT.HOW_TO_USE_MIN_LENGTH),
+  planType: z.enum(["Personal", "Family", "Slot", "Shared", "InviteLink"], {
+    message: VALIDATION_MESSAGES.PRODUCT.PLAN_TYPE_REQUIRED,
+  }),
+  durationDays: z
+    .number()
+    .min(1, VALIDATION_MESSAGES.PRODUCT.DURATION_DAYS_MIN)
+    .max(3650, VALIDATION_MESSAGES.PRODUCT.DURATION_DAYS_MAX),
   price: z.number().min(0, VALIDATION_MESSAGES.PRODUCT.PRICE_MIN),
-  category: z.string().min(1, VALIDATION_MESSAGES.PRODUCT.CATEGORY_REQUIRED),
-  tags: z
-    .array(z.string())
-    .min(1, VALIDATION_MESSAGES.PRODUCT.TAGS_MIN)
-    .max(10, VALIDATION_MESSAGES.PRODUCT.TAGS_MAX),
-  deliveryType: z.enum(["license_key", "subscription", "digital_file"]),
-  stockCount: z.number().min(0).optional(),
-  images: z.array(z.string().url()).min(1, VALIDATION_MESSAGES.PRODUCT.IMAGES_MIN),
 });
 
 export const updateProductSchema = createProductSchema.partial();
