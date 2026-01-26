@@ -260,10 +260,16 @@ export class ProductController {
       const productId = Array.isArray(req.params.productId)
         ? req.params.productId[0]
         : req.params.productId;
+      const { reason } = req.body as { reason?: string };
+
+      if (!reason || typeof reason !== "string" || reason.trim().length < 3) {
+        throw new AppError("Rejection reason is required", 400);
+      }
 
       const product = await this.productService.rejectProduct(
         productId,
-        moderatorUserId
+        moderatorUserId,
+        reason.trim()
       );
 
       res.status(200).json({

@@ -32,6 +32,10 @@ export class ProductService extends BaseService<IProduct> {
       throw new AppError(MESSAGES.ERROR.PRODUCT.SHOP_NOT_FOUND_OR_ACCESS_DENIED, 404);
     }
 
+    if (shop.status !== "Active") {
+      throw new AppError("Shop is not approved yet", 403);
+    }
+
     // Verify platform exists
     const platform = await PlatformCatalog.findById(data.platformId);
     if (!platform || platform.status !== "Active") {
@@ -70,7 +74,8 @@ export class ProductService extends BaseService<IProduct> {
 
   async rejectProduct(
     productId: string,
-    moderatorUserId: string
+    moderatorUserId: string,
+    reason: string
   ): Promise<IProduct | null> {
     const product = await this.model.findByIdAndUpdate(
       productId,
@@ -78,6 +83,7 @@ export class ProductService extends BaseService<IProduct> {
         status: "Rejected",
         approvedByUserId: moderatorUserId,
         approvedAt: new Date(),
+        rejectionReason: reason,
       },
       { new: true }
     );
@@ -156,6 +162,10 @@ export class ProductService extends BaseService<IProduct> {
     });
     if (!shop) {
       throw new AppError(MESSAGES.ERROR.PRODUCT.SHOP_NOT_FOUND_OR_ACCESS_DENIED, 403);
+    }
+
+    if (shop.status !== "Active") {
+      throw new AppError("Shop is not approved yet", 403);
     }
 
     // If platform is being changed, verify new platform exists

@@ -14,6 +14,7 @@ export interface IProduct extends Document {
   status: ProductStatus;
   approvedByUserId?: mongoose.Types.ObjectId | null; // MODERATOR
   approvedAt?: Date | null;
+  rejectionReason?: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -77,6 +78,11 @@ const ProductSchema = new Schema<IProduct>(
     approvedAt: {
       type: Date,
       default: null,
+    },
+    rejectionReason: {
+      type: String,
+      default: null,
+      maxlength: 1000,
     },
     isDeleted: {
       type: Boolean,

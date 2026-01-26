@@ -229,9 +229,10 @@ class ProductService {
   /**
    * Reject product (Moderator only)
    */
-  async rejectProduct(productId: string): Promise<Product> {
+  async rejectProduct(productId: string, reason: string): Promise<Product> {
     const response = await apiClient.patch<Product>(
-      `/products/${productId}/reject`
+      `/products/${productId}/reject`,
+      { reason }
     );
 
     if (response.success && response.data) {
