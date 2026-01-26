@@ -11,6 +11,7 @@ export interface CreateProductData {
   description: string;
   warrantyPolicy: string;
   howToUse: string;
+  thumbnailUrl?: string | null;
   planType: PlanType;
   durationDays: number;
   price: number;
@@ -45,7 +46,10 @@ export class ProductService extends BaseService<IProduct> {
     // Create product
     const product = await Product.create({
       ...data,
-      status: "Pending",
+      status: "Approved",
+      approvedByUserId: null,
+      approvedAt: null,
+      rejectionReason: null,
     });
 
     return product;
@@ -176,12 +180,13 @@ export class ProductService extends BaseService<IProduct> {
       }
     }
 
-    // Update product - set status back to Pending if significant changes
+    // Update product
     const updateData: any = { ...data };
     if (data.title || data.description || data.price || data.platformId) {
-      updateData.status = "Pending";
+      updateData.status = "Approved";
       updateData.approvedByUserId = null;
       updateData.approvedAt = null;
+      updateData.rejectionReason = null;
     }
 
     const updatedProduct = await this.model.findByIdAndUpdate(

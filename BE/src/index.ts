@@ -68,6 +68,9 @@ try {
   console.warn("Could not load swagger file:", err);
 }
 
+// Static files (uploads)
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
 // API Routes
 app.use("/api", apiRoutes);
 

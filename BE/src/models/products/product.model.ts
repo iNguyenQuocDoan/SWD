@@ -8,6 +8,7 @@ export interface IProduct extends Document {
   description: string;
   warrantyPolicy: string;
   howToUse: string;
+  thumbnailUrl?: string | null;
   planType: PlanType;
   durationDays: number;
   price: number; // VND
@@ -48,6 +49,10 @@ const ProductSchema = new Schema<IProduct>(
     howToUse: {
       type: String,
       required: true,
+    },
+    thumbnailUrl: {
+      type: String,
+      default: null,
     },
     planType: {
       type: String,

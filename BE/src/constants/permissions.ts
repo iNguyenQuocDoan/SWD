@@ -65,9 +65,6 @@ export const PERMISSIONS = {
   CONVERSATION_SELLER_MESSAGE: "conversation:seller:message",
 
   // Moderator permissions
-  PRODUCT_APPROVE: "product:approve",
-  PRODUCT_REJECT: "product:reject",
-  PRODUCT_MODERATE: "product:moderate",
   REVIEW_MODERATE: "review:moderate",
   REVIEW_HIDE: "review:hide",
   REVIEW_DELETE_MODERATOR: "review:delete:moderator",
@@ -517,27 +514,6 @@ export const PERMISSION_DEFINITIONS = [
   },
 
   // Moderator permissions
-  {
-    permissionKey: PERMISSIONS.PRODUCT_APPROVE,
-    permissionName: "Approve Product",
-    description: "Approve product listing",
-    resource: "product",
-    action: "approve",
-  },
-  {
-    permissionKey: PERMISSIONS.PRODUCT_REJECT,
-    permissionName: "Reject Product",
-    description: "Reject product listing",
-    resource: "product",
-    action: "reject",
-  },
-  {
-    permissionKey: PERMISSIONS.PRODUCT_MODERATE,
-    permissionName: "Moderate Product",
-    description: "Moderate product content",
-    resource: "product",
-    action: "moderate",
-  },
   {
     permissionKey: PERMISSIONS.REVIEW_MODERATE,
     permissionName: "Moderate Review",
@@ -1056,9 +1032,6 @@ export const ROLE_PERMISSIONS = {
 
   MODERATOR: [
     // Product moderation
-    PERMISSIONS.PRODUCT_APPROVE,
-    PERMISSIONS.PRODUCT_REJECT,
-    PERMISSIONS.PRODUCT_MODERATE,
     // Review moderation
     PERMISSIONS.REVIEW_MODERATE,
     PERMISSIONS.REVIEW_HIDE,

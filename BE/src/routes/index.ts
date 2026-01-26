@@ -5,6 +5,7 @@ import roleRoutes from "./roles/role.routes";
 import userRoutes from "./users/user.routes";
 import shopRoutes from "./shops/shop.routes";
 import productRoutes from "./products/product.routes";
+import uploadRoutes from "./uploads/upload.routes";
 import paymentRoutes from "./payments/payment.routes";
 import reviewRoutes from "./reviews/review.routes";
 
@@ -16,6 +17,7 @@ router.use("/roles", roleRoutes);
 router.use("/users", userRoutes);
 router.use("/shops", shopRoutes);
 router.use("/products", productRoutes);
+router.use("/uploads", uploadRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/reviews", reviewRoutes);
 
