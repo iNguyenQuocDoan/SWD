@@ -124,7 +124,7 @@ export default function SellerApplicationStatusPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button onClick={() => router.push("/customer/become-seller")}>
+                <Button onClick={() => router.push("/seller/register")}>
                   Đăng ký làm người bán hàng
                 </Button>
               </CardContent>
@@ -210,20 +210,34 @@ export default function SellerApplicationStatusPage() {
               )}
 
               {shop.status === "Closed" && (
-                <Alert variant="destructive">
-                  <XCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Đơn đăng ký của bạn đã bị từ chối.
-                    {shop.moderatorNote && (
-                      <div className="mt-2 p-3 bg-red-50 rounded-md">
-                        <p className="text-sm font-medium text-red-900 mb-1">
-                          Ghi chú từ moderator:
-                        </p>
-                        <p className="text-sm text-red-800">{shop.moderatorNote}</p>
-                      </div>
-                    )}
-                  </AlertDescription>
-                </Alert>
+                <div className="space-y-4">
+                  <Alert variant="destructive" className="border-2">
+                    <XCircle className="h-5 w-5" />
+                    <AlertDescription className="ml-2">
+                      <p className="font-semibold text-base">Đơn đăng ký của bạn đã bị từ chối</p>
+                      {shop.moderatorNote && (
+                        <div className="mt-3 p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
+                          <p className="text-sm font-medium text-red-900 dark:text-red-200 mb-2">
+                            Lý do từ chối:
+                          </p>
+                          <p className="text-sm text-red-800 dark:text-red-300">{shop.moderatorNote}</p>
+                        </div>
+                      )}
+                      <p className="mt-3 text-sm">
+                        Bạn có thể sửa thông tin và đăng ký lại bằng cách nhấn nút bên dưới.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+
+                  {/* Prominent re-register button */}
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    onClick={() => router.push("/seller/register?reregister=true")}
+                  >
+                    Đăng ký lại làm người bán hàng
+                  </Button>
+                </div>
               )}
 
               {shop.status === "Suspended" && (
@@ -260,14 +274,15 @@ export default function SellerApplicationStatusPage() {
                     Quản lý Shop
                   </Button>
                 )}
-                {(shop.status === "Pending" || shop.status === "Closed") && (
+                {shop.status === "Pending" && (
                   <Button
                     variant="outline"
-                    onClick={() => router.push("/customer/become-seller")}
+                    onClick={() => router.push("/seller/register")}
                   >
-                    {shop.status === "Closed" ? "Đăng ký lại" : "Cập nhật thông tin"}
+                    Cập nhật thông tin
                   </Button>
                 )}
+                {/* Note: Re-register button for Closed status is shown above in the rejection section */}
               </div>
 
               {/* Timestamps */}

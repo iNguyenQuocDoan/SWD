@@ -236,7 +236,7 @@ export default function SellerShopPage() {
                 Vui lòng đăng ký bán hàng để bắt đầu
               </p>
               <Button asChild>
-                <Link href="/customer/become-seller">Đăng ký bán hàng</Link>
+                <Link href="/seller/register">Đăng ký bán hàng</Link>
               </Button>
             </CardContent>
           </Card>

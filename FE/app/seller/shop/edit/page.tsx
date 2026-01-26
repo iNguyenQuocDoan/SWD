@@ -60,7 +60,7 @@ export default function EditShopPage() {
         toast.error("Bạn chưa có shop. Vui lòng đăng ký bán hàng trước.");
         // Delay redirect để toast hiển thị
         setTimeout(() => {
-          router.push("/customer/become-seller");
+          router.push("/seller/register");
         }, 1500);
         return;
       }
@@ -153,7 +153,7 @@ export default function EditShopPage() {
                 Vui lòng đăng ký bán hàng để bắt đầu
               </p>
               <Button asChild>
-                <Link href="/customer/become-seller">Đăng ký bán hàng</Link>
+                <Link href="/seller/register">Đăng ký bán hàng</Link>
               </Button>
             </CardContent>
           </Card>

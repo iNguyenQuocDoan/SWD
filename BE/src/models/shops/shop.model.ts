@@ -90,4 +90,17 @@ const ShopSchema = new Schema<IShop>(
 ShopSchema.index({ status: 1 });
 ShopSchema.index({ isDeleted: 1 });
 
+// Conditional unique index: shopName must be unique among Active and Pending shops only
+// Shops that are Closed OR soft-deleted can have duplicate names
+ShopSchema.index(
+  { shopName: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["Active", "Pending"] },
+      isDeleted: false,
+    },
+  }
+);
+
 export default mongoose.model<IShop>("Shop", ShopSchema);

@@ -2,10 +2,42 @@ import { BaseService } from "@/services/base.service";
 import { Shop, IShop, User } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
+import { SHOP_STATUS } from "@/constants/shopStatus";
 
 export class ShopService extends BaseService<IShop> {
   constructor() {
     super(Shop);
+  }
+
+  /**
+   * Escape special regex characters in a string
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  /**
+   * Check if a shop name is already taken by an Active or Pending shop
+   * @param shopName - The shop name to check
+   * @param excludeShopId - Optional shop ID to exclude (for updates)
+   * @returns true if the name is taken, false otherwise
+   */
+  async isShopNameTaken(
+    shopName: string,
+    excludeShopId?: string
+  ): Promise<boolean> {
+    const query: Record<string, unknown> = {
+      shopName: { $regex: new RegExp(`^${this.escapeRegex(shopName)}$`, "i") }, // Case-insensitive match
+      status: { $in: [SHOP_STATUS.ACTIVE, SHOP_STATUS.PENDING] },
+      isDeleted: false,
+    };
+
+    if (excludeShopId) {
+      query._id = { $ne: excludeShopId };
+    }
+
+    const existingShop = await Shop.findOne(query);
+    return existingShop !== null;
   }
 
   async createShop(
@@ -30,23 +62,46 @@ export class ShopService extends BaseService<IShop> {
         );
       }
 
+      // Check if the NEW shop name is already taken (for re-registration)
+      if (await this.isShopNameTaken(shopName)) {
+        throw new AppError(MESSAGES.ERROR.SHOP.NAME_ALREADY_EXISTS, 400);
+      }
+
       // If shop was rejected (Closed + isDeleted), allow re-registration by updating the old record
       // This avoids duplicate key error on ownerUserId unique index
-      const updatedShop = await Shop.findByIdAndUpdate(
-        existingShop._id,
-        {
-          shopName,
-          description: description || null,
-          status: "Pending",
-          isDeleted: false,
-          approvedByUserId: null,
-          approvedAt: null,
-          moderatorNote: null,
-        },
-        { new: true }
-      );
+      try {
+        const updatedShop = await Shop.findByIdAndUpdate(
+          existingShop._id,
+          {
+            shopName,
+            description: description || null,
+            status: "Pending",
+            isDeleted: false,
+            approvedByUserId: null,
+            approvedAt: null,
+            moderatorNote: null,
+          },
+          { new: true }
+        );
 
-      return updatedShop!;
+        return updatedShop!;
+      } catch (error: unknown) {
+        // Handle MongoDB duplicate key error (race condition fallback)
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === 11000
+        ) {
+          throw new AppError(MESSAGES.ERROR.SHOP.NAME_ALREADY_EXISTS, 400);
+        }
+        throw error;
+      }
+    }
+
+    // Check if shop name is already taken (for first-time registration)
+    if (await this.isShopNameTaken(shopName)) {
+      throw new AppError(MESSAGES.ERROR.SHOP.NAME_ALREADY_EXISTS, 400);
     }
 
     // Verify user exists
@@ -56,21 +111,41 @@ export class ShopService extends BaseService<IShop> {
     }
 
     // Create new shop (first time registration)
-    const shop = await Shop.create({
-      ownerUserId,
-      shopName,
-      description: description || null,
-      status: "Pending",
-      ratingAvg: 0,
-      totalSales: 0,
-    });
+    try {
+      const shop = await Shop.create({
+        ownerUserId,
+        shopName,
+        description: description || null,
+        status: "Pending",
+        ratingAvg: 0,
+        totalSales: 0,
+      });
 
-    return shop;
+      return shop;
+    } catch (error: unknown) {
+      // Handle MongoDB duplicate key error (race condition fallback)
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === 11000
+      ) {
+        throw new AppError(MESSAGES.ERROR.SHOP.NAME_ALREADY_EXISTS, 400);
+      }
+      throw error;
+    }
   }
 
   async getShopByOwnerId(ownerUserId: string): Promise<IShop | null> {
+    // Include rejected shops (status: Closed, isDeleted: true) so user can see rejection reason
     return this.model
-      .findOne({ ownerUserId, isDeleted: false })
+      .findOne({
+        ownerUserId,
+        $or: [
+          { isDeleted: false },
+          { isDeleted: true, status: "Closed" }, // Rejected shops
+        ],
+      })
       .populate("ownerUserId")
       .populate("approvedByUserId");
   }

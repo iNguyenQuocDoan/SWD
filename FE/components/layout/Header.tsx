@@ -195,7 +195,7 @@ export function Header() {
                     {/* Hiển thị "Đăng ký bán hàng" nếu user là customer và chưa có shop */}
                     {user?.role === "customer" && !shop && (
                       <DropdownMenuItem asChild className="text-base">
-                        <Link href="/customer/become-seller">
+                        <Link href="/seller/register">
                           <Store className="mr-2 h-5 w-5" />
                           <span>Đăng ký bán hàng</span>
                         </Link>
@@ -204,7 +204,7 @@ export function Header() {
                     {/* Hiển thị "Trạng thái đơn đăng ký" nếu user có shop đang chờ duyệt */}
                     {shop && shop.status === "Pending" && (
                       <DropdownMenuItem asChild className="text-base">
-                        <Link href="/customer/seller-application-status">
+                        <Link href="/seller/register">
                           <Store className="mr-2 h-5 w-5" />
                           <span>Trạng thái đơn đăng ký</span>
                         </Link>
@@ -219,10 +219,19 @@ export function Header() {
                         </Link>
                       </DropdownMenuItem>
                     )}
+                    {/* Hiển thị "Đăng ký lại" nếu shop bị từ chối (Closed) */}
+                    {shop && shop.status === "Closed" && (
+                      <DropdownMenuItem asChild className="text-base">
+                        <Link href="/seller/register?reregister=true">
+                          <Store className="mr-2 h-5 w-5" />
+                          <span>Đăng ký lại bán hàng</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     {/* Hiển thị "Quản lý Shop" cho seller role cũ (backward compatibility) */}
                     {user?.role === "seller" && !hasActiveShop && !shop && (
                       <DropdownMenuItem asChild className="text-base">
-                        <Link href="/customer/become-seller">
+                        <Link href="/seller/register">
                           <Store className="mr-2 h-5 w-5" />
                           <span>Tạo Shop</span>
                         </Link>

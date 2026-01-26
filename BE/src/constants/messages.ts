@@ -51,6 +51,7 @@ export const MESSAGES = {
       NOT_FOUND: "Shop not found",
       ALREADY_EXISTS: "User already has a shop",
       ACCESS_DENIED: "Access denied",
+      NAME_ALREADY_EXISTS: "Tên shop đã tồn tại. Vui lòng chọn tên khác.",
     },
 
     // Error Messages - Product

@@ -55,6 +55,13 @@ export class AuthService {
     return user;
   }
 
+  /**
+   * Escape special regex characters in a string
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
   async registerSeller(
     email: string,
     password: string,
@@ -62,6 +69,17 @@ export class AuthService {
     shopName: string,
     description: string | null = null
   ): Promise<{ user: IUser; shop: any }> {
+    // Check if shop name is already taken BEFORE creating the user
+    const existingShopWithName = await Shop.findOne({
+      shopName: { $regex: new RegExp(`^${this.escapeRegex(shopName)}$`, "i") },
+      status: { $in: [SHOP_STATUS.ACTIVE, SHOP_STATUS.PENDING] },
+      isDeleted: false,
+    });
+
+    if (existingShopWithName) {
+      throw new AppError(MESSAGES.ERROR.SHOP.NAME_ALREADY_EXISTS, 400);
+    }
+
     // Register user with SELLER role
     const user = await this.register(
       email,
@@ -81,16 +99,34 @@ export class AuthService {
     }
 
     // Create shop with provided information
-    const shop = await Shop.create({
-      ownerUserId: user._id,
-      shopName,
-      description: description || null,
-      status: SHOP_STATUS.PENDING,
-      ratingAvg: 0,
-      totalSales: 0,
-    });
+    try {
+      const shop = await Shop.create({
+        ownerUserId: user._id,
+        shopName,
+        description: description || null,
+        status: SHOP_STATUS.PENDING,
+        ratingAvg: 0,
+        totalSales: 0,
+      });
 
-    return { user, shop };
+      return { user, shop };
+    } catch (error: unknown) {
+      // If shop creation fails due to duplicate name (race condition),
+      // we need to rollback the user creation
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === 11000
+      ) {
+        // Delete the user we just created
+        await User.findByIdAndDelete(user._id);
+        throw new AppError(MESSAGES.ERROR.SHOP.NAME_ALREADY_EXISTS, 400);
+      }
+      // For other errors, also rollback user creation
+      await User.findByIdAndDelete(user._id);
+      throw error;
+    }
   }
 
   async login(email: string, password: string): Promise<LoginResult> {

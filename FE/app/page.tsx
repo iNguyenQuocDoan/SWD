@@ -155,7 +155,7 @@ export default function Home() {
             hàng tiềm năng
           </p>
           <Button size="lg" variant="secondary" className="text-sm md:text-base h-9 md:h-10 px-5 md:px-6" asChild>
-            <Link href="/seller/register">Đăng ký seller</Link>
+            <Link href="/seller/register">Đăng ký bán hàng</Link>
           </Button>
         </div>
       </section>

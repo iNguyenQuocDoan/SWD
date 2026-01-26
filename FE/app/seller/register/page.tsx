@@ -11,7 +11,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -26,10 +25,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Store, User, Clock, CheckCircle, XCircle, AlertCircle, Calendar, MessageSquare, ArrowRight } from "lucide-react";
+import { Store, User, Clock, CheckCircle, XCircle, AlertCircle, Calendar, MessageSquare, ArrowRight, ArrowLeft, RefreshCw } from "lucide-react";
 import { authService } from "@/lib/services/auth.service";
 import { shopService, Shop } from "@/lib/services/shop.service";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,8 +38,13 @@ export default function RegisterSellerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingShop, setIsCheckingShop] = useState(true);
   const [existingShop, setExistingShop] = useState<Shop | null>(null);
+  const [showReregisterForm, setShowReregisterForm] = useState(false);
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Check if coming from reregister link
+  const isReregisterMode = searchParams.get("reregister") === "true";
 
   // Nếu đã đăng nhập, chỉ cần form tạo shop đơn giản
   const isLoggedIn = isAuthenticated && user;
@@ -52,6 +57,11 @@ export default function RegisterSellerPage() {
           setIsCheckingShop(true);
           const shop = await shopService.getMyShop();
           setExistingShop(shop);
+
+          // Auto show form if reregister mode and shop is Closed
+          if (isReregisterMode && shop?.status === "Closed") {
+            setShowReregisterForm(true);
+          }
         } catch (error) {
           console.error("Error checking existing shop:", error);
           setExistingShop(null);
@@ -64,7 +74,7 @@ export default function RegisterSellerPage() {
     };
 
     checkExistingShop();
-  }, [isLoggedIn]);
+  }, [isLoggedIn, isReregisterMode]);
 
   // Dùng schema khác nhau tùy vào trạng thái đăng nhập
   const sellerForm = useForm<RegisterSellerInput>({
@@ -87,6 +97,14 @@ export default function RegisterSellerPage() {
     },
   });
 
+  // Pre-fill form with old shop data when reregistering
+  useEffect(() => {
+    if (showReregisterForm && existingShop && existingShop.status === "Closed") {
+      shopForm.setValue("shopName", existingShop.shopName);
+      shopForm.setValue("description", existingShop.description || "");
+    }
+  }, [showReregisterForm, existingShop, shopForm]);
+
   // Type assertion để TypeScript hiểu
   const form = (isLoggedIn ? shopForm : sellerForm) as typeof sellerForm;
 
@@ -94,22 +112,27 @@ export default function RegisterSellerPage() {
     setIsLoading(true);
     try {
       if (isLoggedIn && user) {
-        // Trường hợp 1: User đã đăng nhập → Chỉ tạo Shop mới
+        // Trường hợp 1: User đã đăng nhập → Chỉ tạo Shop mới (hoặc đăng ký lại)
         const shopData = data as CreateShopInput;
-        
+
         await shopService.createShop({
           shopName: shopData.shopName,
           description: shopData.description || undefined,
         });
-        
-        toast.success(
-          "Tạo shop thành công! Shop đang chờ phê duyệt. Bạn có thể bắt đầu bán hàng sau khi được duyệt."
-        );
-        router.push("/seller");
+
+        const message = existingShop?.status === "Closed"
+          ? "Đăng ký lại thành công! Shop đang chờ phê duyệt."
+          : "Tạo shop thành công! Shop đang chờ phê duyệt.";
+
+        toast.success(message);
+
+        // Reset state and reload to show pending status
+        setShowReregisterForm(false);
+        window.location.href = "/seller/register";
       } else {
         // Trường hợp 2: Chưa đăng nhập → Tạo User + Shop cùng lúc
         const sellerData = data as RegisterSellerInput;
-        
+
         await authService.registerSeller({
           email: sellerData.email,
           password: sellerData.password,
@@ -117,7 +140,7 @@ export default function RegisterSellerPage() {
           shopName: sellerData.shopName,
           description: sellerData.description || null,
         });
-        
+
         toast.success(
           "Đăng ký seller thành công! Shop của bạn đang chờ phê duyệt. Vui lòng đăng nhập để tiếp tục."
         );
@@ -125,10 +148,8 @@ export default function RegisterSellerPage() {
       }
     } catch (error: any) {
       console.error("Registration error:", error);
-      // Hiển thị thông báo lỗi rõ ràng hơn
       const errorMessage = error?.message || "Đăng ký thất bại. Vui lòng thử lại.";
-      
-      // Nếu lỗi là "User already has a shop", hướng dẫn user xem trạng thái shop
+
       if (errorMessage.includes("already has a shop") || errorMessage.includes("đã có shop")) {
         toast.error(
           "Bạn đã có shop. Vui lòng kiểm tra trạng thái shop của bạn.",
@@ -182,9 +203,9 @@ export default function RegisterSellerPage() {
         );
       case "Closed":
         return (
-          <Badge variant="outline" className="text-sm">
+          <Badge variant="outline" className="text-sm border-red-300 text-red-600">
             <XCircle className="mr-1 h-3 w-3" />
-            Đã đóng
+            Bị từ chối
           </Badge>
         );
       default:
@@ -211,8 +232,102 @@ export default function RegisterSellerPage() {
     );
   }
 
-  // Hiển thị trạng thái đăng ký nếu đã có shop (trừ trường hợp shop bị reject - Closed)
-  // Nếu shop bị reject (Closed), cho phép tạo shop mới
+  // ========== TRƯỜNG HỢP: Shop bị từ chối (Closed) - Hiển thị trạng thái và option đăng ký lại ==========
+  if (isLoggedIn && existingShop && existingShop.status === "Closed" && !showReregisterForm) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
+        <Card className="w-full max-w-lg">
+          <CardHeader className="space-y-2">
+            <div className="flex items-center gap-3 justify-center">
+              <XCircle className="h-8 w-8 md:h-10 md:w-10 text-red-500" />
+              <CardTitle className="text-2xl md:text-3xl text-center">
+                Đơn đăng ký bị từ chối
+              </CardTitle>
+            </div>
+            <CardDescription className="text-center text-base">
+              Đơn đăng ký bán hàng của bạn đã bị từ chối. Vui lòng xem chi tiết bên dưới.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Shop Info cũ */}
+            <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">{existingShop.shopName}</h3>
+                {getShopStatusBadge(existingShop.status)}
+              </div>
+              {existingShop.description && (
+                <p className="text-sm text-muted-foreground">{existingShop.description}</p>
+              )}
+            </div>
+
+            {/* Lý do từ chối - Nổi bật */}
+            {existingShop.moderatorNote && (
+              <Alert variant="destructive" className="border-2">
+                <MessageSquare className="h-5 w-5" />
+                <AlertDescription className="ml-2">
+                  <p className="font-semibold text-base mb-2">Lý do từ chối:</p>
+                  <p className="text-sm">{existingShop.moderatorNote}</p>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Thông tin thời gian */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Ngày đăng ký
+                </Label>
+                <p className="text-sm">{formatDate(existingShop.createdAt)}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  <XCircle className="h-3 w-3" />
+                  Ngày từ chối
+                </Label>
+                <p className="text-sm">{formatDate(existingShop.updatedAt)}</p>
+              </div>
+            </div>
+
+            {/* Hướng dẫn đăng ký lại */}
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start gap-3">
+                <RefreshCw className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-blue-900 dark:text-blue-200">
+                    Bạn có thể đăng ký lại
+                  </p>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    Hãy xem xét lý do từ chối và điều chỉnh thông tin shop phù hợp trước khi đăng ký lại.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3 pt-2">
+              <Button
+                size="lg"
+                className="w-full h-12 text-base"
+                onClick={() => setShowReregisterForm(true)}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Đăng ký lại bán hàng
+              </Button>
+
+              <Button variant="ghost" asChild className="w-full">
+                <Link href="/">
+                  Quay về trang chủ
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ========== TRƯỜNG HỢP: Shop đang Pending/Active/Suspended - Hiển thị trạng thái ==========
   if (isLoggedIn && existingShop && existingShop.status !== "Closed") {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
@@ -291,25 +406,6 @@ export default function RegisterSellerPage() {
                 </div>
               )}
 
-              {existingShop.status === "Closed" && (
-                <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
-                  <div className="flex items-start gap-3">
-                    <XCircle className="h-6 w-6 text-red-600 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="font-medium text-red-900 dark:text-red-200">
-                        Shop đã bị từ chối
-                      </p>
-                      <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                        Đơn đăng ký của bạn đã bị từ chối. {existingShop.moderatorNote ? "Vui lòng xem ghi chú bên dưới." : "Vui lòng liên hệ admin để biết thêm chi tiết."}
-                      </p>
-                      <p className="text-sm text-red-700 dark:text-red-300 mt-2 font-medium">
-                        Bạn có thể đăng ký shop mới bằng cách điền form bên dưới.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Registration Details */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
@@ -346,20 +442,13 @@ export default function RegisterSellerPage() {
             <div className="flex flex-col gap-3">
               {existingShop.status === "Active" && (
                 <Button asChild className="w-full h-12 text-base">
-                  <Link href="/seller">
-                    Đi đến Dashboard Seller
+                  <Link href="/seller/shop">
+                    Đi đến Shop của tôi
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
               )}
-              
-              <Button variant="outline" asChild className="w-full h-12 text-base">
-                <Link href="/seller/shop">
-                  <Store className="mr-2 h-4 w-4" />
-                  Xem chi tiết Shop
-                </Link>
-              </Button>
-              
+
               <Button variant="ghost" asChild className="w-full">
                 <Link href="/">
                   Quay về trang chủ
@@ -372,26 +461,64 @@ export default function RegisterSellerPage() {
     );
   }
 
-  // Form đăng ký (chưa có shop)
+  // ========== TRƯỜNG HỢP: Form đăng ký (chưa có shop HOẶC đang đăng ký lại) ==========
+  const isReregistering = showReregisterForm && existingShop?.status === "Closed";
+
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2">
+          {/* Back button khi đang reregister */}
+          {isReregistering && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-fit -ml-2 mb-2"
+              onClick={() => {
+                setShowReregisterForm(false);
+                router.replace("/seller/register");
+              }}
+            >
+              <ArrowLeft className="mr-1 h-4 w-4" />
+              Quay lại
+            </Button>
+          )}
+
           <div className="flex items-center gap-3 justify-center">
-            <Store className="h-8 w-8 md:h-10 md:w-10 text-primary" />
+            {isReregistering ? (
+              <RefreshCw className="h-8 w-8 md:h-10 md:w-10 text-primary" />
+            ) : (
+              <Store className="h-8 w-8 md:h-10 md:w-10 text-primary" />
+            )}
             <CardTitle className="text-2xl md:text-3xl text-center">
-              {isLoggedIn ? "Tạo Shop" : "Đăng ký bán hàng"}
+              {isReregistering
+                ? "Đăng ký lại"
+                : isLoggedIn
+                  ? "Tạo Shop"
+                  : "Đăng ký bán hàng"
+              }
             </CardTitle>
           </div>
           <CardDescription className="text-center text-base">
-            {isLoggedIn 
-              ? existingShop && existingShop.status === "Closed"
-                ? `Xin chào ${user?.name}! Shop trước đó của bạn đã bị từ chối. Bạn có thể tạo shop mới.`
-                : `Xin chào ${user?.name}! Tạo shop của bạn để bắt đầu bán sản phẩm số`
-              : "Tạo tài khoản và shop của bạn để bắt đầu bán sản phẩm số"
+            {isReregistering
+              ? "Điều chỉnh thông tin và gửi đơn đăng ký mới"
+              : isLoggedIn
+                ? `Xin chào ${user?.name}! Tạo shop của bạn để bắt đầu bán sản phẩm số`
+                : "Tạo tài khoản và shop của bạn để bắt đầu bán sản phẩm số"
             }
           </CardDescription>
-          {isLoggedIn && (
+
+          {/* Nhắc nhở lý do từ chối khi đăng ký lại */}
+          {isReregistering && existingShop?.moderatorNote && (
+            <Alert className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <span className="font-medium">Lưu ý:</span> Đơn trước bị từ chối vì: {existingShop.moderatorNote}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {isLoggedIn && !isReregistering && (
             <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
               <User className="h-4 w-4" />
               <span>Shop sẽ được liên kết với tài khoản: <strong>{user?.email}</strong></span>
@@ -410,17 +537,17 @@ export default function RegisterSellerPage() {
                       <FormItem>
                         <FormLabel className="text-base">Tên hiển thị</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Nguyễn Văn A" 
+                          <Input
+                            placeholder="Nguyễn Văn A"
                             className="h-11 text-base"
-                            {...field} 
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="email"
@@ -442,7 +569,7 @@ export default function RegisterSellerPage() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="password"
@@ -461,7 +588,7 @@ export default function RegisterSellerPage() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="confirmPassword"
@@ -484,34 +611,33 @@ export default function RegisterSellerPage() {
               )}
 
               <FormField
-                control={form.control}
+                control={shopForm.control}
                 name="shopName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base">Tên Shop</FormLabel>
+                    <FormLabel className="text-base">
+                      Tên Shop {isReregistering && <span className="text-muted-foreground">(có thể đổi)</span>}
+                    </FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Shop của tôi" 
+                      <Input
+                        placeholder="Shop của tôi"
                         className="h-11 text-base"
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
-                    {isLoggedIn && (
-                      <p className="text-xs text-muted-foreground">
-                        Shop sẽ được tạo và liên kết với tài khoản {user?.email} của bạn (ownerUserId)
-                      </p>
-                    )}
                   </FormItem>
                 )}
               />
 
               <FormField
-                control={form.control}
+                control={shopForm.control}
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base">Mô tả Shop</FormLabel>
+                    <FormLabel className="text-base">
+                      Mô tả Shop {isReregistering && <span className="text-muted-foreground">(có thể sửa)</span>}
+                    </FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="Mô tả về shop của bạn..."
@@ -528,16 +654,18 @@ export default function RegisterSellerPage() {
                 )}
               />
 
-              <Button 
-                type="submit" 
-                className="w-full h-12 text-base md:text-lg" 
-                disabled={isLoading || (isLoggedIn && isCheckingShop)}
+              <Button
+                type="submit"
+                className="w-full h-12 text-base md:text-lg"
+                disabled={isLoading || !!(isLoggedIn && isCheckingShop)}
               >
-                {isLoading 
-                  ? (isLoggedIn ? "Đang tạo shop..." : "Đang đăng ký...") 
+                {isLoading
+                  ? (isReregistering ? "Đang gửi đơn..." : isLoggedIn ? "Đang tạo shop..." : "Đang đăng ký...")
                   : (isLoggedIn && isCheckingShop)
                   ? "Đang kiểm tra..."
-                  : (isLoggedIn ? "Tạo Shop" : "Đăng ký bán hàng")
+                  : isReregistering
+                    ? "Gửi đơn đăng ký lại"
+                    : (isLoggedIn ? "Tạo Shop" : "Đăng ký bán hàng")
                 }
               </Button>
             </form>
