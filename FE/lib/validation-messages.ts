@@ -27,6 +27,7 @@ export const VALIDATION_MESSAGES = {
     TITLE_MAX_LENGTH: "Tiêu đề không được quá 200 ký tự",
     DESCRIPTION_MIN_LENGTH: "Mô tả phải có ít nhất 20 ký tự",
     PRICE_MIN: "Giá phải lớn hơn hoặc bằng 0",
+    SHOP_REQUIRED: "Vui lòng chọn shop",
     PLATFORM_REQUIRED: "Vui lòng chọn nền tảng",
     WARRANTY_POLICY_MIN_LENGTH: "Chính sách bảo hành phải có ít nhất 10 ký tự",
     HOW_TO_USE_MIN_LENGTH: "Hướng dẫn sử dụng phải có ít nhất 10 ký tự",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -14,7 +15,6 @@ import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -25,7 +25,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from "@/components/ui/form";
 import {
   Select,
@@ -34,267 +33,155 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { productService } from "@/lib/services/product.service";
+import { type ApiError } from "@/lib/api";
+import { useShop } from "@/lib/hooks/useShop";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CreateProductPage() {
+  const router = useRouter();
+  const { shop, loading: shopLoading, hasActiveShop } = useShop();
   const [isLoading, setIsLoading] = useState(false);
-  const [isAIAssisting, setIsAIAssisting] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<any>(null);
 
   const form = useForm<CreateProductInput>({
     resolver: zodResolver(createProductSchema),
     defaultValues: {
+      shopId: "",
+      platformId: "",
       title: "",
       description: "",
+      warrantyPolicy: "Bảo hành 1 đổi 1 trong 30 ngày nếu có lỗi từ nhà sản xuất.",
+      howToUse: "Sau khi thanh toán, key và hướng dẫn sẽ được gửi qua email của bạn.",
+      thumbnailUrl: null,
+      planType: "Personal",
+      durationDays: 30,
       price: 0,
-      category: "",
-      tags: [],
-      deliveryType: "license_key",
-      images: [],
     },
   });
 
-  const handleAIAssist = async () => {
-    const title = form.getValues("title");
-    const description = form.getValues("description");
+  useEffect(() => {
+    if (shop?._id) {
+      form.setValue("shopId", shop._id);
+    }
+  }, [shop?._id, form]);
 
-    if (!title || !description) {
-      toast.error("Vui lòng nhập tiêu đề và mô tả trước khi sử dụng AI Assist");
+  const onSubmit = async (data: CreateProductInput) => {
+    if (!shop?._id) {
+      toast.error("Vui lòng tạo shop trước khi đăng bán sản phẩm");
       return;
     }
 
-    setIsAIAssisting(true);
-    try {
-      // TODO: Call AI API
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      const suggestions = {
-        suggestedCategories: [
-          "Windows",
-          "Software License",
-          "Operating System",
-        ],
-        suggestedTags: ["windows11", "license", "genuine", "lifetime"],
-        improvedDescription:
-          description +
-          "\n\n[AI Enhanced]\nSản phẩm chính hãng, đảm bảo kích hoạt thành công. Hỗ trợ 24/7.",
-      };
-
-      setAiSuggestions(suggestions);
-      toast.success("AI đã phân tích và đưa ra gợi ý!");
-    } catch (error) {
-      toast.error("Lỗi khi sử dụng AI Assist");
-    } finally {
-      setIsAIAssisting(false);
-    }
-  };
-
-  const applyAISuggestion = (type: "description" | "category" | "tags") => {
-    if (!aiSuggestions) return;
-
-    if (type === "description") {
-      form.setValue("description", aiSuggestions.improvedDescription);
-    } else if (type === "category" && aiSuggestions.suggestedCategories[0]) {
-      form.setValue("category", aiSuggestions.suggestedCategories[0]);
-    } else if (type === "tags") {
-      form.setValue("tags", aiSuggestions.suggestedTags);
-    }
-
-    toast.success("Đã áp dụng gợi ý từ AI");
-  };
-
-  const onSubmit = async (data: CreateProductInput) => {
     setIsLoading(true);
     try {
-      // TODO: Submit to API
-      console.log("Create product:", data);
-      toast.success("Sản phẩm đã được tạo và gửi vào hàng đợi kiểm duyệt!");
+      const payload: CreateProductInput = {
+        ...data,
+        shopId: shop._id,
+        durationDays: Number(data.durationDays),
+        price: Number(data.price),
+      };
+
+      const response = await productService.createProduct(payload);
+
+      if (!response.success) {
+        toast.error(response.message || "Lỗi khi tạo sản phẩm");
+        return;
+      }
+
+      toast.success("Sản phẩm đã được tạo và hiển thị công khai!");
+      router.push("/seller");
+      router.refresh();
     } catch (error) {
-      toast.error("Lỗi khi tạo sản phẩm");
+      const err = error as ApiError;
+      toast.error(err.message || "Lỗi khi tạo sản phẩm");
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (shopLoading) {
+    return (
+      <div className="container py-8 max-w-4xl space-y-6">
+        <Skeleton className="h-10 w-1/2" />
+        <Skeleton className="h-6 w-3/4" />
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-8 w-1/4" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!hasActiveShop) {
+    return (
+      <div className="container py-8 max-w-4xl text-center">
+        <h2 className="text-2xl font-bold mb-4">Bạn chưa có cửa hàng</h2>
+        <p className="text-muted-foreground mb-6">
+          Vui lòng tạo một cửa hàng trước khi đăng bán sản phẩm.
+        </p>
+        <Button onClick={() => router.push("/seller/register")}>
+          Tạo cửa hàng ngay
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <RequireAuth requiredRole="seller">
       <div className="container py-8 max-w-4xl">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Tạo sản phẩm mới</h1>
-          <p className="text-muted-foreground">
-            Thêm sản phẩm mới vào shop. Sản phẩm sẽ được kiểm duyệt trước khi
-            hiển thị công khai.
-          </p>
-        </div>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Tạo sản phẩm mới</h1>
+            <p className="text-muted-foreground">
+              Thêm sản phẩm mới vào shop. Sản phẩm sẽ được kiểm duyệt trước khi
+              hiển thị công khai.
+            </p>
+          </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Basic Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Thông tin cơ bản</CardTitle>
-                <CardDescription>
-                  Nhập thông tin chi tiết về sản phẩm
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tiêu đề sản phẩm *</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Windows 11 Pro License Key"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <input type="hidden" {...form.register("shopId")} />
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mô tả *</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Mô tả chi tiết về sản phẩm, cách sử dụng, điều kiện..."
-                          className="min-h-[150px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleAIAssist}
-                    disabled={isAIAssisting}
-                  >
-                    {isAIAssisting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        AI đang phân tích...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        AI Assist
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {aiSuggestions && (
-                  <Card className="border-primary/50 bg-primary/5">
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Sparkles className="h-4 w-4" />
-                        Gợi ý từ AI
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <p className="text-sm font-medium mb-2">
-                          Danh mục gợi ý:
-                        </p>
-                        <div className="flex gap-2 flex-wrap">
-                          {aiSuggestions.suggestedCategories.map(
-                            (cat: string) => (
-                              <Badge key={cat} variant="outline">
-                                {cat}
-                              </Badge>
-                            )
-                          )}
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="mt-2"
-                          onClick={() => applyAISuggestion("category")}
-                        >
-                          Áp dụng
-                        </Button>
-                      </div>
-
-                      <div>
-                        <p className="text-sm font-medium mb-2">Tags gợi ý:</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {aiSuggestions.suggestedTags.map((tag: string) => (
-                            <Badge key={tag} variant="secondary">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="mt-2"
-                          onClick={() => applyAISuggestion("tags")}
-                        >
-                          Áp dụng
-                        </Button>
-                      </div>
-
-                      <div>
-                        <p className="text-sm font-medium mb-2">
-                          Mô tả đã cải thiện:
-                        </p>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-background p-3 rounded border">
-                          {aiSuggestions.improvedDescription}
-                        </p>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="mt-2"
-                          onClick={() => applyAISuggestion("description")}
-                        >
-                          Áp dụng
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Pricing & Category */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Giá và phân loại</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Thông tin cơ bản</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="price"
+                    name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Giá (USD) *</FormLabel>
+                        <FormLabel>Tiêu đề sản phẩm *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="29.99"
+                            placeholder="Ví dụ: Key bản quyền Windows 11 Pro"
                             {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="thumbnailUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Thumbnail URL</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="https://..."
+                            value={field.value ?? ""}
                             onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value))
+                              field.onChange(
+                                e.target.value === "" ? null : e.target.value
+                              )
                             }
                           />
                         </FormControl>
@@ -302,89 +189,187 @@ export default function CreateProductPage() {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
-                    name="category"
+                    name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Danh mục *</FormLabel>
+                        <FormLabel>Mô tả chi tiết *</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Mô tả các tính năng, lợi ích, và thông tin quan trọng khác của sản phẩm."
+                            className="min-h-[120px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Chính sách & Hướng dẫn</CardTitle>
+                </CardHeader>
+                <CardContent className="grid md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="warrantyPolicy"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Chính sách bảo hành *</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Quy định về việc bảo hành sản phẩm."
+                            className="min-h-[100px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="howToUse"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Hướng dẫn sử dụng *</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Các bước để kích hoạt hoặc sử dụng sản phẩm."
+                            className="min-h-[100px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Phân loại & Giá</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                   <FormField
+                    control={form.control}
+                    name="platformId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nền tảng *</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Chọn danh mục" />
+                              <SelectValue placeholder="Chọn nền tảng cho sản phẩm" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="Windows">Windows</SelectItem>
-                            <SelectItem value="Office">Office</SelectItem>
-                            <SelectItem value="Antivirus">Antivirus</SelectItem>
-                            <SelectItem value="VPN">VPN</SelectItem>
-                            <SelectItem value="Adobe">
-                              Adobe Creative
-                            </SelectItem>
-                            <SelectItem value="Games">Game Keys</SelectItem>
+                            <SelectItem value="69763a2862db1945ad210103">Netflix</SelectItem>
+                            <SelectItem value="69763a2962db1945ad21011f">Disney+</SelectItem>
+                            <SelectItem value="69763a2962db1945ad210132">HBO Max</SelectItem>
+                            <SelectItem value="69763a2962db1945ad210138">Amazon Prime Video</SelectItem>
+                            <SelectItem value="69763a2962db1945ad21013d">Spotify</SelectItem>
+                            <SelectItem value="69763a2962db1945ad210145">YouTube Premium</SelectItem>
+                            <SelectItem value="69763a2962db1945ad210148">Apple Music</SelectItem>
+                            <SelectItem value="69763a2a62db1945ad21014b">Crunchyroll</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
+                  <div className="grid md:grid-cols-3 gap-4">
+                     <FormField
+                      control={form.control}
+                      name="planType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Loại gói *</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Chọn loại gói" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Personal">Cá nhân</SelectItem>
+                              <SelectItem value="Family">Gia đình</SelectItem>
+                              <SelectItem value="Slot">Slot</SelectItem>
+                              <SelectItem value="Shared">Dùng chung</SelectItem>
+                              <SelectItem value="InviteLink">Mời qua link</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="durationDays"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Thời hạn (ngày) *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="365"
+                              {...field}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={form.control}
+                      name="price"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Giá (USD) *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="29.99"
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                field.onChange(value === "" ? undefined : Number(value));
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
 
-                <FormField
-                  control={form.control}
-                  name="deliveryType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Loại sản phẩm *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="license_key">
-                            License Key
-                          </SelectItem>
-                          <SelectItem value="subscription">
-                            Subscription
-                          </SelectItem>
-                          <SelectItem value="digital_file">
-                            Digital File
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Chọn loại sản phẩm số bạn đang bán
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Actions */}
-            <div className="flex gap-4 justify-end">
-              <Button type="button" variant="outline">
-                Lưu nháp
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Đang tạo..." : "Gửi kiểm duyệt"}
-              </Button>
-            </div>
-          </form>
-        </Form>
+              <div className="flex gap-4 justify-end">
+                <Button type="button" variant="outline" onClick={() => router.back()}>
+                  Hủy
+                </Button>
+                <Button type="submit" disabled={isLoading || shopLoading || !hasActiveShop}>
+                  {isLoading ? "Đang tạo..." : "Tạo sản phẩm"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </div>
       </div>
-    </div>
     </RequireAuth>
   );
 }

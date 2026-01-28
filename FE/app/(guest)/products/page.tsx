@@ -18,7 +18,6 @@ import Link from "next/link";
 import {
   Search,
   X,
-  Star,
   ChevronLeft,
   ChevronRight,
   Package,
@@ -73,13 +72,21 @@ export default function ProductsPage() {
         }
 
         const response = await productService.getProducts(filter);
-        setProducts(response.products || []);
-        setPagination(response.pagination || {
-          page: currentPage,
-          limit: itemsPerPage,
-          total: 0,
-          totalPages: 1,
-        });
+
+        if (!response.success) {
+          throw new Error(response.message || "Không thể tải danh sách sản phẩm");
+        }
+
+        // BE returns: { success: true, data: Product[], pagination: {...} }
+        setProducts((response.data as any) || []);
+        setPagination(
+          (response as any).pagination || {
+            page: currentPage,
+            limit: itemsPerPage,
+            total: 0,
+            totalPages: 1,
+          }
+        );
       } catch (error: any) {
         console.error("Failed to fetch products:", error);
         toast.error("Không thể tải danh sách sản phẩm");
@@ -330,9 +337,11 @@ export default function ProductsPage() {
                       {/* Badges */}
                       <div className="flex gap-1.5 flex-wrap">
                         <Badge variant="secondary" className="text-sm px-2.5 py-1">
-                          {typeof product.platform === "object" 
-                            ? product.platform.platformName 
-                            : "N/A"}
+                          {typeof (product as any).platformId === "object"
+                            ? ((product as any).platformId.platformName || "N/A")
+                            : (typeof (product as any).platform === "object"
+                              ? ((product as any).platform.platformName || "N/A")
+                              : "N/A")}
                         </Badge>
                         <Badge variant="outline" className="text-sm px-2.5 py-1">
                           {product.planType}
@@ -342,6 +351,19 @@ export default function ProductsPage() {
                         </Badge>
                       </div>
 
+                      {/* Thumbnail */}
+                      {(product as any).thumbnailUrl ? (
+                        <div className="aspect-video w-full overflow-hidden rounded-lg bg-muted">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={(product as any).thumbnailUrl}
+                            alt={product.title}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+                      ) : null}
+
                       {/* Title */}
                       <h3 className="font-semibold text-lg md:text-xl line-clamp-2 group-hover:text-primary transition-colors min-h-[3.5rem] flex-1">
                         {product.title}
@@ -349,41 +371,34 @@ export default function ProductsPage() {
 
                       {/* Shop Rating */}
                       <div className="flex items-center gap-2 text-base">
-                        {typeof product.shop === "object" && (product.shop as any).ratingAvg ? (
-                          <>
-                            <div className="flex items-center">
-                              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                              <span className="ml-1 font-medium">
-                                {((product.shop as any).ratingAvg || 0).toFixed(1)}
-                              </span>
-                            </div>
-                            <span className="text-muted-foreground text-sm">
-                              Shop: {(product.shop as any).shopName || "N/A"}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">
-                            Shop: {typeof product.shop === "object" ? (product.shop as any).shopName : "N/A"}
-                          </span>
-                        )}
+                        <span className="text-muted-foreground text-sm">
+                          Shop:{" "}
+                          {typeof (product as any).shopId === "object"
+                            ? ((product as any).shopId.shopName || "N/A")
+                            : (typeof (product as any).shop === "object"
+                              ? ((product as any).shop.shopName || "N/A")
+                              : "N/A")}
+                        </span>
                       </div>
 
-                      {/* Price & Status */}
-                      <div className="space-y-2 pt-2 border-t">
+                      {/* Price & Buy */}
+                      <div className="space-y-3 pt-2 border-t">
                         <div className="flex items-center justify-between flex-wrap gap-1.5">
                           <span className="text-2xl md:text-3xl font-bold text-primary">
                             {formatPrice(product.price)}
                           </span>
-                          <Badge
-                            variant={product.status === "approved" ? "outline" : "secondary"}
-                            className={
-                              product.status === "approved"
-                                ? "bg-green-50 text-green-700 border-green-200 text-sm px-3 py-1"
-                                : "text-sm px-3 py-1"
-                            }
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              globalThis.window.location.href = `/products/${product._id || product.id}`;
+                            }}
                           >
-                            {product.status === "approved" ? "Có sẵn" : "Chờ duyệt"}
-                          </Badge>
+                            Mua
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
