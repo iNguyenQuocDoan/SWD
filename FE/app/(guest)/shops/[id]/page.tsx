@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { shopService, type Shop } from "@/lib/services/shop.service";
 import { productService, type ProductResponse } from "@/lib/services/product.service";
+import { inventoryService } from "@/lib/services/inventory.service";
 import { Package, Store, Star } from "lucide-react";
 
 const formatPrice = (price: number) =>
@@ -20,6 +21,7 @@ export default function PublicShopPage() {
 
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<ProductResponse[]>([]);
+  const [stockCounts, setStockCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -35,6 +37,22 @@ export default function PublicShopPage() {
 
         setShop(shopData);
         setProducts(productList);
+
+        // Fetch stock counts for all products
+        if (productList.length > 0) {
+          const counts: Record<string, number> = {};
+          await Promise.all(
+            productList.map(async (p) => {
+              const productId = p._id || p.id!;
+              try {
+                counts[productId] = await inventoryService.getAvailableCount(productId);
+              } catch {
+                counts[productId] = 0;
+              }
+            })
+          );
+          setStockCounts(counts);
+        }
       } catch (error) {
         console.error("Failed to load shop detail:", error);
         setShop(null);
@@ -169,8 +187,17 @@ export default function PublicShopPage() {
                           <div className="text-xs md:text-sm text-muted-foreground">
                             {p.durationDays} ngày • {p.planType}
                           </div>
-                          <div className="text-base font-bold text-primary">
-                            {formatPrice(p.price)}
+                          <div className="flex items-center justify-between">
+                            <div className="text-base font-bold text-primary">
+                              {formatPrice(p.price)}
+                            </div>
+                            <Badge variant={stockCounts[id] > 0 ? "secondary" : "destructive"}>
+                              {stockCounts[id] !== undefined
+                                ? stockCounts[id] > 0
+                                  ? `Còn ${stockCounts[id]}`
+                                  : "Hết hàng"
+                                : "..."}
+                            </Badge>
                           </div>
                         </div>
                       </CardContent>

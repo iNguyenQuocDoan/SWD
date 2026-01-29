@@ -498,10 +498,10 @@ function ProductsContent() {
                         {/* Stock indicator */}
                         <div className="absolute top-3 right-3">
                           <Badge
-                            variant={isInStock ? "default" : "secondary"}
+                            variant={isInStock ? "default" : "destructive"}
                             className={isInStock
                               ? "bg-green-500 text-white shadow-lg text-xs"
-                              : "bg-gray-500 text-white shadow-lg text-xs"
+                              : "shadow-lg text-xs"
                             }
                           >
                             {isInStock ? `Còn ${stockCount}` : "Hết hàng"}
