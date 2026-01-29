@@ -114,13 +114,6 @@ export class AuthController {
         validatedData.password
       );
 
-      // Log tokens in controller
-      console.log("\n========== LOGIN SUCCESS ==========");
-      console.log(`User: ${validatedData.email}`);
-      console.log(`Access Token: ${result.token}`);
-      console.log(`Refresh Token: ${result.refreshToken}`);
-      console.log("===================================\n");
-
       // Set cookies
       // Parse JWT expire time (e.g., "7d" -> milliseconds)
       const parseJwtExpire = (expire: string): number => {
@@ -184,12 +177,6 @@ export class AuthController {
       }
 
       const result = await this.authService.refreshToken(refreshToken);
-
-      // Log token refresh
-      console.log("\n========== REFRESH TOKEN ==========");
-      console.log(`New Access Token: ${result.token}`);
-      console.log(`Refresh Token used: ${refreshToken}`);
-      console.log("===================================\n");
 
       // Parse JWT expire time (e.g., "7d" -> milliseconds)
       const parseJwtExpire = (expire: string): number => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSellerSchema, createShopSchema, type RegisterSellerInput, type CreateShopInput } from "@/lib/validations";
@@ -34,7 +34,7 @@ import { authService } from "@/lib/services/auth.service";
 import { shopService, Shop } from "@/lib/services/shop.service";
 import { Textarea } from "@/components/ui/textarea";
 
-export default function RegisterSellerPage() {
+function RegisterSellerContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingShop, setIsCheckingShop] = useState(true);
   const [existingShop, setExistingShop] = useState<Shop | null>(null);
@@ -442,7 +442,7 @@ export default function RegisterSellerPage() {
             <div className="flex flex-col gap-3">
               {existingShop.status === "Active" && (
                 <Button asChild className="w-full h-12 text-base">
-                  <Link href="/seller/shop">
+                  <Link href="/seller">
                     Đi đến Shop của tôi
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
@@ -673,5 +673,31 @@ export default function RegisterSellerPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function RegisterSellerLoading() {
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-2">
+          <Skeleton className="h-10 w-10 rounded-full mx-auto" />
+          <Skeleton className="h-8 w-48 mx-auto" />
+          <Skeleton className="h-4 w-64 mx-auto" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function RegisterSellerPage() {
+  return (
+    <Suspense fallback={<RegisterSellerLoading />}>
+      <RegisterSellerContent />
+    </Suspense>
   );
 }

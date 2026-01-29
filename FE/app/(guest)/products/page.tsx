@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,8 +21,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Package,
+  Loader2,
 } from "lucide-react";
 import { productService } from "@/lib/services/product.service";
+import { inventoryService } from "@/lib/services/inventory.service";
 import { toast } from "sonner";
 import type { Product } from "@/types";
 
@@ -31,7 +33,7 @@ type PlatformFilter = "all" | string;
 type DurationFilter = "all" | "1month" | "3months" | "1year";
 type PackageFilter = "all" | "Personal" | "Family" | "Slot" | "Shared" | "InviteLink";
 
-export default function ProductsPage() {
+function ProductsContent() {
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
@@ -49,6 +51,9 @@ export default function ProductsPage() {
   });
 
   const itemsPerPage = 12;
+  const [inventoryCounts, setInventoryCounts] = useState<Record<string, number>>({});
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [platforms, setPlatforms] = useState<Array<{ _id: string; platformName: string }>>([]);
 
   // Fetch products from API
   useEffect(() => {
@@ -78,7 +83,26 @@ export default function ProductsPage() {
         }
 
         // BE returns: { success: true, data: Product[], pagination: {...} }
-        setProducts((response.data as any) || []);
+        const list = (response.data as any) || [];
+        setProducts(list);
+
+        // Extract unique platforms from products
+        const uniquePlatforms = new Map<string, { _id: string; platformName: string }>();
+        list.forEach((p: Product) => {
+          const platform = p.platformId || p.platform;
+          if (platform && typeof platform === "object") {
+            const platformObj = platform as { _id?: string; id?: string; platformName?: string };
+            const platformId = platformObj._id || platformObj.id;
+            if (platformId) {
+              uniquePlatforms.set(platformId, {
+                _id: platformId,
+                platformName: platform.platformName || "Unknown",
+              });
+            }
+          }
+        });
+        setPlatforms(Array.from(uniquePlatforms.values()));
+
         setPagination(
           (response as any).pagination || {
             page: currentPage,
@@ -87,6 +111,30 @@ export default function ProductsPage() {
             totalPages: 1,
           }
         );
+
+        // Fetch inventory counts for each product (available items)
+        try {
+          const entries = await Promise.all(
+            list.map(async (p: any) => {
+              const id = p._id || p.id;
+              if (!id) return [null, 0] as const;
+              try {
+                const count = await inventoryService.getAvailableCount(id);
+                return [id as string, count] as const;
+              } catch {
+                return [id as string, 0] as const;
+              }
+            })
+          );
+          const counts: Record<string, number> = {};
+          for (const [id, count] of entries) {
+            if (id) counts[id] = count;
+          }
+          setInventoryCounts(counts);
+        } catch (err) {
+          console.error("Failed to fetch inventory counts:", err);
+          setInventoryCounts({});
+        }
       } catch (error: any) {
         console.error("Failed to fetch products:", error);
         toast.error("Không thể tải danh sách sản phẩm");
@@ -126,6 +174,15 @@ export default function ProductsPage() {
       );
     }
 
+    // In-stock filter (requires inventoryCounts)
+    if (inStockOnly) {
+      filtered = filtered.filter((p) => {
+        const id = (p as any)._id || (p as any).id;
+        const count = inventoryCounts[id as string] ?? 0;
+        return count > 0;
+      });
+    }
+
     // Sort
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -144,7 +201,7 @@ export default function ProductsPage() {
     });
 
     return filtered;
-  }, [products, searchQuery, sortBy, durationFilter]);
+  }, [products, searchQuery, sortBy, durationFilter, inStockOnly, inventoryCounts]);
 
   // Pagination
   const totalPages = pagination.totalPages || Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
@@ -153,12 +210,14 @@ export default function ProductsPage() {
   const hasActiveFilters =
     platformFilter !== "all" ||
     durationFilter !== "all" ||
-    packageFilter !== "all";
+    packageFilter !== "all" ||
+    inStockOnly;
 
   const resetFilters = () => {
     setPlatformFilter("all");
     setDurationFilter("all");
     setPackageFilter("all");
+    setInStockOnly(false);
     setSearchQuery("");
     setCurrentPage(1);
   };
@@ -230,7 +289,11 @@ export default function ProductsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả nền tảng</SelectItem>
-              {/* TODO: Fetch platforms from API and populate dynamically */}
+              {platforms.map((platform) => (
+                <SelectItem key={platform._id} value={platform._id}>
+                  {platform.platformName}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -271,6 +334,19 @@ export default function ProductsPage() {
               <SelectItem value="InviteLink">Invite Link</SelectItem>
             </SelectContent>
           </Select>
+
+          <Button
+            type="button"
+            variant={inStockOnly ? "default" : "outline"}
+            size="default"
+            onClick={() => {
+              setInStockOnly((prev) => !prev);
+              setCurrentPage(1);
+            }}
+            className="h-11 text-base"
+          >
+            {inStockOnly ? "Đang lọc: Còn hàng" : "Chỉ hiển thị còn hàng"}
+          </Button>
 
           {hasActiveFilters && (
             <Button
@@ -381,24 +457,33 @@ export default function ProductsPage() {
                         </span>
                       </div>
 
-                      {/* Price & Buy */}
+                      {/* Price, stock & Buy */}
                       <div className="space-y-3 pt-2 border-t">
                         <div className="flex items-center justify-between flex-wrap gap-1.5">
                           <span className="text-2xl md:text-3xl font-bold text-primary">
                             {formatPrice(product.price)}
                           </span>
 
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              globalThis.window.location.href = `/products/${product._id || product.id}`;
-                            }}
-                          >
-                            Mua
-                          </Button>
+                          <div className="flex flex-col items-end gap-1 text-sm">
+                            <span className="text-muted-foreground">
+                              Còn{" "}
+                              <span className="font-semibold">
+                                {inventoryCounts[(product as any)._id || (product as any).id || ""] ?? 0}
+                              </span>{" "}
+                              trong kho
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                globalThis.window.location.href = `/products/${product._id || product.id}`;
+                              }}
+                            >
+                              Mua
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -465,5 +550,26 @@ export default function ProductsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function ProductsLoading() {
+  return (
+    <div className="container py-6 md:py-8">
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Đang tải sản phẩm...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<ProductsLoading />}>
+      <ProductsContent />
+    </Suspense>
   );
 }

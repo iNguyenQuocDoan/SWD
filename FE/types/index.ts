@@ -58,6 +58,7 @@ export type PlanType = "Personal" | "Family" | "Slot" | "Shared" | "InviteLink";
 
 export interface Product {
   id: string; // _id from products collection
+  _id?: string; // MongoDB _id (may be returned directly from API)
   shopId: string; // Reference to shops._id (not sellerId)
   platformId: string; // Reference to platform_catalogs._id
   platform?: {

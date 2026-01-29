@@ -46,6 +46,13 @@ export interface ProductFilter {
 
 class ProductService {
   /**
+   * Get product by ID (public)
+   */
+  async getProductById(productId: string): Promise<ApiResponse<ProductResponse>> {
+    return apiClient.get<ProductResponse>(`/products/${productId}`);
+  }
+
+  /**
    * Create a new product for the seller
    */
   async createProduct(

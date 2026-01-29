@@ -104,8 +104,9 @@ export default function CartPage() {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const serviceFee = Math.round(subtotal * 0.02); // 2% phí dịch vụ
-  const total = subtotal + serviceFee;
+  // Không tính thuế/phí cho người mua ở bước giỏ hàng
+  const serviceFee = 0;
+  const total = subtotal;
 
   const handleCheckout = () => {
     if (items.length === 0) {

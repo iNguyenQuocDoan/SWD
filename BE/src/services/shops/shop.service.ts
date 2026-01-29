@@ -218,8 +218,6 @@ export class ShopService extends BaseService<IShop> {
 
   async getPendingShops(): Promise<any[]> {
     try {
-      console.log("=== GET PENDING SHOPS SERVICE ===");
-
       const shops = await this.model
         .find({ status: "Pending", isDeleted: false })
         .populate({
@@ -234,8 +232,6 @@ export class ShopService extends BaseService<IShop> {
         .sort({ createdAt: -1 })
         .lean(); // Use lean() for better performance and to avoid Mongoose document issues
 
-      console.log("Raw shops from DB:", shops.length);
-
       // Filter out shops where ownerUserId is null (user was deleted)
       const validShops = shops.filter((shop: any) => {
         const hasOwner = shop.ownerUserId !== null && shop.ownerUserId !== undefined;
@@ -245,7 +241,6 @@ export class ShopService extends BaseService<IShop> {
         return hasOwner;
       });
 
-      console.log("Valid shops after filter:", validShops.length);
       return validShops;
     } catch (error) {
       console.error("Error in getPendingShops service:", error);

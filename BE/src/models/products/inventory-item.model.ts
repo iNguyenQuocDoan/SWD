@@ -2,7 +2,9 @@ import mongoose, { Schema, Document } from "mongoose";
 import { SecretType, InventoryStatus } from "@/types";
 
 export interface IInventoryItem extends Document {
-  productId: mongoose.Types.ObjectId;
+  shopId: mongoose.Types.ObjectId;
+  platformId: mongoose.Types.ObjectId;
+  productId: mongoose.Types.ObjectId; // Product gốc khi seller thêm inventory (để tracking)
   secretType: SecretType;
   secretValue: string;
   status: InventoryStatus;
@@ -14,6 +16,16 @@ export interface IInventoryItem extends Document {
 
 const InventoryItemSchema = new Schema<IInventoryItem>(
   {
+    shopId: {
+      type: Schema.Types.ObjectId,
+      ref: "Shop",
+      required: true,
+    },
+    platformId: {
+      type: Schema.Types.ObjectId,
+      ref: "PlatformCatalog",
+      required: true,
+    },
     productId: {
       type: Schema.Types.ObjectId,
       ref: "Product",
@@ -48,12 +60,16 @@ const InventoryItemSchema = new Schema<IInventoryItem>(
     },
   },
   {
-    timestamps: false,
+    // Ensure stable pagination + allows FE to display created time
+    timestamps: true,
   }
 );
 
 // Indexes
-InventoryItemSchema.index({ productId: 1 });
+InventoryItemSchema.index({ shopId: 1, platformId: 1 }); // Tìm inventory theo pool
+InventoryItemSchema.index({ productId: 1 }); // Tracking theo product gốc
+InventoryItemSchema.index({ shopId: 1 });
+InventoryItemSchema.index({ platformId: 1 });
 InventoryItemSchema.index({ status: 1 });
 InventoryItemSchema.index({ isDeleted: 1 });
 

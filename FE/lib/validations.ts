@@ -82,8 +82,7 @@ export const updateShopSchema = z.object({
   description: z
     .string()
     .max(500, VALIDATION_MESSAGES.SHOP.DESCRIPTION_MAX_LENGTH)
-    .optional()
-    .nullable(),
+    .optional(),
 });
 
 export type UpdateShopInput = z.infer<typeof updateShopSchema>;

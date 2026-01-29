@@ -332,21 +332,34 @@ export default function CreateProductPage() {
                         </FormItem>
                       )}
                     />
-                     <FormField
+                    <FormField
                       control={form.control}
                       name="price"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Giá (USD) *</FormLabel>
+                          <FormLabel>Giá (VND) *</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
-                              step="0.01"
-                              placeholder="29.99"
-                              {...field}
+                              inputMode="decimal"
+                              min={0}
+                              step={1}
+                              placeholder="100000"
+                              value={
+                                field.value === undefined || field.value === null
+                                  ? ""
+                                  : field.value
+                              }
                               onChange={(e) => {
                                 const value = e.target.value;
-                                field.onChange(value === "" ? undefined : Number(value));
+                                if (value === "") {
+                                  field.onChange(undefined);
+                                  return;
+                                }
+                                const num = Number(value);
+                                if (!Number.isNaN(num)) {
+                                  field.onChange(num);
+                                }
                               }}
                             />
                           </FormControl>

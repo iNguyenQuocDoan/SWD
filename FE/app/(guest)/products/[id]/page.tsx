@@ -16,22 +16,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { useAuthStore } from "@/lib/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import {
-  ShoppingCart,
-  Shield,
-  Star,
-  CheckCircle,
-  AlertCircle,
-  Copy,
-  Lock,
-  Clock,
-  Package,
-  User,
-  HelpCircle,
-} from "lucide-react";
+import { Shield, Star, CheckCircle, AlertCircle, Copy, Lock, Clock, Package, User, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
+import { productService } from "@/lib/services/product.service";
 
 // Types for backend data
 interface ProductShop {
@@ -51,6 +40,7 @@ interface ProductShop {
 interface Product {
   id: string;
   title: string;
+  thumbnailUrl?: string | null;
   platform: string;
   planType: string;
   durationDays: number;
@@ -67,15 +57,11 @@ interface Product {
   shop: ProductShop;
 }
 
-export default function ProductDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function ProductDetailPage() {
+  const { id: productId } = useParams<{ id: string }>();
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("description");
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,18 +70,56 @@ export default function ProductDetailPage({
     const fetchProduct = async () => {
       setIsLoading(true);
       try {
-        // TODO: Fetch from backend
-        // const productData = await productService.getProductById(params.id);
-        // setProduct(productData);
-      } catch (error) {
-        console.error("Failed to fetch product:", error);
+        const response = await productService.getProductById(productId);
+
+        if (response.success && response.data) {
+          const productData = response.data;
+
+          const mappedProduct: Product = {
+            id: productData._id || productData.id || productId,
+            title: productData.title,
+            thumbnailUrl: productData.thumbnailUrl || null,
+            platform: productData.platformId,
+            planType: productData.planType,
+            durationDays: productData.durationDays,
+            durationLabel: `${productData.durationDays} ngày`,
+            price: productData.price,
+            description: productData.description,
+            warranty: productData.warrantyPolicy,
+            howToUse: productData.howToUse,
+            soldCount: 0,
+            inventoryCount: 0,
+            inStock: productData.status === "Approved",
+            status: productData.status || "Approved",
+            shopId: productData.shopId,
+            shop: {
+              id: productData.shopId,
+              name: "Shop",
+              avatar: null,
+              rating: 0,
+              listingCount: 0,
+              soldCount: 0,
+              responseRate: 0,
+              joinedDate: "",
+              isVerified: false,
+              trustLevel: "Standard",
+              status: "active",
+            },
+          };
+
+          setProduct(mappedProduct);
+        } else {
+          setProduct(null);
+        }
+      } catch {
         toast.error("Không thể tải thông tin sản phẩm");
+        setProduct(null);
       } finally {
         setIsLoading(false);
       }
     };
     fetchProduct();
-  }, [params.id]);
+  }, [productId]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -104,30 +128,16 @@ export default function ProductDetailPage({
     }).format(price);
   };
 
-  const handleAddToCart = () => {
-    if (!isAuthenticated) {
-      toast.info("Vui lòng đăng nhập để thêm vào giỏ hàng", {
-        action: {
-          label: "Đăng nhập",
-          onClick: () => router.push(`/login?redirect=/products/${params.id}`),
-        },
-      });
-      return;
-    }
-    // TODO: Implement add to cart
-    toast.success("Đã thêm vào giỏ hàng");
-  };
-
   const handleBuyNow = () => {
     if (!isAuthenticated) {
-      router.push(`/login?redirect=/products/${params.id}`);
+      router.push(`/login?redirect=/products/${productId}`);
       return;
     }
     if (!product || !product.inStock) {
       toast.error("Sản phẩm đã hết hàng");
       return;
     }
-    router.push(`/checkout?product=${params.id}&quantity=${quantity}`);
+    router.push(`/checkout?product=${productId}&quantity=${quantity}`);
   };
 
   const handleCopyToClipboard = (text: string) => {
@@ -180,11 +190,20 @@ export default function ProductDetailPage({
         <div className="lg:col-span-2 space-y-6 md:space-y-8">
           {/* Product Header */}
           <div className="space-y-5 md:space-y-6">
+            {/* Thumbnail */}
+            {product.thumbnailUrl && (
+              <div className="w-full max-w-xl mx-auto rounded-2xl border bg-muted/40 overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={product.thumbnailUrl}
+                  alt={product.title}
+                  className="w-full h-auto max-h-[320px] object-contain bg-background"
+                />
+              </div>
+            )}
+
             {/* Platform & Badges */}
             <div className="flex gap-2 md:gap-3 flex-wrap items-center">
-              <Badge variant="default" className="text-base px-3 py-1.5">
-                {product.platform}
-              </Badge>
               <Badge variant="secondary" className="text-base px-3 py-1.5">{product.planType}</Badge>
               <Badge variant="outline" className="text-base px-3 py-1.5">{product.durationLabel}</Badge>
               {product.inStock ? (
@@ -237,48 +256,16 @@ export default function ProductDetailPage({
             </Alert>
           </div>
 
-          {/* Variant Selection */}
-          {!selectedVariant && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl md:text-2xl">Chọn biến thể</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start h-14 text-base"
-                    onClick={() => setSelectedVariant("3months")}
-                  >
-                    <Package className="h-5 w-5 mr-3" />
-                    3 tháng - {formatPrice(299000)}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start h-14 text-base"
-                    onClick={() => setSelectedVariant("1year")}
-                  >
-                    <Package className="h-5 w-5 mr-3" />
-                    1 năm - {formatPrice(999000)}
-                    <Badge variant="secondary" className="ml-auto text-sm">
-                      Tiết kiệm 25%
-                    </Badge>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={(value) => {
             if (value === "reviews" && !isAuthenticated) {
               toast.info("Vui lòng đăng nhập để xem đánh giá", {
                 action: {
                   label: "Đăng nhập",
-                  onClick: () => router.push(`/login?redirect=/products/${params.id}`),
+                  onClick: () => router.push(`/login?redirect=/products/${productId}`),
                 },
               });
-              router.push(`/login?redirect=/products/${params.id}`);
+              router.push(`/login?redirect=/products/${productId}`);
               return;
             }
             setActiveTab(value);
@@ -343,7 +330,7 @@ export default function ProductDetailPage({
                     <p className="text-sm text-muted-foreground max-w-sm mb-4">
                       Bạn cần đăng nhập để xem đánh giá từ khách hàng
                     </p>
-                    <Button onClick={() => router.push(`/login?redirect=/products/${params.id}`)}>
+                    <Button onClick={() => router.push(`/login?redirect=/products/${productId}`)}>
                       Đăng nhập ngay
                     </Button>
                   </CardContent>
@@ -507,7 +494,7 @@ export default function ProductDetailPage({
                 </div>
               </div>
 
-              {/* CTA Buttons */}
+              {/* CTA Button */}
               <div className="space-y-3">
                 <Button
                   className="w-full h-12 md:h-14 text-base md:text-lg"
@@ -515,16 +502,7 @@ export default function ProductDetailPage({
                   onClick={handleBuyNow}
                   disabled={!product.inStock}
                 >
-                  <ShoppingCart className="mr-2 h-5 w-5" />
                   {product.inStock ? "Mua ngay" : "Hết hàng"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full h-12 md:h-14 text-base md:text-lg"
-                  onClick={handleAddToCart}
-                  disabled={!product.inStock}
-                >
-                  Thêm vào giỏ hàng
                 </Button>
               </div>
 

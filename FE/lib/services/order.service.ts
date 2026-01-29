@@ -89,6 +89,23 @@ class OrderService {
   }
 
   /**
+   * Get order by order code
+   * GET /api/orders/code/:orderCode
+   */
+  async getOrderByCode(orderCode: string): Promise<{
+    order: any;
+    items: any[];
+  }> {
+    const response = await apiClient.get<{ order: any; items: any[] }>(`/orders/code/${orderCode}`);
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new Error(response.message || "Failed to get order");
+  }
+
+  /**
    * Create order from cart
    * NOTE: Backend API needs to be implemented - POST /api/orders
    */

@@ -29,7 +29,6 @@ import {
   Package,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { CustomerMenuStats } from "./CustomerMenuStats";
 
 export function Header() {
   const { user, isAuthenticated } = useAuthStore();
@@ -113,13 +112,14 @@ export function Header() {
           {/* Right Side Actions */}
           <div className="flex items-center gap-1.5 md:gap-2.5 flex-shrink-0">
             {/* Mobile Search Button */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            {/* Mobile menu toggle (no cart in this system) */}
+            <Button
+              variant="ghost"
+              size="icon"
               className="md:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              <Search className="h-5 w-5" />
+              <Menu className="h-5 w-5" />
             </Button>
 
             {!isAuthenticated ? (
@@ -141,12 +141,6 @@ export function Header() {
               </>
             ) : (
               <>
-                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9" asChild>
-                  <Link href="/cart">
-                    <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
-                  </Link>
-                </Button>
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -191,7 +185,6 @@ export function Header() {
                         <span>Lịch sử đơn hàng</span>
                       </Link>
                     </DropdownMenuItem>
-                    {user?.role === "customer" && <CustomerMenuStats />}
                     {/* Hiển thị "Đăng ký bán hàng" nếu user là customer và chưa có shop */}
                     {user?.role === "customer" && !shop && (
                       <DropdownMenuItem asChild className="text-base">
@@ -213,7 +206,7 @@ export function Header() {
                     {/* Hiển thị "Shop của tôi" nếu user có shop đã được duyệt (status = Active) */}
                     {hasActiveShop && (
                       <DropdownMenuItem asChild className="text-base">
-                        <Link href="/seller/shop">
+                        <Link href="/seller">
                           <Store className="mr-2 h-5 w-5" />
                           <span>Shop của tôi</span>
                         </Link>
