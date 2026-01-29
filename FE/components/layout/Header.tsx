@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -47,13 +48,20 @@ export function Header() {
         <div className="flex h-20 md:h-24 items-center justify-between gap-4">
           {/* Logo & Brand */}
           <div className="flex items-center gap-4 md:gap-6 flex-shrink-0">
-            <Link 
-              href="/" 
+            <Link
+              href="/"
               className="flex items-center space-x-2 md:space-x-3 hover:opacity-80 transition-opacity"
             >
-              <Store className="h-7 w-7 md:h-8 md:w-8" />
+              <Image
+                src="/FLogo.jpg"
+                alt="Market Place logo"
+                width={32}
+                height={32}
+                className="h-7 w-7 md:h-8 md:w-8 object-contain"
+                priority
+              />
               <span className="font-bold text-lg md:text-xl lg:text-2xl">
-                Sàn Tài Khoản Số
+                Market Place
               </span>
             </Link>
 

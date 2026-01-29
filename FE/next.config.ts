@@ -13,6 +13,20 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Ensure .bin files are served with correct headers
+  async headers() {
+    return [
+      {
+        source: "/:path*.bin",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/octet-stream",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
