@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -40,6 +41,7 @@ import {
   type ProductResponse,
 } from "@/lib/services/product.service";
 import { reviewService, Review, ShopRatingStats } from "@/lib/services/review.service";
+import { inventoryService, type InventoryItem } from "@/lib/services/inventory.service";
 import { updateProductSchema, type UpdateProductInput } from "@/lib/validations";
 import { toast } from "sonner";
 import {
@@ -58,6 +60,7 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
+  Database,
 } from "lucide-react";
 
 const formatPrice = (price: number) => {
@@ -83,6 +86,7 @@ export default function SellerHome() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [ratingStats, setRatingStats] = useState<ShopRatingStats | null>(null);
   const [shopStats, setShopStats] = useState<ShopStats | null>(null);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("products");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -91,8 +95,14 @@ export default function SellerHome() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isAddInventoryModalOpen, setIsAddInventoryModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add inventory states
+  const [secretType, setSecretType] = useState<"Account" | "InviteLink" | "Code" | "QR">("Account");
+  const [keysText, setKeysText] = useState("");
+  const [isSubmittingInventory, setIsSubmittingInventory] = useState(false);
 
   const form = useForm<UpdateProductInput>({
     resolver: zodResolver(updateProductSchema),
@@ -107,17 +117,19 @@ export default function SellerHome() {
       }
       setShop(shopData);
 
-      const [productsRes, reviewsData, statsData, shopStatsData] = await Promise.all([
+      const [productsRes, reviewsData, statsData, shopStatsData, inventoryRes] = await Promise.all([
         productService.getMyProducts(shopData._id),
         reviewService.getReviewsByShop(shopData._id, 1, 10),
         reviewService.getShopRatingStats(shopData._id),
         shopService.getMyShopStats(),
+        inventoryService.getMyInventory({ limit: 1000 }),
       ]);
 
       setProducts(productsRes.data || []);
       setReviews(reviewsData.reviews || []);
       setRatingStats(statsData);
       setShopStats(shopStatsData);
+      setInventoryItems(inventoryRes.items || []);
     } catch (error) {
       console.error("Error fetching shop data:", error);
       toast.error("Lỗi khi tải dữ liệu shop");
@@ -153,6 +165,62 @@ export default function SellerHome() {
   const handleDeleteClick = (product: ProductResponse) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleAddInventoryClick = (product: ProductResponse) => {
+    setSelectedProduct(product);
+    setSecretType("Account");
+    setKeysText("");
+    setIsAddInventoryModalOpen(true);
+  };
+
+  const handleAddInventory = async () => {
+    if (!selectedProduct?._id && !selectedProduct?.id) {
+      toast.error("Không xác định được sản phẩm");
+      return;
+    }
+
+    const productId = selectedProduct._id || selectedProduct.id!;
+    const lines = keysText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    if (lines.length === 0) {
+      toast.error("Vui lòng nhập ít nhất một key/tài khoản");
+      return;
+    }
+
+    setIsSubmittingInventory(true);
+    try {
+      const result = await inventoryService.addBulkInventory({
+        productId,
+        items: lines.map((value) => ({
+          secretType,
+          secretValue: value,
+        })),
+      });
+
+      if (result.added > 0) {
+        toast.success(`Đã thêm ${result.added} item vào kho${result.errors.length > 0 ? ` (lỗi: ${result.errors.length})` : ""}`);
+      } else {
+        toast.error(`Không thể thêm item vào kho${result.errors.length > 0 ? ` (${result.errors.length} lỗi)` : ""}`);
+      }
+      setIsAddInventoryModalOpen(false);
+      await fetchData(); // Refresh stats
+    } catch (error: unknown) {
+      const maybeMessage =
+        error && typeof error === "object" && "message" in error
+          ? (error as { message?: unknown }).message
+          : undefined;
+      const message =
+        typeof maybeMessage === "string"
+          ? maybeMessage
+          : "Không thể thêm inventory. Vui lòng thử lại.";
+      toast.error(message);
+    } finally {
+      setIsSubmittingInventory(false);
+    }
   };
 
   const onUpdateSubmit = async (data: UpdateProductInput) => {
@@ -201,6 +269,29 @@ export default function SellerHome() {
     if (statusFilter === "all") return products;
     return products.filter((p) => p.status === statusFilter);
   }, [products, statusFilter]);
+
+  // Tính toán inventory counts cho mỗi sản phẩm
+  const productsWithInventory = useMemo(() => {
+    const countsByProduct = new Map<string, { available: number; reserved: number; delivered: number; revoked: number }>();
+
+    for (const item of inventoryItems) {
+      const productId = item.productId?._id || "unknown";
+      const entry = countsByProduct.get(productId) || { available: 0, reserved: 0, delivered: 0, revoked: 0 };
+
+      if (item.status === "Available") entry.available += 1;
+      if (item.status === "Reserved") entry.reserved += 1;
+      if (item.status === "Delivered") entry.delivered += 1;
+      if (item.status === "Revoked") entry.revoked += 1;
+
+      countsByProduct.set(productId, entry);
+    }
+
+    return products.map((p) => {
+      const productId = p._id || p.id || "";
+      const counts = countsByProduct.get(productId) || { available: 0, reserved: 0, delivered: 0, revoked: 0 };
+      return { product: p, ...counts };
+    });
+  }, [products, inventoryItems]);
 
   const getProductStatusBadge = (status?: ProductResponse["status"]) => {
     switch (status) {
@@ -380,16 +471,18 @@ export default function SellerHome() {
               <p className="text-xs text-muted-foreground">{shopStats?.weeklyOrders ?? 0} đơn trong tuần</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Kho hàng</CardTitle>
-              <Package className="h-5 w-5 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{shopStats?.inventory?.available ?? 0}</div>
-              <p className="text-xs text-muted-foreground">Còn hàng (Available)</p>
-            </CardContent>
-          </Card>
+          <Link href="/seller/inventory" className="block">
+            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Kho hàng</CardTitle>
+                <Package className="h-5 w-5 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{shopStats?.inventory?.available ?? 0}</div>
+                <p className="text-xs text-muted-foreground">Còn hàng (Available)</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Shop Wallet */}
@@ -425,6 +518,10 @@ export default function SellerHome() {
             <TabsTrigger value="products">
               <Package className="mr-2 h-4 w-4" />
               Sản phẩm ({products.length})
+            </TabsTrigger>
+            <TabsTrigger value="inventory">
+              <Database className="mr-2 h-4 w-4" />
+              Kho hàng ({shopStats?.inventory?.available ?? 0})
             </TabsTrigger>
             <TabsTrigger value="reviews">
               <MessageSquare className="mr-2 h-4 w-4" />
@@ -490,13 +587,93 @@ export default function SellerHome() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-2 relative z-10">
+                        <div className="flex gap-2 relative z-10 flex-wrap">
                           <Button variant="outline" size="sm" onClick={() => handleViewClick(product)}><Eye className="mr-1 h-4 w-4" />Xem</Button>
                           <Button variant="outline" size="sm" onClick={() => handleEditClick(product)}><Edit className="mr-1 h-4 w-4" />Sửa</Button>
+                          <Button variant="secondary" size="sm" onClick={() => handleAddInventoryClick(product)}><Database className="mr-1 h-4 w-4" />Thêm kho</Button>
                           <Button variant="destructive" size="sm" onClick={() => handleDeleteClick(product)}><Trash2 className="mr-1 h-4 w-4" />Xóa</Button>
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Inventory Tab */}
+          <TabsContent value="inventory" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <CardTitle>Quản lý kho hàng</CardTitle>
+                    <CardDescription>Xem và thêm key/tài khoản cho từng sản phẩm</CardDescription>
+                  </div>
+                  <Button variant="outline" asChild>
+                    <Link href="/seller/inventory">
+                      <Eye className="mr-2 h-4 w-4" />
+                      Xem chi tiết kho
+                    </Link>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {productsWithInventory.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Chưa có sản phẩm</h3>
+                    <p className="text-muted-foreground">Tạo sản phẩm trước để thêm key vào kho</p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[180px]">Sản phẩm</TableHead>
+                          <TableHead>Giá</TableHead>
+                          <TableHead className="text-center">Còn hàng</TableHead>
+                          <TableHead className="text-center">Đã giữ</TableHead>
+                          <TableHead className="text-center">Đã giao</TableHead>
+                          <TableHead className="text-right">Thao tác</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {productsWithInventory.map(({ product, available, reserved, delivered }) => (
+                          <TableRow key={product._id || product.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-lg border bg-muted/30 overflow-hidden flex items-center justify-center shrink-0">
+                                  {product.thumbnailUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={product.thumbnailUrl} alt={product.title} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <Package className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </div>
+                                <span className="font-medium">{product.title}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>{formatPrice(product.price)}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className="border-green-500 text-green-600">{available}</Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className="border-amber-500 text-amber-600">{reserved}</Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className="border-blue-500 text-blue-600">{delivered}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="secondary" size="sm" onClick={() => handleAddInventoryClick(product)}>
+                                <Plus className="mr-1 h-4 w-4" />
+                                Thêm kho
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </CardContent>
@@ -684,6 +861,74 @@ export default function SellerHome() {
               <Button variant="destructive" onClick={onDeleteConfirm} disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Xóa
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Inventory Modal */}
+        <Dialog open={isAddInventoryModalOpen} onOpenChange={setIsAddInventoryModalOpen}>
+          <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Thêm key/tài khoản vào kho</DialogTitle>
+              <DialogDescription>
+                Chọn kiểu secret và dán danh sách key (mỗi dòng một key) để thêm nhanh vào kho.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2 flex-1 overflow-y-auto">
+              <div className="text-sm">
+                <span className="font-medium">Sản phẩm:&nbsp;</span>
+                <span>{selectedProduct?.title || "Chưa chọn"}</span>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="inventory-secretType">Kiểu secret *</Label>
+                <Select
+                  value={secretType}
+                  onValueChange={(v) =>
+                    setSecretType(v as "Account" | "InviteLink" | "Code" | "QR")
+                  }
+                >
+                  <SelectTrigger id="inventory-secretType">
+                    <SelectValue placeholder="Chọn kiểu secret" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Account">Account (email:password,...)</SelectItem>
+                    <SelectItem value="Code">Code (mã kích hoạt)</SelectItem>
+                    <SelectItem value="InviteLink">InviteLink (link mời)</SelectItem>
+                    <SelectItem value="QR">QR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="inventory-keysText">Danh sách key / tài khoản (mỗi dòng một mục) *</Label>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">
+                      {keysText.split("\n").filter((l) => l.trim().length > 0).length} key
+                    </Badge>
+                    {keysText.length > 0 && (
+                      <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setKeysText("")}>
+                        Xóa tất cả
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <Textarea
+                  id="inventory-keysText"
+                  value={keysText}
+                  onChange={(e) => setKeysText(e.target.value)}
+                  placeholder={"Ví dụ:\nemail1@example.com:pass1\nemail2@example.com:pass2\n..."}
+                  className="min-h-[200px] max-h-[300px] overflow-y-auto font-mono text-sm"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsAddInventoryModalOpen(false)}>
+                Hủy
+              </Button>
+              <Button type="button" onClick={handleAddInventory} disabled={isSubmittingInventory}>
+                {isSubmittingInventory && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Thêm vào kho
               </Button>
             </DialogFooter>
           </DialogContent>

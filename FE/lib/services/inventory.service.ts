@@ -95,12 +95,13 @@ class InventoryService {
     added: number;
     errors: string[];
   }> {
-    const response = await api.post<{ data: { added: number; errors: string[] } }>("/inventory/bulk", input);
-    const raw = response.data as { data?: { added?: number; errors?: string[] } } | undefined;
-    const data = raw?.data || {};
+    const response = await api.post<{ added: number; errors: string[] }>("/inventory/bulk", input);
+    // api.post returns ApiResponse<T> = { success, data }
+    // response.data contains { added, errors }
+    const data = response.data as { added?: number; errors?: string[] } | undefined;
     return {
-      added: typeof data.added === "number" ? data.added : 0,
-      errors: Array.isArray(data.errors) ? data.errors : [],
+      added: typeof data?.added === "number" ? data.added : 0,
+      errors: Array.isArray(data?.errors) ? data.errors : [],
     };
   }
 

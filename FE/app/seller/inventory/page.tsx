@@ -249,7 +249,11 @@ export default function SellerInventoryPage() {
         })),
       });
 
-      toast.success(`Đã thêm ${result.added} item vào kho (lỗi: ${result.errors.length})`);
+      if (result.added > 0) {
+        toast.success(`Đã thêm ${result.added} item vào kho${result.errors.length > 0 ? ` (lỗi: ${result.errors.length})` : ""}`);
+      } else {
+        toast.error(`Không thể thêm item vào kho${result.errors.length > 0 ? ` (${result.errors.length} lỗi)` : ""}`);
+      }
 
       // Refresh inventory data
       const myShop = await shopService.getMyShop();
