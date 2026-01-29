@@ -151,8 +151,15 @@ function ProductsContent() {
           setInventoryCounts({});
         }
       } catch (error: any) {
-        console.error("Failed to fetch products:", error);
-        toast.error("Không thể tải danh sách sản phẩm");
+        // Debug: Log chi tiết error để dễ debug
+        console.error("[Products] Failed to fetch products:", {
+          message: error?.message || "Unknown error",
+          status: error?.status,
+          response: error?.response?.data,
+          stack: error?.stack,
+          raw: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        });
+        toast.error(error?.message || "Không thể tải danh sách sản phẩm");
         setProducts([]);
       } finally {
         setIsLoading(false);

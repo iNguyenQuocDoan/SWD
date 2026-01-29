@@ -33,14 +33,25 @@ export interface CustomerStats {
 }
 
 export interface SellerOrderItem {
+  // IDs for reference (useful for dispute resolution)
   id: string;
+  orderId?: string | null;
+  inventoryItemId?: string | null;
+
+  // Order info
   orderCode: string;
   orderCreatedAt: string;
+  orderStatus?: string;
+
+  // Customer info (enhanced for dispute resolution)
   customer: {
     id: string;
     email: string;
     fullName: string;
+    phone?: string | null; // Phone for dispute contact
   } | null;
+
+  // Product info
   product: {
     id: string;
     title: string;
@@ -48,15 +59,29 @@ export interface SellerOrderItem {
     durationDays: number;
     thumbnailUrl?: string | null;
   } | null;
+
+  // Pricing
   quantity: number;
   unitPrice: number;
   subtotal: number;
+
+  // Status and escrow
   itemStatus: string;
   holdStatus: string;
   holdAmount: number;
-  deliveredAt?: string;
+
+  // Important dates for dispute resolution
   createdAt: string;
+  deliveredAt?: string | null;
+  safeUntil?: string | null; // Warranty deadline - important for disputes!
+  holdAt?: string | null;
+  releaseAt?: string | null;
+
+  // The actual credential/key
   credential?: string | null;
+
+  // Secret type for display
+  secretType?: string | null;
 }
 
 export interface SellerOrderItemsResponse {

@@ -6,6 +6,10 @@ import { walletService } from "@/services/wallets/wallet.service";
 import { AppError } from "@/middleware/errorHandler";
 import mongoose from "mongoose";
 import { decryptSecret } from "@/utils/helpers";
+import { createLogger, LOG_PREFIXES } from "@/constants";
+
+// Debug logger for order service
+const debug = createLogger(LOG_PREFIXES.ORDER_SERVICE);
 
 
 interface OrderItemInput {
@@ -277,6 +281,7 @@ export class OrderService extends BaseService<IOrder> {
   /**
    * Get order items for a seller (by shop owner userId)
    * Includes customer info, product info and delivered credential (decrypted)
+   * Enhanced with additional fields for dispute resolution
    */
   async getOrderItemsBySeller(
     sellerUserId: string,
@@ -289,6 +294,8 @@ export class OrderService extends BaseService<IOrder> {
     items: any[];
     total: number;
   }> {
+    debug.log("getOrderItemsBySeller called", { sellerUserId, options });
+
     // Find shop owned by this user
     const shop = await Shop.findOne({
       ownerUserId: new mongoose.Types.ObjectId(sellerUserId),
@@ -296,8 +303,11 @@ export class OrderService extends BaseService<IOrder> {
     });
 
     if (!shop) {
+      debug.warn("No shop found for seller", { sellerUserId });
       return { items: [], total: 0 };
     }
+
+    debug.log("Found shop", { shopId: shop._id.toString(), shopName: shop.shopName });
 
     const { limit = 50, skip = 0, status } = options;
 
@@ -318,7 +328,7 @@ export class OrderService extends BaseService<IOrder> {
         populate: {
           path: "customerUserId",
           model: User,
-          select: "_id email fullName",
+          select: "_id email fullName phone", // Include phone for dispute resolution
         },
       })
       .populate("productId")
@@ -328,6 +338,8 @@ export class OrderService extends BaseService<IOrder> {
       query.exec(),
       OrderItem.countDocuments(filter),
     ]);
+
+    debug.log("Found order items", { count: items.length, total });
 
     const mappedItems = items.map((item) => {
       const order = item.orderId as any;
@@ -339,22 +351,34 @@ export class OrderService extends BaseService<IOrder> {
       if (inventory?.secretValue) {
         try {
           credential = decryptSecret(inventory.secretValue as string);
-        } catch {
+        } catch (err) {
+          debug.error("Failed to decrypt credential", { itemId: item._id.toString(), error: err });
           credential = null;
         }
       }
 
       const mapped = {
+        // IDs for reference (useful for dispute resolution)
         id: item._id.toString(),
+        orderId: order?._id?.toString() || null,
+        inventoryItemId: inventory?._id?.toString() || null,
+
+        // Order info
         orderCode: order?.orderCode,
         orderCreatedAt: order?.createdAt,
+        orderStatus: order?.status,
+
+        // Customer info (enhanced for dispute resolution)
         customer: customer
           ? {
               id: customer._id?.toString(),
               email: customer.email,
               fullName: customer.fullName,
+              phone: customer.phone || null, // Include phone for dispute contact
             }
           : null,
+
+        // Product info
         product: product
           ? {
               id: product._id?.toString(),
@@ -364,18 +388,34 @@ export class OrderService extends BaseService<IOrder> {
               thumbnailUrl: product.thumbnailUrl,
             }
           : null,
+
+        // Pricing
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         subtotal: item.subtotal,
+
+        // Status and escrow
         itemStatus: item.itemStatus,
         holdStatus: item.holdStatus,
         holdAmount: item.holdAmount,
-        deliveredAt: item.deliveredAt,
-        createdAt: item.createdAt,
+
+        // Important dates for dispute resolution
+        createdAt: item.createdAt, // When item was created
+        deliveredAt: item.deliveredAt, // When key was delivered
+        safeUntil: item.safeUntil, // Warranty deadline - important for disputes!
+        holdAt: item.holdAt, // When escrow started
+        releaseAt: item.releaseAt, // When escrow was released
+
+        // The actual credential/key
         credential,
+
+        // Secret type for display
+        secretType: inventory?.secretType || null,
       };
       return mapped;
     });
+
+    debug.log("Mapped items successfully", { mappedCount: mappedItems.length });
 
     return {
       items: mappedItems,
