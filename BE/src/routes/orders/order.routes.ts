@@ -10,8 +10,11 @@ router.use(authenticate);
 // Create order
 router.post("/", orderController.createOrder);
 
-// Get my orders
+// Get my orders (as customer)
 router.get("/", orderController.getMyOrders);
+
+// Get seller order items (history of sales)
+router.get("/seller/items", orderController.getSellerOrderItems);
 
 // Get order by order code (must be before /:orderId to avoid conflicts)
 router.get("/code/:orderCode", orderController.getOrderByCode);

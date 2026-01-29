@@ -48,6 +48,7 @@ export class ProductController {
         planType,
         minPrice,
         maxPrice,
+        shopId,
         page = "1",
         limit = "20",
       } = req.query;
@@ -57,6 +58,7 @@ export class ProductController {
       if (planType) filter.planType = planType;
       if (minPrice) filter.minPrice = Number(minPrice);
       if (maxPrice) filter.maxPrice = Number(maxPrice);
+      if (shopId) filter.shopId = shopId as string;
 
       const products = await this.productService.getApprovedProducts(filter);
 

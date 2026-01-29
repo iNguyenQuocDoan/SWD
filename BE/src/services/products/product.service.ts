@@ -117,19 +117,24 @@ export class ProductService extends BaseService<IProduct> {
       .sort({ createdAt: -1 });
   }
 
+  // Public products for listing (KHÔNG cần quy trình duyệt thủ công)
+  // Chỉ ẩn sản phẩm đã xóa (`isDeleted: true`)
   async getApprovedProducts(filter: {
     platformId?: string;
     planType?: PlanType;
     minPrice?: number;
     maxPrice?: number;
+    shopId?: string;
   } = {}): Promise<IProduct[]> {
     const query: any = {
-      status: "Approved",
       isDeleted: false,
     };
 
     if (filter.platformId) {
       query.platformId = filter.platformId;
+    }
+    if (filter.shopId) {
+      query.shopId = filter.shopId;
     }
     if (filter.planType) {
       query.planType = filter.planType;

@@ -76,7 +76,8 @@ export default function SellerInventoryPage() {
 
         setProducts(productsRes.data || []);
         setItems(inventoryRes.items);
-      } catch {
+      } catch (error) {
+        console.error("[SellerInventory] Failed to load summary:", error);
       } finally {
         setIsLoading(false);
       }
@@ -99,7 +100,8 @@ export default function SellerInventoryPage() {
       const res = await inventoryService.getMyInventory(params);
       setPaginatedItems(res.items);
       setTotalItems(res.total);
-    } catch {
+    } catch (error) {
+      console.error("[SellerInventory] Failed to load paginated items:", error);
     }
   };
 

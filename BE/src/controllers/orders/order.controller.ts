@@ -176,6 +176,41 @@ export class OrderController {
       next(error);
     }
   };
+
+  /**
+   * Get order items for current seller
+   * GET /orders/seller/items
+   */
+  getSellerOrderItems = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const { limit, skip, status } = req.query;
+
+      const result = await orderService.getOrderItemsBySeller(userId, {
+        limit: limit ? parseInt(limit as string, 10) : undefined,
+        skip: skip ? parseInt(skip as string, 10) : undefined,
+        status: status as string | undefined,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          items: result.items,
+          pagination: {
+            total: result.total,
+            limit: limit ? parseInt(limit as string, 10) : 50,
+            skip: skip ? parseInt(skip as string, 10) : 0,
+          },
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const orderController = new OrderController();

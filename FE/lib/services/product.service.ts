@@ -25,6 +25,8 @@ export interface ProductResponse {
   updatedAt?: string;
 }
 
+// Backend returns: { success, data: ProductResponse[], pagination }
+// We model data as ProductResponse[] and rely on ApiResponse.pagination for meta.
 export interface PaginatedProductsResponse {
   data: ProductResponse[];
   pagination: {
@@ -36,6 +38,7 @@ export interface PaginatedProductsResponse {
 }
 
 export interface ProductFilter {
+  shopId?: string;
   platformId?: string;
   planType?: string;
   minPrice?: number;
@@ -66,8 +69,8 @@ class ProductService {
    */
   async getProducts(
     filter?: ProductFilter
-  ): Promise<ApiResponse<PaginatedProductsResponse>> {
-    return apiClient.get<PaginatedProductsResponse>("/products", {
+  ): Promise<ApiResponse<ProductResponse[]>> {
+    return apiClient.get<ProductResponse[]>("/products", {
       params: filter,
     });
   }

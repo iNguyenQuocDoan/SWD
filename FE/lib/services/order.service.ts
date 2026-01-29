@@ -32,6 +32,42 @@ export interface CustomerStats {
   reviewsGiven: number;
 }
 
+export interface SellerOrderItem {
+  id: string;
+  orderCode: string;
+  orderCreatedAt: string;
+  customer: {
+    id: string;
+    email: string;
+    fullName: string;
+  } | null;
+  product: {
+    id: string;
+    title: string;
+    planType: string;
+    durationDays: number;
+    thumbnailUrl?: string | null;
+  } | null;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  itemStatus: string;
+  holdStatus: string;
+  holdAmount: number;
+  deliveredAt?: string;
+  createdAt: string;
+  credential?: string | null;
+}
+
+export interface SellerOrderItemsResponse {
+  items: SellerOrderItem[];
+  pagination: {
+    total: number;
+    limit: number;
+    skip: number;
+  };
+}
+
 class OrderService {
   /**
    * Get customer's orders
@@ -134,6 +170,32 @@ class OrderService {
     }
 
     throw new Error(response.message || "Failed to get customer stats");
+  }
+
+  /**
+   * Get seller order items (sales history)
+   * GET /api/orders/seller/items
+   */
+  async getSellerOrderItems(params?: {
+    limit?: number;
+    skip?: number;
+    status?: string;
+  }): Promise<SellerOrderItemsResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.skip) searchParams.append("skip", params.skip.toString());
+    if (params?.status) searchParams.append("status", params.status);
+
+    const query = searchParams.toString();
+    const url = `/orders/seller/items${query ? `?${query}` : ""}`;
+
+    const response = await apiClient.get<SellerOrderItemsResponse>(url);
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new Error(response.message || "Failed to get seller order items");
   }
 
   /**

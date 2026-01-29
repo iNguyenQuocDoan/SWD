@@ -28,10 +28,11 @@ export default function CategoriesPage() {
         const response = await productService.getProducts({ limit: 500 });
 
         if (response.success && response.data) {
-          const list = (response.data.data ?? []) as ProductResponse[];
+          const list = (response.data ?? []) as ProductResponse[];
 
           // Extract unique platforms from products
           const platformMap = new Map<string, Platform>();
+          console.log("[Categories] Fetched products for categories:", list.length);
           list.forEach((p) => {
             const platform = (p as any).platformId || (p as any).platform;
             if (platform && typeof platform === "object") {
@@ -79,16 +80,16 @@ export default function CategoriesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-b">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-          <div className="max-w-3xl mx-auto text-center space-y-4">
-            <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-4">
+      <div className="bg-linear-to-r from-primary/5 via-primary/0 to-background border-b">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+          <div className="max-w-3xl mx-auto text-center space-y-2">
+            <div className="inline-flex items-center justify-center p-2 bg-primary/10 rounded-full mb-2">
               <Layers className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
               Danh mục sản phẩm
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto">
               Khám phá các nền tảng và dịch vụ số hàng đầu với giá tốt nhất
             </p>
           </div>

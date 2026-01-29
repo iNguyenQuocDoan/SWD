@@ -761,6 +761,11 @@ paths:
       tags:
         - Products
       parameters:
+        - name: shopId
+          in: query
+          required: false
+          schema:
+            type: string
         - name: platformId
           in: query
           required: false
@@ -971,6 +976,46 @@ paths:
         '404':
           description: Product not found
 
+  # Orders endpoints
+  /api/orders/seller/items:
+    get:
+      summary: Get order items for current seller
+      description: Returns flattened order items with customer info, product info and delivered credential (decrypted).
+      tags:
+        - Orders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: skip
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Filter by itemStatus (e.g. Delivered, WaitingDelivery, Disputed, Completed, Refunded)
+      responses:
+        '200':
+          description: Seller order items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerOrderItemsResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1132,3 +1177,89 @@ components:
           type: integer
         price:
           type: number
+
+    SellerOrderItemCustomer:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        fullName:
+          type: string
+
+    SellerOrderItemProduct:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        planType:
+          type: string
+          enum: [Personal, Family, Slot, Shared, InviteLink]
+        durationDays:
+          type: integer
+        thumbnailUrl:
+          type: string
+          nullable: true
+
+    SellerOrderItem:
+      type: object
+      properties:
+        id:
+          type: string
+        orderCode:
+          type: string
+        orderCreatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        customer:
+          $ref: '#/components/schemas/SellerOrderItemCustomer'
+        product:
+          $ref: '#/components/schemas/SellerOrderItemProduct'
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+        subtotal:
+          type: number
+        itemStatus:
+          type: string
+        holdStatus:
+          type: string
+        holdAmount:
+          type: number
+        deliveredAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        credential:
+          type: string
+          nullable: true
+
+    SellerOrderItemsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/SellerOrderItem'
+            pagination:
+              type: object
+              properties:
+                total:
+                  type: integer
+                limit:
+                  type: integer
+                skip:
+                  type: integer

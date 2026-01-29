@@ -374,6 +374,9 @@ export default function SellerHome() {
             <p className="text-muted-foreground">{shop.description || "Chưa có mô tả"}</p>
           </div>
           <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link href="/seller/orders">Lịch sử bán hàng</Link>
+            </Button>
             <Button asChild disabled={shop.status !== "Active"}>
               <Link href="/seller/products/create">
                 <Plus className="mr-2 h-4 w-4" />
@@ -933,6 +936,11 @@ export default function SellerHome() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <div className="flex justify-end pt-4">
+          <Button asChild variant="outline">
+            <Link href="/seller/orders">Xem lịch sử bán hàng</Link>
+          </Button>
+        </div>
       </div>
     </RequireAuth>
   );

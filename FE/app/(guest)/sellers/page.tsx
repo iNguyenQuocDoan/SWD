@@ -33,7 +33,8 @@ export default function SellersPage() {
         const response = await productService.getProducts({ limit: 500 });
 
         if (response.success && response.data) {
-          const list = (response.data.data ?? []) as ProductResponse[];
+          const list = (response.data ?? []) as ProductResponse[];
+          console.log("[Sellers] Fetched products for sellers page:", list.length);
 
           // Extract unique shops from products
           const shopMap = new Map<string, Seller>();
@@ -109,16 +110,16 @@ export default function SellersPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-b">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-          <div className="max-w-3xl mx-auto text-center space-y-4">
-            <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-4">
+      <div className="bg-linear-to-r from-primary/5 via-primary/0 to-background border-b">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+          <div className="max-w-3xl mx-auto text-center space-y-2">
+            <div className="inline-flex items-center justify-center p-2 bg-primary/10 rounded-full mb-2">
               <Store className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
               Người bán uy tín
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto">
               Khám phá các shop đã được xác thực với đánh giá tốt từ cộng đồng
             </p>
           </div>
@@ -175,10 +176,10 @@ export default function SellersPage() {
             {filteredSellers.map((seller) => (
               <Link
                 key={seller._id}
-                href={`/products?shopId=${seller._id}`}
-                className="group"
+                href={`/shops/${seller._id}`}
+                className="block h-full"
               >
-                <Card className="h-full overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/50 hover:-translate-y-1">
+                <Card className="h-full overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/50 hover:-translate-y-1 group">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
                       <Avatar className="h-14 w-14 border-2 border-primary/20">
@@ -219,9 +220,9 @@ export default function SellersPage() {
                           <div className="text-xs text-muted-foreground">Đã bán</div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 text-sm text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span>Xem shop</span>
+                      <div className="flex items-center gap-2 text-sm text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                         <ArrowRight className="h-4 w-4" />
+                        <span>Xem shop & sản phẩm</span>
                       </div>
                     </div>
                   </CardContent>

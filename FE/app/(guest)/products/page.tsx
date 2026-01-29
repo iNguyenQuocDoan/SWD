@@ -38,9 +38,15 @@ type PackageFilter = "all" | "Personal" | "Family" | "Slot" | "Shared" | "Invite
 
 function ProductsContent() {
   const searchParams = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
+  const initialSearch = searchParams.get("search") || "";
+  const initialPlatformId = searchParams.get("platformId");
+  const initialShopId = searchParams.get("shopId");
+
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
-  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
+  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>(
+    (initialPlatformId as PlatformFilter) || "all"
+  );
   const [durationFilter, setDurationFilter] = useState<DurationFilter>("all");
   const [packageFilter, setPackageFilter] = useState<PackageFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -57,6 +63,7 @@ function ProductsContent() {
   const [inventoryCounts, setInventoryCounts] = useState<Record<string, number>>({});
   const [inStockOnly, setInStockOnly] = useState(false);
   const [platforms, setPlatforms] = useState<Array<{ _id: string; platformName: string }>>([]);
+  const [shopFilter] = useState<string | null>(initialShopId);
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch products from API
@@ -76,6 +83,9 @@ function ProductsContent() {
         if (packageFilter !== "all") {
           filter.planType = packageFilter;
         }
+        if (shopFilter) {
+          filter.shopId = shopFilter;
+        }
         if (searchQuery) {
           // Backend should handle search, but for now we'll filter client-side
         }
@@ -88,6 +98,7 @@ function ProductsContent() {
 
         // BE returns: { success: true, data: Product[], pagination: {...} }
         const list = (response.data as any) || [];
+        console.log("[Products] fetched list", { filter, count: list.length });
         setProducts(list);
 
         // Extract unique platforms from products
@@ -149,7 +160,7 @@ function ProductsContent() {
     };
 
     fetchProducts();
-  }, [currentPage, platformFilter, packageFilter, searchQuery]);
+  }, [currentPage, platformFilter, packageFilter, searchQuery, shopFilter]);
 
   // Filter và sort products (client-side filtering for search)
   const filteredAndSortedProducts = useMemo(() => {

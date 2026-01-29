@@ -1,6 +1,7 @@
 import { BaseService } from "@/services/base.service";
-import { Order, OrderItem, Product, Wallet, WalletTransaction, InventoryItem } from "@/models";
+import { Order, OrderItem, Product, Wallet, WalletTransaction, InventoryItem, Shop, User } from "@/models";
 import type { IOrder, IOrderItem } from "@/models";
+import { ShopService } from "@/services/shops/shop.service";
 import { walletService } from "@/services/wallets/wallet.service";
 import { AppError } from "@/middleware/errorHandler";
 import mongoose from "mongoose";
@@ -67,6 +68,7 @@ export class OrderService extends BaseService<IOrder> {
       // Calculate totals and check inventory availability
       let totalAmount = 0;
       const orderItemsData: any[] = [];
+      const shopService = new ShopService();
 
       for (const item of input.items) {
         const product = productMap.get(item.productId);
@@ -186,6 +188,13 @@ export class OrderService extends BaseService<IOrder> {
             inventoryItemId: inventory._id, // Link to inventory
           });
 
+          // If delivered immediately (wallet payment), increase shop total sales counter per item
+          if (isImmediatePayment) {
+            shopService
+              .incrementSales(item.shopId.toString(), 1)
+              .catch(() => undefined);
+          }
+
           // Update inventory status based on payment
           inventoryUpdates.push({
             updateOne: {
@@ -263,6 +272,115 @@ export class OrderService extends BaseService<IOrder> {
       session.endSession();
       throw error;
     }
+  }
+
+  /**
+   * Get order items for a seller (by shop owner userId)
+   * Includes customer info, product info and delivered credential (decrypted)
+   */
+  async getOrderItemsBySeller(
+    sellerUserId: string,
+    options: {
+      limit?: number;
+      skip?: number;
+      status?: string;
+    } = {}
+  ): Promise<{
+    items: any[];
+    total: number;
+  }> {
+    // Find shop owned by this user
+    const shop = await Shop.findOne({
+      ownerUserId: new mongoose.Types.ObjectId(sellerUserId),
+      isDeleted: false,
+    });
+
+    if (!shop) {
+      return { items: [], total: 0 };
+    }
+
+    const { limit = 50, skip = 0, status } = options;
+
+    const filter: any = {
+      shopId: shop._id,
+    };
+
+    if (status) {
+      filter.itemStatus = status;
+    }
+
+    const query = OrderItem.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate({
+        path: "orderId",
+        populate: {
+          path: "customerUserId",
+          model: User,
+          select: "_id email fullName",
+        },
+      })
+      .populate("productId")
+      .populate("inventoryItemId");
+
+    const [items, total] = await Promise.all([
+      query.exec(),
+      OrderItem.countDocuments(filter),
+    ]);
+
+    const mappedItems = items.map((item) => {
+      const order = item.orderId as any;
+      const customer = order?.customerUserId as any;
+      const product = item.productId as any;
+      const inventory = item.inventoryItemId as any;
+
+      let credential: string | null = null;
+      if (inventory?.secretValue) {
+        try {
+          credential = decryptSecret(inventory.secretValue as string);
+        } catch {
+          credential = null;
+        }
+      }
+
+      const mapped = {
+        id: item._id.toString(),
+        orderCode: order?.orderCode,
+        orderCreatedAt: order?.createdAt,
+        customer: customer
+          ? {
+              id: customer._id?.toString(),
+              email: customer.email,
+              fullName: customer.fullName,
+            }
+          : null,
+        product: product
+          ? {
+              id: product._id?.toString(),
+              title: product.title,
+              planType: product.planType,
+              durationDays: product.durationDays,
+              thumbnailUrl: product.thumbnailUrl,
+            }
+          : null,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subtotal: item.subtotal,
+        itemStatus: item.itemStatus,
+        holdStatus: item.holdStatus,
+        holdAmount: item.holdAmount,
+        deliveredAt: item.deliveredAt,
+        createdAt: item.createdAt,
+        credential,
+      };
+      return mapped;
+    });
+
+    return {
+      items: mappedItems,
+      total,
+    };
   }
 
   /**
