@@ -27,4 +27,23 @@ router.get(
   wrapRequestHandler(productController.getMyProducts)
 );
 
+router.get(
+  "/me/:productId",
+  checkPermission(PERMISSIONS.PRODUCT_VIEW_OWN),
+  wrapRequestHandler(productController.getMyProductById)
+);
+
+router.put(
+  "/:productId",
+  checkPermission(PERMISSIONS.PRODUCT_UPDATE),
+  wrapRequestHandler(productController.updateProduct)
+);
+
+router.delete(
+  "/:productId",
+  checkPermission(PERMISSIONS.PRODUCT_DELETE),
+  wrapRequestHandler(productController.deleteProduct)
+);
+
+
 export default router;

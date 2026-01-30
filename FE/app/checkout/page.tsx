@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
-import { useRouter } from "next/navigation";
-import { CreditCard, Wallet, Shield, CheckCircle, AlertCircle } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { CreditCard, Wallet, Shield, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { RequireAuth } from "@/components/auth/RequireAuth";
@@ -26,31 +26,102 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-// Mock data
-const mockCheckoutData = {
-  items: [
-    {
-      id: "1",
-      title: "Netflix Premium - Gói gia đình 3 tháng",
-      quantity: 1,
-      price: 299000,
-    },
-    {
-      id: "2",
-      title: "Spotify Premium - 1 năm",
-      quantity: 2,
-      price: 49980,
-    },
-  ],
-  subtotal: 399780,
-  serviceFee: 7996,
-  total: 407776,
-  walletBalance: 500000,
-};
+import { paymentService } from "@/lib/services/payment.service";
+import { orderService } from "@/lib/services/order.service";
+import { productService } from "@/lib/services/product.service";
 
-export default function CheckoutPage() {
+interface CheckoutItem {
+  id: string;
+  title: string;
+  quantity: number;
+  price: number;
+}
+
+interface CheckoutData {
+  items: CheckoutItem[];
+  subtotal: number;
+  serviceFee: number;
+  total: number;
+  walletBalance: number;
+}
+
+function CheckoutContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [checkoutData, setCheckoutData] = useState<CheckoutData>({
+    items: [],
+    subtotal: 0,
+    serviceFee: 0,
+    total: 0,
+    walletBalance: 0,
+  });
+
+  useEffect(() => {
+    const fetchCheckoutData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch wallet balance của người dùng
+        const walletBalance = await paymentService.getWalletBalance();
+
+        // Lấy thông tin mua ngay từ query (?product=&quantity=)
+        const productId = searchParams.get("product");
+        const quantityParam = searchParams.get("quantity");
+        const quantity = quantityParam ? Math.max(1, Number(quantityParam)) : 1;
+
+        if (!productId) {
+          // Nếu không có dữ liệu sản phẩm, điều hướng về giỏ hàng
+          toast.error("Không có thông tin đơn hàng. Vui lòng chọn sản phẩm lại.");
+          router.push("/products");
+          return;
+        }
+
+        // Fetch dữ liệu sản phẩm thật từ BE
+        const productRes = await productService.getProductById(productId);
+
+        if (!productRes.success || !productRes.data) {
+          throw new Error("Không thể tải thông tin sản phẩm");
+        }
+
+        const product = productRes.data;
+
+        const item: CheckoutItem = {
+          id: product._id || product.id || productId,
+          title: product.title,
+          quantity,
+          price: product.price,
+        };
+
+        const items = [item];
+        const subtotal = items.reduce(
+          (sum, it) => sum + it.price * it.quantity,
+          0
+        );
+
+        // Không tính thuế/phí cho người mua -> phí dịch vụ = 0, tổng = tạm tính
+        const serviceFee = 0;
+        const total = subtotal;
+
+        setCheckoutData({
+          items,
+          subtotal,
+          serviceFee,
+          total,
+          walletBalance: walletBalance.balance,
+        });
+      } catch (error: any) {
+        console.error("Failed to fetch checkout data:", error);
+        toast.error(error.message || "Không thể tải dữ liệu thanh toán");
+        // Redirect nếu lỗi
+        router.push("/products");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCheckoutData();
+  }, [router, searchParams]);
 
   const form = useForm<CheckoutInput>({
     resolver: zodResolver(checkoutSchema),
@@ -69,25 +140,49 @@ export default function CheckoutPage() {
   };
 
   const handleSubmit = async (data: CheckoutInput) => {
-    if (data.paymentMethod === "wallet" && mockCheckoutData.total > mockCheckoutData.walletBalance) {
+    if (data.paymentMethod === "wallet" && checkoutData.total > checkoutData.walletBalance) {
       toast.error("Số dư ví không đủ. Vui lòng nạp thêm tiền.");
       router.push("/customer/wallet");
       return;
     }
 
+    if (checkoutData.items.length === 0) {
+      toast.error("Giỏ hàng trống. Vui lòng thêm sản phẩm.");
+      router.push("/products");
+      return;
+    }
+
     setIsProcessing(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      // Map payment method from form to API format
+      const paymentMethod = data.paymentMethod === "wallet" ? "Wallet" : "Vnpay";
+
+      // Create order via API
+      const result = await orderService.createOrder({
+        items: checkoutData.items.map((item) => ({
+          productId: item.id,
+          quantity: item.quantity,
+        })),
+        paymentMethod,
+      });
+
       toast.success("Đặt hàng thành công!");
-      router.push(`/customer/orders/ORD-${Date.now()}`);
-    }, 2000);
+
+      // Redirect to order detail page
+      const orderCode = (result as any).order?.orderCode || (result as any).orderCode;
+      router.push(`/customer/orders/${orderCode}`);
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      toast.error(error.message || "Đặt hàng thất bại. Vui lòng thử lại.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const insufficientBalance =
     paymentMethod === "wallet" &&
-    mockCheckoutData.total > mockCheckoutData.walletBalance;
+    checkoutData.total > checkoutData.walletBalance;
 
   return (
     <RequireAuth>
@@ -112,7 +207,7 @@ export default function CheckoutPage() {
                   <CardTitle>Đơn hàng của bạn</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {mockCheckoutData.items.map((item) => (
+                  {checkoutData.items.map((item) => (
                     <div key={item.id} className="flex justify-between items-start gap-4">
                       <div className="flex-1">
                         <p className="font-medium">{item.title}</p>
@@ -129,17 +224,17 @@ export default function CheckoutPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tạm tính:</span>
-                      <span>{formatPrice(mockCheckoutData.subtotal)}</span>
+                      <span>{formatPrice(checkoutData.subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Phí dịch vụ (2%):</span>
-                      <span>{formatPrice(mockCheckoutData.serviceFee)}</span>
+                      <span className="text-muted-foreground">Phí dịch vụ:</span>
+                      <span>{formatPrice(checkoutData.serviceFee)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <span>Tổng cộng:</span>
                       <span className="text-primary">
-                        {formatPrice(mockCheckoutData.total)}
+                        {formatPrice(checkoutData.total)}
                       </span>
                     </div>
                   </div>
@@ -161,7 +256,7 @@ export default function CheckoutPage() {
                     render={({ field }) => (
                       <FormItem className="space-y-4">
                         <FormControl>
-                          <>
+                          <div className="space-y-4">
                             {/* Wallet Payment */}
                             <div
                               className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
@@ -187,7 +282,7 @@ export default function CheckoutPage() {
                                   <p className="text-sm text-muted-foreground mb-2">
                                     Số dư hiện tại:{" "}
                                     <span className="font-medium text-primary">
-                                      {formatPrice(mockCheckoutData.walletBalance)}
+                                      {formatPrice(checkoutData.walletBalance)}
                                     </span>
                                   </p>
                                   {insufficientBalance && (
@@ -236,7 +331,7 @@ export default function CheckoutPage() {
                                 </div>
                               </div>
                             </div>
-                          </>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -335,17 +430,17 @@ export default function CheckoutPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tạm tính:</span>
-                      <span>{formatPrice(mockCheckoutData.subtotal)}</span>
+                      <span>{formatPrice(checkoutData.subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Phí dịch vụ:</span>
-                      <span>{formatPrice(mockCheckoutData.serviceFee)}</span>
+                      <span>{formatPrice(checkoutData.serviceFee)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <span>Tổng cộng:</span>
                       <span className="text-primary">
-                        {formatPrice(mockCheckoutData.total)}
+                        {formatPrice(checkoutData.total)}
                       </span>
                     </div>
                   </div>
@@ -385,5 +480,26 @@ export default function CheckoutPage() {
       </div>
     </div>
     </RequireAuth>
+  );
+}
+
+function CheckoutLoading() {
+  return (
+    <div className="container py-8">
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Đang tải...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<CheckoutLoading />}>
+      <CheckoutContent />
+    </Suspense>
   );
 }

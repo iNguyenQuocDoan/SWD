@@ -12,6 +12,7 @@ export const createProductSchema = z.object({
   description: z.string().min(20, VALIDATION_MESSAGES.PRODUCT.DESCRIPTION_MIN_LENGTH),
   warrantyPolicy: z.string().min(10, VALIDATION_MESSAGES.PRODUCT.WARRANTY_POLICY_MIN_LENGTH),
   howToUse: z.string().min(10, VALIDATION_MESSAGES.PRODUCT.HOW_TO_USE_MIN_LENGTH),
+  thumbnailUrl: z.string().url().optional().nullable(),
   planType: z.enum(['Personal', 'Family', 'Slot', 'Shared', 'InviteLink'], {
     message: VALIDATION_MESSAGES.PRODUCT.PLAN_TYPE_INVALID,
   }),
@@ -34,6 +35,7 @@ export const updateProductSchema = z.object({
     .min(10, VALIDATION_MESSAGES.PRODUCT.WARRANTY_POLICY_MIN_LENGTH)
     .optional(),
   howToUse: z.string().min(10, VALIDATION_MESSAGES.PRODUCT.HOW_TO_USE_MIN_LENGTH).optional(),
+  thumbnailUrl: z.string().url().optional().nullable(),
   planType: z.enum(['Personal', 'Family', 'Slot', 'Shared', 'InviteLink'], {
     message: VALIDATION_MESSAGES.PRODUCT.PLAN_TYPE_INVALID,
   }).optional(),

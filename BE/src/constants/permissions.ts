@@ -65,9 +65,6 @@ export const PERMISSIONS = {
   CONVERSATION_SELLER_MESSAGE: "conversation:seller:message",
 
   // Moderator permissions
-  PRODUCT_APPROVE: "product:approve",
-  PRODUCT_REJECT: "product:reject",
-  PRODUCT_MODERATE: "product:moderate",
   REVIEW_MODERATE: "review:moderate",
   REVIEW_HIDE: "review:hide",
   REVIEW_DELETE_MODERATOR: "review:delete:moderator",
@@ -518,27 +515,6 @@ export const PERMISSION_DEFINITIONS = [
 
   // Moderator permissions
   {
-    permissionKey: PERMISSIONS.PRODUCT_APPROVE,
-    permissionName: "Approve Product",
-    description: "Approve product listing",
-    resource: "product",
-    action: "approve",
-  },
-  {
-    permissionKey: PERMISSIONS.PRODUCT_REJECT,
-    permissionName: "Reject Product",
-    description: "Reject product listing",
-    resource: "product",
-    action: "reject",
-  },
-  {
-    permissionKey: PERMISSIONS.PRODUCT_MODERATE,
-    permissionName: "Moderate Product",
-    description: "Moderate product content",
-    resource: "product",
-    action: "moderate",
-  },
-  {
     permissionKey: PERMISSIONS.REVIEW_MODERATE,
     permissionName: "Moderate Review",
     description: "Moderate reviews",
@@ -818,6 +794,7 @@ export const PERMISSION_DEFINITIONS = [
     permissionName: "Update Policies",
     description: "Update system policies",
     resource: "policy",
+    
     action: "update",
   },
   {
@@ -942,6 +919,11 @@ export const ROLE_PERMISSIONS = {
     // Profile
     PERMISSIONS.PROFILE_VIEW,
     PERMISSIONS.PROFILE_UPDATE,
+    // Shop - Allow customer to register as seller
+    PERMISSIONS.SHOP_CREATE,
+    PERMISSIONS.SHOP_VIEW_OWN,
+    // Product - Allow viewing own products while waiting for shop approval
+    PERMISSIONS.PRODUCT_VIEW_OWN,
     // Cart
     PERMISSIONS.CART_VIEW,
     PERMISSIONS.CART_ADD,
@@ -984,35 +966,61 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.REVIEW_VIEW,
     PERMISSIONS.PLATFORM_CATALOG_VIEW,
   ],
+
+  // SELLER = CUSTOMER permissions + seller permissions
   SELLER: [
-    // Shop
+    // CUSTOMER permissions (keep buyer features)
+    PERMISSIONS.PROFILE_VIEW,
+    PERMISSIONS.PROFILE_UPDATE,
     PERMISSIONS.SHOP_CREATE,
-    PERMISSIONS.SHOP_UPDATE,
     PERMISSIONS.SHOP_VIEW_OWN,
-    // Product
+    PERMISSIONS.PRODUCT_VIEW_OWN,
+    PERMISSIONS.CART_VIEW,
+    PERMISSIONS.CART_ADD,
+    PERMISSIONS.CART_UPDATE,
+    PERMISSIONS.CART_REMOVE,
+    PERMISSIONS.ORDER_CREATE,
+    PERMISSIONS.ORDER_VIEW,
+    PERMISSIONS.ORDER_CANCEL,
+    PERMISSIONS.ORDER_TRACK,
+    PERMISSIONS.PAYMENT_INITIATE,
+    PERMISSIONS.PAYMENT_CONFIRM,
+    PERMISSIONS.WALLET_VIEW,
+    PERMISSIONS.WALLET_TOPUP,
+    PERMISSIONS.WALLET_TRANSACTION_VIEW,
+    PERMISSIONS.TICKET_CREATE,
+    PERMISSIONS.TICKET_VIEW,
+    PERMISSIONS.TICKET_UPDATE,
+    PERMISSIONS.TICKET_CLOSE,
+    PERMISSIONS.REVIEW_CREATE,
+    PERMISSIONS.REVIEW_UPDATE,
+    PERMISSIONS.REVIEW_DELETE,
+    PERMISSIONS.REPORT_CREATE,
+    PERMISSIONS.CONVERSATION_VIEW,
+    PERMISSIONS.CONVERSATION_CREATE,
+    PERMISSIONS.CONVERSATION_MESSAGE,
+    PERMISSIONS.REFUND_REQUEST,
+
+    // SELLER additional permissions
+    PERMISSIONS.SHOP_UPDATE,
     PERMISSIONS.PRODUCT_CREATE,
     PERMISSIONS.PRODUCT_UPDATE,
     PERMISSIONS.PRODUCT_DELETE,
-    PERMISSIONS.PRODUCT_VIEW_OWN,
-    // Inventory
     PERMISSIONS.INVENTORY_VIEW,
     PERMISSIONS.INVENTORY_ADD,
     PERMISSIONS.INVENTORY_UPDATE,
     PERMISSIONS.INVENTORY_DELETE,
-    // Order
     PERMISSIONS.ORDER_VIEW_OWN,
     PERMISSIONS.ORDER_PROCESS,
     PERMISSIONS.ORDER_DELIVER,
     PERMISSIONS.ORDER_UPDATE_STATUS,
-    // Reports & Analytics
     PERMISSIONS.SALES_REPORT_VIEW,
     PERMISSIONS.SHOP_ANALYTICS_VIEW,
-    // Payout
     PERMISSIONS.PAYOUT_REQUEST,
     PERMISSIONS.PAYOUT_VIEW,
-    // Conversation
     PERMISSIONS.CONVERSATION_SELLER_VIEW,
     PERMISSIONS.CONVERSATION_SELLER_MESSAGE,
+
     // Public
     PERMISSIONS.PRODUCT_VIEW,
     PERMISSIONS.PRODUCT_SEARCH,
@@ -1021,11 +1029,9 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.REVIEW_VIEW,
     PERMISSIONS.PLATFORM_CATALOG_VIEW,
   ],
+
   MODERATOR: [
     // Product moderation
-    PERMISSIONS.PRODUCT_APPROVE,
-    PERMISSIONS.PRODUCT_REJECT,
-    PERMISSIONS.PRODUCT_MODERATE,
     // Review moderation
     PERMISSIONS.REVIEW_MODERATE,
     PERMISSIONS.REVIEW_HIDE,
@@ -1042,6 +1048,10 @@ export const ROLE_PERMISSIONS = {
     // Shop management
     PERMISSIONS.SHOP_SUSPEND,
     PERMISSIONS.SHOP_UNSUSPEND,
+    // Seller application management
+    PERMISSIONS.SELLER_VIEW_APPLICATIONS,
+    PERMISSIONS.SELLER_APPROVE,
+    PERMISSIONS.SELLER_REJECT,
     // User restrictions
     PERMISSIONS.USER_RESTRICT,
     PERMISSIONS.USER_UNRESTRICT,

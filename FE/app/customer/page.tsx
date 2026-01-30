@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
   ShoppingCart,
@@ -27,43 +28,29 @@ import {
   Eye,
   FileText,
 } from "lucide-react";
+import { paymentService } from "@/lib/services/payment.service";
+import { orderService } from "@/lib/services/order.service";
+import { ticketService } from "@/lib/services/ticket.service";
+import { reviewService } from "@/lib/services/review.service";
+import { toast } from "sonner";
 
-// Mock data
-const mockStats = {
-  totalOrders: 24,
-  activeOrders: 3,
-  totalSpent: 2450000,
-  walletBalance: 500000,
-  pendingTickets: 2,
-  reviewsGiven: 8,
-};
+interface CustomerStats {
+  totalOrders: number;
+  activeOrders: number;
+  totalSpent: number;
+  walletBalance: number;
+  pendingTickets: number;
+  reviewsGiven: number;
+}
 
-const mockRecentOrders = [
-  {
-    id: "ORD-001",
-    product: "Netflix Premium - Gói gia đình 3 tháng",
-    amount: 299000,
-    status: "paid",
-    date: "2026-01-07",
-    shop: "Shop ABC",
-  },
-  {
-    id: "ORD-002",
-    product: "Spotify Premium - 1 năm",
-    amount: 49980,
-    status: "completed",
-    date: "2026-01-05",
-    shop: "Shop XYZ",
-  },
-  {
-    id: "ORD-003",
-    product: "Disney+ Premium - 1 năm",
-    amount: 599000,
-    status: "pending_payment",
-    date: "2026-01-07",
-    shop: "Shop DEF",
-  },
-];
+interface RecentOrder {
+  id: string;
+  product: string;
+  amount: number;
+  status: string;
+  date: string;
+  shop: string;
+}
 
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat("vi-VN", {
@@ -74,13 +61,87 @@ const formatPrice = (price: number) => {
 
 export default function CustomerDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<CustomerStats>({
+    totalOrders: 0,
+    activeOrders: 0,
+    totalSpent: 0,
+    walletBalance: 0,
+    pendingTickets: 0,
+    reviewsGiven: 0,
+  });
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch wallet balance
+        const walletBalance = await paymentService.getWalletBalance();
+        
+        // Update stats with wallet balance
+        setStats((prev) => ({
+          ...prev,
+          walletBalance: walletBalance.balance,
+        }));
+
+        // Fetch orders, tickets, reviews when BE APIs are available
+        try {
+          const [ordersRes, ticketsRes, reviewsRes] = await Promise.all([
+            orderService.getMyOrders({ limit: 5 }).catch(() => ({ orders: [], pagination: { total: 0 } })),
+            ticketService.getMyTickets({ status: "open" }).catch(() => ({ tickets: [], pagination: { total: 0 } })),
+            reviewService.getMyReviews().catch(() => []),
+          ]);
+          
+          // Calculate stats from fetched data
+          const totalOrders = ordersRes.pagination?.total || 0;
+          const activeOrders = ordersRes.orders?.filter((o: any) => 
+            o.status !== "completed" && o.status !== "cancelled"
+          ).length || 0;
+          const totalSpent = ordersRes.orders?.reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0) || 0;
+          const pendingTickets = ticketsRes.pagination?.total || 0;
+          const reviewsGiven = Array.isArray(reviewsRes) ? reviewsRes.length : (reviewsRes as any)?.pagination?.total || 0;
+          
+          setStats({
+            totalOrders,
+            activeOrders,
+            totalSpent,
+            walletBalance: walletBalance.balance,
+            pendingTickets,
+            reviewsGiven,
+          });
+          
+          // Map orders to recent orders format
+          if (ordersRes.orders && ordersRes.orders.length > 0) {
+            setRecentOrders(ordersRes.orders.slice(0, 5).map((order: any) => ({
+              id: order.id || order._id,
+              product: order.orderItems?.[0]?.product?.title || "N/A",
+              amount: order.totalAmount || order.payableAmount || 0,
+              status: order.status,
+              date: new Date(order.createdAt).toLocaleDateString("vi-VN"),
+              shop: order.orderItems?.[0]?.shop?.shopName || "N/A",
+            })));
+          }
+        } catch (error) {
+          // If APIs are not available yet, keep default values
+        }
+      } catch (error: any) {
+        console.error("Failed to fetch customer data:", error);
+        toast.error("Không thể tải dữ liệu. Vui lòng thử lại sau.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   return (
     <RequireAuth requiredRole="customer">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 lg:py-16 space-y-8 md:space-y-10">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10 space-y-6 md:space-y-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
-          <div className="space-y-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+          <div className="space-y-1">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">
               Dashboard Khách hàng
             </h1>
@@ -88,7 +149,7 @@ export default function CustomerDashboard() {
               Quản lý đơn hàng, ví tiền và hỗ trợ của bạn
             </p>
           </div>
-          <Button size="lg" className="h-12 md:h-14 text-base md:text-lg" asChild>
+          <Button size="lg" className="h-11 md:h-12 text-base md:text-lg" asChild>
             <Link href="/products">
               <Plus className="mr-2 h-5 w-5" />
               Mua sắm
@@ -97,82 +158,106 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base md:text-lg font-medium">
                 Tổng đơn hàng
               </CardTitle>
-              <Package className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
+              <Package className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl md:text-4xl font-bold">
-                {mockStats.totalOrders}
-              </div>
-              <p className="text-sm md:text-base text-muted-foreground mt-2">
-                {mockStats.activeOrders} đang xử lý
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-10 w-20" />
+              ) : (
+                <>
+                  <div className="text-3xl md:text-4xl font-bold">
+                    {stats.totalOrders}
+                  </div>
+                  <p className="text-sm md:text-base text-muted-foreground mt-2">
+                    {stats.activeOrders} đang xử lý
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base md:text-lg font-medium">
                 Tổng chi tiêu
               </CardTitle>
-              <TrendingUp className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
+              <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl md:text-4xl font-bold text-green-600">
-                {formatPrice(mockStats.totalSpent)}
-              </div>
-              <p className="text-sm md:text-base text-muted-foreground mt-2">
-                Tất cả thời gian
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-10 w-32" />
+              ) : (
+                <>
+                  <div className="text-3xl md:text-4xl font-bold text-green-600">
+                    {formatPrice(stats.totalSpent)}
+                  </div>
+                  <p className="text-sm md:text-base text-muted-foreground mt-2">
+                    Tất cả thời gian
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base md:text-lg font-medium">
                 Số dư ví
               </CardTitle>
-              <Wallet className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
+              <Wallet className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl md:text-4xl font-bold text-blue-600">
-                {formatPrice(mockStats.walletBalance)}
-              </div>
-              <p className="text-sm md:text-base text-muted-foreground mt-2">
-                <Link
-                  href="/customer/wallet"
-                  className="text-primary hover:underline"
-                >
-                  Nạp tiền
-                </Link>
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-10 w-32" />
+              ) : (
+                <>
+                  <div className="text-3xl md:text-4xl font-bold text-blue-600">
+                    {formatPrice(stats.walletBalance)}
+                  </div>
+                  <p className="text-sm md:text-base text-muted-foreground mt-2">
+                    <Link
+                      href="/customer/wallet"
+                      className="text-primary hover:underline"
+                    >
+                      Nạp tiền
+                    </Link>
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base md:text-lg font-medium">
                 Ticket hỗ trợ
               </CardTitle>
-              <MessageSquare className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />
+              <MessageSquare className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl md:text-4xl font-bold text-orange-600">
-                {mockStats.pendingTickets}
-              </div>
-              <p className="text-sm md:text-base text-muted-foreground mt-2">
-                <Link
-                  href="/customer/tickets"
-                  className="text-primary hover:underline"
-                >
-                  Xem tất cả
-                </Link>
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-10 w-20" />
+              ) : (
+                <>
+                  <div className="text-3xl md:text-4xl font-bold text-orange-600">
+                    {stats.pendingTickets}
+                  </div>
+                  <p className="text-sm md:text-base text-muted-foreground mt-2">
+                    <Link
+                      href="/customer/tickets"
+                      className="text-primary hover:underline"
+                    >
+                      Xem tất cả
+                    </Link>
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -184,13 +269,7 @@ export default function CustomerDashboard() {
             <CardDescription>Các chức năng thường dùng</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-auto py-6 flex-col" asChild>
-                <Link href="/customer/cart">
-                  <ShoppingCart className="h-6 w-6 mb-2" />
-                  <span>Giỏ hàng</span>
-                </Link>
-              </Button>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Button variant="outline" className="h-auto py-6 flex-col" asChild>
                 <Link href="/customer/orders">
                   <Package className="h-6 w-6 mb-2" />
@@ -214,7 +293,7 @@ export default function CustomerDashboard() {
         </Card>
 
         {/* Tabs Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Tổng quan</TabsTrigger>
             <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
@@ -223,7 +302,7 @@ export default function CustomerDashboard() {
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-4">
             {/* Recent Orders */}
             <Card>
               <CardHeader>
@@ -238,54 +317,72 @@ export default function CustomerDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {mockRecentOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium">{order.product}</p>
-                        <div className="flex items-center gap-3 mt-2 flex-wrap">
-                          <span className="text-sm text-muted-foreground">
-                            {order.id}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            {order.date}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            {order.shop}
-                          </span>
-                          <Badge
-                            variant={
-                              order.status === "completed"
-                                ? "default"
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-24 w-full" />
+                    ))}
+                  </div>
+                ) : recentOrders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">
+                      Chưa có đơn hàng nào. Bắt đầu mua sắm ngay!
+                    </p>
+                    <Button className="mt-4" asChild>
+                      <Link href="/products">Khám phá sản phẩm</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium">{order.product}</p>
+                          <div className="flex items-center gap-3 mt-2 flex-wrap">
+                            <span className="text-sm text-muted-foreground">
+                              {order.id}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              {order.date}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              {order.shop}
+                            </span>
+                            <Badge
+                              variant={
+                                order.status === "completed"
+                                  ? "default"
+                                  : order.status === "paid"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                            >
+                              {order.status === "completed"
+                                ? "Hoàn tất"
                                 : order.status === "paid"
-                                ? "secondary"
-                                : "outline"
-                            }
-                          >
-                            {order.status === "completed"
-                              ? "Hoàn tất"
-                              : order.status === "paid"
-                              ? "Đã thanh toán"
-                              : "Chờ thanh toán"}
-                          </Badge>
+                                ? "Đã thanh toán"
+                                : "Chờ thanh toán"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <p className="font-bold text-lg">
+                            {formatPrice(order.amount)}
+                          </p>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/customer/orders/${order.id}`}>
+                              Xem chi tiết
+                            </Link>
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <p className="font-bold text-lg">
-                          {formatPrice(order.amount)}
-                        </p>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/customer/orders/${order.id}`}>
-                            Xem chi tiết
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -303,19 +400,23 @@ export default function CustomerDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Số dư khả dụng</p>
-                      <p className="text-2xl font-bold">
-                        {formatPrice(mockStats.walletBalance)}
-                      </p>
+                {isLoading ? (
+                  <Skeleton className="h-24 w-full" />
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Số dư khả dụng</p>
+                        <p className="text-2xl font-bold">
+                          {formatPrice(stats.walletBalance)}
+                        </p>
+                      </div>
+                      <Button asChild>
+                        <Link href="/customer/wallet">Nạp tiền</Link>
+                      </Button>
                     </div>
-                    <Button asChild>
-                      <Link href="/customer/wallet">Nạp tiền</Link>
-                    </Button>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -335,51 +436,69 @@ export default function CustomerDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {mockRecentOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium">{order.product}</p>
-                        <div className="flex items-center gap-3 mt-2 flex-wrap">
-                          <span className="text-sm text-muted-foreground">
-                            {order.id}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            {order.date}
-                          </span>
-                          <Badge
-                            variant={
-                              order.status === "completed"
-                                ? "default"
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-24 w-full" />
+                    ))}
+                  </div>
+                ) : recentOrders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">
+                      Chưa có đơn hàng nào. Bắt đầu mua sắm ngay!
+                    </p>
+                    <Button className="mt-4" asChild>
+                      <Link href="/products">Khám phá sản phẩm</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium">{order.product}</p>
+                          <div className="flex items-center gap-3 mt-2 flex-wrap">
+                            <span className="text-sm text-muted-foreground">
+                              {order.id}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              {order.date}
+                            </span>
+                            <Badge
+                              variant={
+                                order.status === "completed"
+                                  ? "default"
+                                  : order.status === "paid"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                            >
+                              {order.status === "completed"
+                                ? "Hoàn tất"
                                 : order.status === "paid"
-                                ? "secondary"
-                                : "outline"
-                            }
-                          >
-                            {order.status === "completed"
-                              ? "Hoàn tất"
-                              : order.status === "paid"
-                              ? "Đã thanh toán"
-                              : "Chờ thanh toán"}
-                          </Badge>
+                                ? "Đã thanh toán"
+                                : "Chờ thanh toán"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <p className="font-bold text-lg">
+                            {formatPrice(order.amount)}
+                          </p>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/customer/orders/${order.id}`}>
+                              Xem chi tiết
+                            </Link>
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <p className="font-bold text-lg">
-                          {formatPrice(order.amount)}
-                        </p>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/customer/orders/${order.id}`}>
-                            Xem chi tiết
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -392,7 +511,7 @@ export default function CustomerDashboard() {
                   <div>
                     <CardTitle>Đánh giá của tôi</CardTitle>
                     <CardDescription>
-                      {mockStats.reviewsGiven} đánh giá đã đăng
+                      {stats.reviewsGiven} đánh giá đã đăng
                     </CardDescription>
                   </div>
                   <Button variant="outline" asChild>
@@ -420,7 +539,7 @@ export default function CustomerDashboard() {
                   <div>
                     <CardTitle>Ticket hỗ trợ</CardTitle>
                     <CardDescription>
-                      {mockStats.pendingTickets} ticket đang mở
+                      {stats.pendingTickets} ticket đang mở
                     </CardDescription>
                   </div>
                   <Button asChild>

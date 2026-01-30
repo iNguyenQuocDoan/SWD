@@ -12,11 +12,15 @@ import { env } from "@/config/env";
 import apiRoutes from "@/routes";
 import { errorHandler } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
+import { schedulerService } from "@/services/scheduler/scheduler.service";
 
 const app = express();
 
 // Connect to database
 connectDB();
+
+// Start disbursement scheduler (auto-release escrow after 72h)
+schedulerService.startDisbursementScheduler();
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -67,6 +71,9 @@ try {
 } catch (err) {
   console.warn("Could not load swagger file:", err);
 }
+
+// Static files (uploads)
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // API Routes
 app.use("/api", apiRoutes);

@@ -23,6 +23,13 @@ router.put(
   wrapRequestHandler(userController.updateProfile)
 );
 
+// Customer profile stats (dashboard menu)
+router.get(
+  "/profile/stats",
+  checkPermission(PERMISSIONS.PROFILE_VIEW),
+  wrapRequestHandler(userController.getCustomerStats)
+);
+
 // Admin routes - View any user
 router.get(
   "/:userId",

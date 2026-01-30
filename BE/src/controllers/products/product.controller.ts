@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { AuthRequest } from "@/middleware/auth";
 import { ProductService } from "@/services/products/product.service";
 import { ShopService } from "@/services/shops/shop.service";
-import { createProductSchema } from "@/validators/products/product.schema";
+import { createProductSchema, updateProductSchema } from "@/validators/products/product.schema";
 import { AppError } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
 
@@ -48,6 +48,7 @@ export class ProductController {
         planType,
         minPrice,
         maxPrice,
+        shopId,
         page = "1",
         limit = "20",
       } = req.query;
@@ -57,6 +58,7 @@ export class ProductController {
       if (planType) filter.planType = planType;
       if (minPrice) filter.minPrice = Number(minPrice);
       if (maxPrice) filter.maxPrice = Number(maxPrice);
+      if (shopId) filter.shopId = shopId as string;
 
       const products = await this.productService.getApprovedProducts(filter);
 
@@ -115,7 +117,7 @@ export class ProductController {
       // Verify shop ownership
       const shopService = new ShopService();
       const shop = await shopService.getShopByOwnerId(userId);
-      
+
       if (!shop || shop._id.toString() !== shopId) {
         throw new AppError(MESSAGES.ERROR.SHOP.ACCESS_DENIED, 403);
       }
@@ -130,4 +132,81 @@ export class ProductController {
       next(error);
     }
   };
+
+  updateProduct = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const productId = Array.isArray(req.params.productId)
+        ? req.params.productId[0]
+        : req.params.productId;
+      const validatedData = updateProductSchema.parse(req.body);
+
+      const product = await this.productService.updateProduct(
+        productId,
+        userId,
+        validatedData
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Product updated successfully",
+        data: product,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteProduct = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const productId = Array.isArray(req.params.productId)
+        ? req.params.productId[0]
+        : req.params.productId;
+
+      await this.productService.deleteProduct(productId, userId);
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getMyProductById = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const productId = Array.isArray(req.params.productId)
+        ? req.params.productId[0]
+        : req.params.productId;
+
+      const product = await this.productService.getProductByIdForSeller(
+        productId,
+        userId
+      );
+
+      res.status(200).json({
+        success: true,
+        data: product,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+
 }

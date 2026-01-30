@@ -15,6 +15,8 @@ export const MESSAGES = {
     PROFILE_UPDATED: "Profile updated successfully",
     SHOP_CREATED: "Shop created successfully",
     SHOP_UPDATED: "Shop updated successfully",
+    SHOP_APPROVED: "Shop approved successfully",
+    SHOP_REJECTED: "Shop rejected successfully",
     PRODUCT_CREATED: "Product created successfully, pending approval",
   },
 
@@ -49,6 +51,7 @@ export const MESSAGES = {
       NOT_FOUND: "Shop not found",
       ALREADY_EXISTS: "User already has a shop",
       ACCESS_DENIED: "Access denied",
+      NAME_ALREADY_EXISTS: "Tên shop đã tồn tại. Vui lòng chọn tên khác.",
     },
 
     // Error Messages - Product

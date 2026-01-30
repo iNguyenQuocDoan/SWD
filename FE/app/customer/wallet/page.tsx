@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle, XCircle, CreditCard, RefreshCw } from "lucide-react";
+import { Wallet, ArrowDownCircle, ArrowUpCircle, CheckCircle, XCircle, CreditCard, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
@@ -218,24 +218,22 @@ function WalletPageContent() {
           </Button>
         </div>
 
-        {/* Balance Cards */}
+        {/* Balance Card */}
         {loading ? (
-          <div className="grid md:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-4" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-32 mb-2" />
-                  <Skeleton className="h-3 w-20" />
-                </CardContent>
-              </Card>
-            ))}
+          <div className="grid md:grid-cols-1 gap-4 max-w-md">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-32 mb-2" />
+                <Skeleton className="h-3 w-20" />
+              </CardContent>
+            </Card>
           </div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-1 gap-4 max-w-md">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Số dư hiện tại</CardTitle>
@@ -247,36 +245,6 @@ function WalletPageContent() {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Sẵn sàng sử dụng ngay
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Đang giữ</CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-orange-600">
-                  {walletBalance ? formatPrice(walletBalance.holdBalance) : formatPrice(0)}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Tiền đang giữ cho đơn hàng
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Tổng số dư</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">
-                  {walletBalance ? formatPrice(walletBalance.totalBalance) : formatPrice(0)}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Bao gồm đang giữ
                 </p>
               </CardContent>
             </Card>

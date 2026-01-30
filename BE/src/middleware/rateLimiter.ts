@@ -15,7 +15,8 @@ export const apiLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
+  max: 100,
+   // 5 requests per window
   message: {
     success: false,
     message: MESSAGES.ERROR.GENERAL.TOO_MANY_AUTH_ATTEMPTS,
