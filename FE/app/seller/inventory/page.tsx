@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Package, Database } from "lucide-react";
+import { Package, Database, Eye, EyeOff, Copy } from "lucide-react";
 
 type StatusFilter = "all" | "Available" | "Reserved" | "Delivered" | "Revoked";
 
@@ -55,6 +55,28 @@ export default function SellerInventoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [paginatedItems, setPaginatedItems] = useState<SellerInventoryItem[]>([]);
+  const [visibleSecrets, setVisibleSecrets] = useState<Set<string>>(new Set());
+
+  const toggleSecretVisibility = (itemId: string) => {
+    setVisibleSecrets((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Đã sao chép vào clipboard");
+    } catch {
+      toast.error("Không thể sao chép");
+    }
+  };
 
   // Fetch all items for summary (platforms, products overview)
   useEffect(() => {
@@ -126,7 +148,7 @@ export default function SellerInventoryPage() {
         map.get(key) ||
         ({
           platformId: key,
-          platformName: item.platformId?.name || "Khác",
+          platformName: item.platformId?.platformName || "Khác",
           logoUrl: item.platformId?.logoUrl,
           total: 0,
           available: 0,
@@ -424,7 +446,8 @@ export default function SellerInventoryPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[140px]">Sản phẩm</TableHead>
-                <TableHead className="min-w-[140px]">Nền tảng</TableHead>
+                <TableHead className="min-w-[120px]">Nền tảng</TableHead>
+                <TableHead className="min-w-[200px]">Secret Key</TableHead>
                 <TableHead className="min-w-[160px]">Khách đã thanh toán</TableHead>
                 <TableHead>Loại secret</TableHead>
                 <TableHead>Trạng thái</TableHead>
@@ -432,34 +455,78 @@ export default function SellerInventoryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedItems.map((item) => (
-                <TableRow key={item._id}>
-                  <TableCell className="font-medium">
-                    {item.productId?.title || "N/A"}
-                  </TableCell>
-                  <TableCell>{item.platformId?.name || "N/A"}</TableCell>
-                  <TableCell>
-                    {(() => {
-                      const productId = item.productId?._id || "";
-                      const price =
-                        typeof productId === "string" ? productPriceById.get(productId) : undefined;
-                      return item.status === "Delivered" && typeof price === "number"
-                        ? `${price.toLocaleString("vi-VN")} VND`
-                        : "-";
-                    })()}
-                  </TableCell>
-                  <TableCell>{item.secretType}</TableCell>
-                  <TableCell>{getStatusBadge(item.status)}</TableCell>
-                  <TableCell>
-                    {(() => {
-                      const d = item.createdAt ? new Date(item.createdAt) : null;
-                      return d && !Number.isNaN(d.getTime())
-                        ? d.toLocaleString("vi-VN")
-                        : "-";
-                    })()}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {paginatedItems.map((item) => {
+                const isSecretVisible = visibleSecrets.has(item._id);
+                return (
+                  <TableRow key={item._id}>
+                    <TableCell className="font-medium">
+                      {item.productId?.title || "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {item.platformId?.logoUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.platformId.logoUrl}
+                            alt={item.platformId?.platformName || ""}
+                            className="h-5 w-5 rounded object-cover"
+                          />
+                        )}
+                        <span>{item.platformId?.platformName || "N/A"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs bg-muted px-2 py-1 rounded break-all">
+                          {isSecretVisible ? item.secretValue : "••••••••••••"}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => toggleSecretVisibility(item._id)}
+                          title={isSecretVisible ? "Ẩn" : "Hiện"}
+                        >
+                          {isSecretVisible ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => copyToClipboard(item.secretValue)}
+                          title="Sao chép"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const productId = item.productId?._id || "";
+                        const price =
+                          typeof productId === "string" ? productPriceById.get(productId) : undefined;
+                        return item.status === "Delivered" && typeof price === "number"
+                          ? `${price.toLocaleString("vi-VN")} VND`
+                          : "-";
+                      })()}
+                    </TableCell>
+                    <TableCell>{item.secretType}</TableCell>
+                    <TableCell>{getStatusBadge(item.status)}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const d = item.createdAt ? new Date(item.createdAt) : null;
+                        return d && !Number.isNaN(d.getTime())
+                          ? d.toLocaleString("vi-VN")
+                          : "-";
+                      })()}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

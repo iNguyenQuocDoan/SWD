@@ -157,7 +157,7 @@ export class InventoryService extends BaseService<IInventoryItem> {
     const [items, total] = await Promise.all([
       InventoryItem.find(query)
         .populate("productId", "_id title platformId")
-        .populate("platformId", "_id name logoUrl")
+        .populate("platformId", "_id platformName logoUrl")
         // createdAt might be missing in old docs; use _id as tie-breaker for stable pagination
         .sort({ createdAt: -1, _id: -1 })
         .limit(limit)
