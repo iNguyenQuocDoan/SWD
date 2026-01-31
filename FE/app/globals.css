@@ -147,9 +147,15 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-size: 16px;
+    overflow-x: hidden;
     /* Better text rendering */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -200,16 +206,12 @@
     background-color: var(--accent-soft);
   }
   
-  /* Responsive text sizes */
+  /* Responsive text sizes - optimized for 15.6" laptops */
   @media (max-width: 640px) {
     html {
       font-size: 14px;
     }
   }
-  
-  @media (min-width: 1024px) {
-    html {
-      font-size: 18px;
-    }
-  }
+
+  /* Keep 16px base for desktop - better fit for 15.6" screens */
 }

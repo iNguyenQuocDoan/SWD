@@ -34,6 +34,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function Header() {
   const { user, isAuthenticated } = useAuthStore();
@@ -140,6 +141,7 @@ export function Header() {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2 shrink-0">
+            <ThemeToggle />
             {!isAuthenticated ? (
               <>
                 <Button

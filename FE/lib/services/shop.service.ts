@@ -322,6 +322,7 @@ class ShopService {
       if (error?.status === 404) {
         return null;
       }
+      console.error("Failed to get shop stats:", error);
       return null;
     }
   }

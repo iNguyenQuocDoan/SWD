@@ -232,9 +232,48 @@ class ApiClient {
    */
   async get<T>(endpoint: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
+      // Log request for featured/top products
+      if (endpoint.includes("/products/featured") || endpoint.includes("/products/top")) {
+        console.log("[API Client] ===== Making request =====");
+        console.log("[API Client] Endpoint:", endpoint);
+        console.log("[API Client] Base URL:", this.baseUrl);
+        console.log("[API Client] Full URL:", `${this.baseUrl}${endpoint}`);
+        console.log("[API Client] Config:", config);
+      }
       const response = await this.axiosInstance.get<ApiResponse<T>>(endpoint, config);
+      
+      // Debug log for products endpoints
+      if (endpoint.includes("/products")) {
+        console.log("[API Client] Products response:", {
+          endpoint,
+          status: response.status,
+          success: response.data?.success,
+          hasData: !!response.data?.data,
+          dataType: Array.isArray(response.data?.data) ? "array" : typeof response.data?.data,
+          dataLength: Array.isArray(response.data?.data) ? response.data.data.length : "N/A",
+          firstItem: Array.isArray(response.data?.data) && response.data.data.length > 0 ? {
+            id: (response.data.data[0] as any)?._id || (response.data.data[0] as any)?.id,
+            title: (response.data.data[0] as any)?.title,
+            hasSalesCount: (response.data.data[0] as any)?.salesCount !== undefined,
+            salesCount: (response.data.data[0] as any)?.salesCount,
+            keys: Object.keys(response.data.data[0] || {}),
+          } : null,
+          fullResponse: endpoint.includes("/featured") || endpoint.includes("/top") ? response.data : undefined,
+        });
+      }
+      
       return response.data;
     } catch (error) {
+      // Log error for featured/top products
+      if (endpoint.includes("/products/featured") || endpoint.includes("/products/top")) {
+        console.error("[API Client] Error for", endpoint, ":", error);
+        console.error("[API Client] Error details:", {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          response: (error as any)?.response?.data,
+          status: (error as any)?.response?.status,
+        });
+      }
       throw this.handleError(error);
     }
   }
