@@ -23,7 +23,6 @@ export class PermissionService {
         role.permissions = [...permissionKeys];
         await role.save();
       }
-      console.log("Default permissions assigned to roles successfully");
     } catch (error) {
       console.error("Error assigning default permissions:", error);
       throw error;

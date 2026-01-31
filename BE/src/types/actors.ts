@@ -447,8 +447,6 @@ export const PermissionToCapabilityMap: Record<string, keyof (ICustomerCapabilit
   [PERMISSIONS.PRODUCT_CREATE]: "canCreateProduct",
   [PERMISSIONS.PRODUCT_UPDATE]: "canUpdateProduct",
   [PERMISSIONS.PRODUCT_DELETE]: "canDeleteProduct",
-  [PERMISSIONS.PRODUCT_APPROVE]: "canApproveProduct",
-  [PERMISSIONS.PRODUCT_REJECT]: "canRejectProduct",
   [PERMISSIONS.USER_VIEW]: "canViewUsers",
   [PERMISSIONS.USER_CREATE]: "canCreateUser",
   // Add more mappings as needed

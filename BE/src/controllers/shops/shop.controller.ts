@@ -4,6 +4,8 @@ import { ShopService } from "@/services/shops/shop.service";
 import { createShopSchema, updateShopSchema } from "@/validators/shops/shop.schema";
 import { AppError } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
+import { Wallet, OrderItem, Review, Product, InventoryItem } from "@/models";
+import mongoose from "mongoose";
 
 export class ShopController {
   private shopService: ShopService;
@@ -18,20 +20,14 @@ export class ShopController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      console.log("=== CREATE SHOP REQUEST ===");
-      console.log("User:", req.user);
-      console.log("Body:", req.body);
-
       const userId = req.user!.id;
       const validatedData = createShopSchema.parse(req.body);
-      console.log("Validated data:", validatedData);
 
       const shop = await this.shopService.createShop(
         userId,
         validatedData.shopName,
         validatedData.description || undefined
       );
-      console.log("Shop created successfully:", shop._id);
 
       res.status(201).json({
         success: true,
@@ -39,7 +35,6 @@ export class ShopController {
         data: shop,
       });
     } catch (error) {
-      console.error("=== CREATE SHOP ERROR ===", error);
       next(error);
     }
   };
@@ -122,16 +117,12 @@ export class ShopController {
 
   // Moderator endpoints
   getPendingShops = async (
-    req: AuthRequest,
+    _req: AuthRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      console.log("=== GET PENDING SHOPS REQUEST ===");
-      console.log("User:", req.user?.id, req.user?.email);
-      
       const shops = await this.shopService.getPendingShops();
-      console.log("Shops found:", shops.length);
 
       // Transform shops to ensure proper format for frontend
       // Handle both Mongoose documents and plain objects (from lean())
@@ -171,8 +162,7 @@ export class ShopController {
               ? shop.updatedAt.toISOString()
               : new Date(shop.updatedAt).toISOString(),
           };
-        } catch (transformError) {
-          console.error("Error transforming shop:", shop._id, transformError);
+        } catch {
           // Return a safe default object
           return {
             _id: shop._id?.toString() || "",
@@ -191,17 +181,11 @@ export class ShopController {
         }
       });
 
-      console.log("Transformed shops:", transformedShops.length);
       res.status(200).json({
         success: true,
         data: transformedShops,
       });
     } catch (error) {
-      console.error("Error in getPendingShops controller:", error);
-      if (error instanceof Error) {
-        console.error("Error message:", error.message);
-        console.error("Error stack:", error.stack);
-      }
       next(error);
     }
   };
@@ -252,6 +236,166 @@ export class ShopController {
         success: true,
         message: MESSAGES.SUCCESS.SHOP_REJECTED,
         data: shop,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get seller dashboard stats
+   * GET /api/shops/me/stats
+   */
+  getMyShopStats = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const shop = await this.shopService.getShopByOwnerId(userId);
+
+      if (!shop) {
+        throw new AppError(MESSAGES.ERROR.SHOP.NOT_FOUND, 404);
+      }
+
+      const shopId = shop._id;
+
+      // Get wallet balance (seller's wallet)
+      const wallet = await Wallet.findOne({
+        userId: new mongoose.Types.ObjectId(userId),
+      });
+
+      // Get order stats for this shop
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      // Count total orders and weekly orders from OrderItem
+      const [totalOrderItems, weeklyOrderItems] = await Promise.all([
+        OrderItem.countDocuments({
+          shopId: shopId,
+        }),
+        OrderItem.countDocuments({
+          shopId: shopId,
+          createdAt: { $gte: weekAgo },
+        }),
+      ]);
+
+      // Calculate escrow (sum of holdAmount where holdStatus is "Holding")
+      const escrowResult = await OrderItem.aggregate([
+        {
+          $match: {
+            shopId: new mongoose.Types.ObjectId(shopId.toString()),
+            holdStatus: "Holding",
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$holdAmount" },
+          },
+        },
+      ]);
+      const escrowAmount = escrowResult[0]?.total || 0;
+
+      // Calculate total paid out (sum of subtotal where holdStatus is "Released")
+      const paidOutResult = await OrderItem.aggregate([
+        {
+          $match: {
+            shopId: new mongoose.Types.ObjectId(shopId.toString()),
+            holdStatus: "Released",
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$subtotal" },
+          },
+        },
+      ]);
+      const paidOutAmount = paidOutResult[0]?.total || 0;
+
+      // Get reviews stats for shop
+      const reviewStats = await Review.aggregate([
+        {
+          $match: {
+            shopId: new mongoose.Types.ObjectId(shopId.toString()),
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            avgRating: { $avg: "$rating" },
+            totalReviews: { $sum: 1 },
+          },
+        },
+      ]);
+
+      // Get product counts
+      const [totalProducts, approvedProducts, pendingProducts] = await Promise.all([
+        Product.countDocuments({ shopId: shopId, isDeleted: false }),
+        Product.countDocuments({ shopId: shopId, isDeleted: false, status: "Approved" }),
+        Product.countDocuments({ shopId: shopId, isDeleted: false, status: "Pending" }),
+      ]);
+
+      // Get inventory stats
+      const inventoryStats = await InventoryItem.aggregate([
+        {
+          $match: {
+            shopId: new mongoose.Types.ObjectId(shopId.toString()),
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+
+      const inventoryCounts = {
+        total: 0,
+        available: 0,
+        reserved: 0,
+        delivered: 0,
+      };
+      inventoryStats.forEach((stat) => {
+        inventoryCounts.total += stat.count;
+        if (stat._id === "Available") inventoryCounts.available = stat.count;
+        if (stat._id === "Reserved") inventoryCounts.reserved = stat.count;
+        if (stat._id === "Delivered") inventoryCounts.delivered = stat.count;
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          // Wallet/Revenue stats
+          availableBalance: wallet?.balance || 0,
+          holdBalance: wallet?.holdBalance || 0,
+          escrowAmount: escrowAmount,
+          paidOutAmount: paidOutAmount,
+
+          // Order stats
+          totalOrders: totalOrderItems,
+          weeklyOrders: weeklyOrderItems,
+
+          // Rating stats
+          avgRating: reviewStats[0]?.avgRating || shop.ratingAvg || 0,
+          totalReviews: reviewStats[0]?.totalReviews || 0,
+
+          // Product stats
+          totalProducts,
+          approvedProducts,
+          pendingProducts,
+
+          // Inventory stats
+          inventory: inventoryCounts,
+
+          // Shop info
+          totalSales: shop.totalSales || 0,
+        },
       });
     } catch (error) {
       next(error);

@@ -49,7 +49,6 @@ export default function CreateTicketPage() {
     setIsLoading(true);
     try {
       // TODO: Submit ticket
-      console.log("Create ticket:", data);
       toast.success("Ticket đã được tạo! Chúng tôi sẽ phản hồi sớm nhất.");
     } catch (error) {
       toast.error("Lỗi khi tạo ticket");

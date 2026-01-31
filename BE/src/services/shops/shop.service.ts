@@ -1,8 +1,9 @@
 import { BaseService } from "@/services/base.service";
-import { Shop, IShop, User } from "@/models";
+import { Shop, IShop, User, Role } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
 import { SHOP_STATUS } from "@/constants/shopStatus";
+import { ROLE_KEYS } from "@/constants/roles";
 
 export class ShopService extends BaseService<IShop> {
   constructor() {
@@ -50,12 +51,16 @@ export class ShopService extends BaseService<IShop> {
 
     if (existingShop) {
       // If shop is active, pending, or suspended and not deleted - block
-      if (!existingShop.isDeleted && ["Pending", "Active", "Suspended"].includes(existingShop.status)) {
-        const statusMessage = existingShop.status === "Pending"
-          ? "đang chờ duyệt"
-          : existingShop.status === "Active"
-          ? "đang hoạt động"
-          : "đang bị tạm ngưng";
+      if (
+        !existingShop.isDeleted &&
+        ["Pending", "Active", "Suspended"].includes(existingShop.status)
+      ) {
+        const statusMessage =
+          existingShop.status === "Pending"
+            ? "đang chờ duyệt"
+            : existingShop.status === "Active"
+            ? "đang hoạt động"
+            : "đang bị tạm ngưng";
         throw new AppError(
           `Bạn đã có shop ${statusMessage}. Vui lòng kiểm tra trạng thái shop của bạn.`,
           400
@@ -170,6 +175,20 @@ export class ShopService extends BaseService<IShop> {
       throw new AppError(MESSAGES.ERROR.SHOP.NOT_FOUND, 404);
     }
 
+    // OPTION A: After shop is approved, upgrade the shop owner role to SELLER
+    const sellerRole = await Role.findOne({
+      roleKey: ROLE_KEYS.SELLER,
+      status: "Active",
+    });
+
+    if (!sellerRole) {
+      throw new AppError("Seller role not found or inactive", 500);
+    }
+
+    await User.findByIdAndUpdate(shop.ownerUserId, {
+      roleId: sellerRole._id,
+    });
+
     return shop;
   }
 
@@ -199,8 +218,6 @@ export class ShopService extends BaseService<IShop> {
 
   async getPendingShops(): Promise<any[]> {
     try {
-      console.log("=== GET PENDING SHOPS SERVICE ===");
-      
       const shops = await this.model
         .find({ status: "Pending", isDeleted: false })
         .populate({
@@ -215,8 +232,6 @@ export class ShopService extends BaseService<IShop> {
         .sort({ createdAt: -1 })
         .lean(); // Use lean() for better performance and to avoid Mongoose document issues
 
-      console.log("Raw shops from DB:", shops.length);
-      
       // Filter out shops where ownerUserId is null (user was deleted)
       const validShops = shops.filter((shop: any) => {
         const hasOwner = shop.ownerUserId !== null && shop.ownerUserId !== undefined;
@@ -225,8 +240,7 @@ export class ShopService extends BaseService<IShop> {
         }
         return hasOwner;
       });
-      
-      console.log("Valid shops after filter:", validShops.length);
+
       return validShops;
     } catch (error) {
       console.error("Error in getPendingShops service:", error);

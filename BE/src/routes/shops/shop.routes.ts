@@ -22,6 +22,14 @@ router.get(
   wrapRequestHandler(shopController.getMyShop)
 );
 
+// Seller dashboard stats
+router.get(
+  "/me/stats",
+  authenticate,
+  checkPermission(PERMISSIONS.SHOP_ANALYTICS_VIEW),
+  wrapRequestHandler(shopController.getMyShopStats)
+);
+
 // Moderator routes - Approve/reject shop applications
 // NOTE: Must be defined BEFORE /:shopId to avoid wildcard matching
 router.get(

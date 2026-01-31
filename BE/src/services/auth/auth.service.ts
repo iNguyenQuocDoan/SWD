@@ -141,7 +141,6 @@ export class AuthService {
 
       // Check if roleId is populated
       if (!user.roleId || typeof user.roleId === "string") {
-        console.error("User roleId not populated:", user._id);
         throw new AppError(MESSAGES.ERROR.AUTH.USER_ROLE_NOT_FOUND, 500);
       }
 
@@ -162,7 +161,6 @@ export class AuthService {
       // Generate tokens
       const roleKey = (user.roleId as any).roleKey;
       if (!roleKey) {
-        console.error("Role key not found for user:", user._id);
         throw new AppError(MESSAGES.ERROR.AUTH.USER_ROLE_CONFIG_ERROR, 500);
       }
 
@@ -171,14 +169,6 @@ export class AuthService {
         user._id.toString(),
         user.email
       );
-
-      // Log tokens
-      console.log("\n========== TOKEN GENERATION ==========");
-      console.log(`User: ${user.email} (${user._id})`);
-      console.log(`Role: ${roleKey}`);
-      console.log(`Access Token: ${token}`);
-      console.log(`Refresh Token: ${refreshToken}`);
-      console.log("=======================================\n");
 
       return {
         user: {
@@ -191,9 +181,6 @@ export class AuthService {
         refreshToken,
       };
     } catch (error) {
-      // Log error for debugging
-      console.error("Login error:", error);
-      
       // Re-throw AppError as-is
       if (error instanceof AppError) {
         throw error;
@@ -221,13 +208,6 @@ export class AuthService {
 
       const roleKey = (user.roleId as any).roleKey;
       const token = this.generateToken(user._id.toString(), user.email, roleKey);
-
-      // Log new access token
-      console.log("\n========== TOKEN REFRESH ==========");
-      console.log(`User: ${user.email} (${user._id})`);
-      console.log(`New Access Token: ${token}`);
-      console.log(`Refresh Token (used): ${refreshToken}`);
-      console.log("===================================\n");
 
       return { token };
     } catch (error: unknown) {

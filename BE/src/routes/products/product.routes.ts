@@ -45,23 +45,5 @@ router.delete(
   wrapRequestHandler(productController.deleteProduct)
 );
 
-// Moderator routes - Approve/reject products
-router.get(
-  "/applications/pending",
-  checkPermission(PERMISSIONS.PRODUCT_APPROVE),
-  wrapRequestHandler(productController.getPendingProducts)
-);
-
-router.patch(
-  "/:productId/approve",
-  checkPermission(PERMISSIONS.PRODUCT_APPROVE),
-  wrapRequestHandler(productController.approveProduct)
-);
-
-router.patch(
-  "/:productId/reject",
-  checkPermission(PERMISSIONS.PRODUCT_REJECT),
-  wrapRequestHandler(productController.rejectProduct)
-);
 
 export default router;

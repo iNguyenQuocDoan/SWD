@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-// Redirect to /seller/register - consolidated seller registration page
-export default function BecomeSellerPage() {
+function BecomeSellerRedirect() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reregister = searchParams.get("reregister");
@@ -18,4 +17,13 @@ export default function BecomeSellerPage() {
   }, [router, reregister]);
 
   return null;
+}
+
+// Redirect to /seller/register - consolidated seller registration page
+export default function BecomeSellerPage() {
+  return (
+    <Suspense fallback={null}>
+      <BecomeSellerRedirect />
+    </Suspense>
+  );
 }

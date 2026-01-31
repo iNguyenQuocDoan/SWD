@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import {
   Card,
   CardContent,
@@ -12,26 +12,40 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
   Package,
   Clock,
   CheckCircle,
   Copy,
-  Download,
   AlertCircle,
-  Shield,
   Lock,
   HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { orderService } from "@/lib/services/order.service";
 
 // Types for backend data
 type OrderStatus = "pending_payment" | "paid" | "processing" | "completed" | "refunded" | "cancelled";
 type PaymentStatus = "pending" | "escrow" | "available" | "paid_out";
+
+// Backend response types
+interface BackendOrderItem {
+  _id: string;
+  productId: { _id: string; title: string } | null;
+  shopId: { _id: string; name: string } | null;
+  inventoryItemId: { _id: string; secretType: string; secretValue: string } | null;
+  subtotal: number;
+  itemStatus: string;
+  holdStatus: string;
+  holdAt: string;
+  deliveredAt: string | null;
+  releaseAt: string | null;
+  createdAt: string;
+  deliveryContent: string | null;
+}
 
 interface TimelineItem {
   status: string;
@@ -96,35 +110,13 @@ const statusConfig = {
   },
 };
 
-const paymentStatusConfig = {
-  pending: {
-    label: "Chờ thanh toán",
-    variant: "secondary" as const,
-    icon: Clock,
-  },
-  escrow: {
-    label: "Đang giữ (Escrow)",
-    variant: "default" as const,
-    icon: Shield,
-  },
-  available: {
-    label: "Sẵn sàng chi trả",
-    variant: "default" as const,
-    icon: CheckCircle,
-  },
-  paid_out: {
-    label: "Đã chi trả",
-    variant: "default" as const,
-    icon: CheckCircle,
-  },
-};
-
 export default function CustomerOrderDetailPage({
   params,
-}: {
-  params: { id: string };
-}) {
+}: Readonly<{
+  params: Promise<{ id: string }>;
+}>) {
   const router = useRouter();
+  const { id: orderCode } = use(params);
   const [isLoading, setIsLoading] = useState(true);
   const [order, setOrder] = useState<Order | null>(null);
 
@@ -132,18 +124,99 @@ export default function CustomerOrderDetailPage({
     const fetchOrder = async () => {
       setIsLoading(true);
       try {
-        // TODO: Fetch from backend
-        // const orderData = await orderService.getOrderById(params.id);
-        // setOrder(orderData);
-      } catch (error) {
-        console.error("Failed to fetch order:", error);
+        const result = await orderService.getOrderByCode(orderCode);
+
+        // Map backend data to frontend format
+        const mappedOrder: Order = {
+          id: result.order.orderCode,
+          date: new Date(result.order.createdAt).toLocaleDateString("vi-VN"),
+          status: mapOrderStatus(result.order.status),
+          paymentMethod: result.order.paymentProvider === "Wallet" ? "Ví điện tử" : "VNPay",
+          totalAmount: result.order.payableAmount,
+          subOrders: result.items.map((item: BackendOrderItem) => {
+            // Get credentials from inventory item
+            const inventory = item.inventoryItemId;
+            const secretValue = inventory?.secretValue || item.deliveryContent || "Đang xử lý...";
+
+            return {
+              id: item._id,
+              productTitle: item.productId?.title || "Sản phẩm",
+              sellerName: item.shopId?.name || "Shop",
+              amount: item.subtotal,
+              status: mapItemStatus(item.itemStatus),
+              paymentStatus: mapPaymentStatus(item.holdStatus),
+              licenseKey: secretValue,
+              activatedAt: item.deliveredAt ? new Date(item.deliveredAt).toLocaleString("vi-VN") : undefined,
+              completedAt: item.releaseAt ? new Date(item.releaseAt).toLocaleString("vi-VN") : undefined,
+              timeline: generateTimeline(item),
+            };
+          }),
+        };
+
+        setOrder(mappedOrder);
+      } catch {
         toast.error("Không thể tải thông tin đơn hàng");
       } finally {
         setIsLoading(false);
       }
     };
     fetchOrder();
-  }, [params.id]);
+  }, [orderCode]);
+
+  // Helper functions to map backend status to frontend status
+  const mapOrderStatus = (status: string): OrderStatus => {
+    const statusMap: Record<string, OrderStatus> = {
+      "PendingPayment": "pending_payment",
+      "Paid": "paid",
+      "Processing": "processing",
+      "Completed": "completed",
+      "Refunded": "refunded",
+      "Cancelled": "cancelled",
+    };
+    return statusMap[status] || "processing";
+  };
+
+  const mapItemStatus = (status: string): OrderStatus => {
+    const statusMap: Record<string, OrderStatus> = {
+      "WaitingDelivery": "processing",
+      // Khi backend đánh dấu item là Delivered nghĩa là key/tài khoản đã được cấp,
+      // hiển thị cho user là "Hoàn tất" thay vì "Đang xử lý"
+      "Delivered": "completed",
+      "Completed": "completed",
+      "Disputed": "processing",
+      "Refunded": "refunded",
+    };
+    return statusMap[status] || "processing";
+  };
+
+  const mapPaymentStatus = (holdStatus: string): PaymentStatus => {
+    const statusMap: Record<string, PaymentStatus> = {
+      "Holding": "escrow",
+      "Released": "paid_out",
+      "Refunded": "pending",
+    };
+    return statusMap[holdStatus] || "escrow";
+  };
+
+  const generateTimeline = (item: BackendOrderItem): TimelineItem[] => {
+    const timeline: TimelineItem[] = [
+      {
+        status: "ordered",
+        title: "Đơn hàng đã tạo",
+        description: "Đơn hàng được tạo thành công",
+        timestamp: item.createdAt ? new Date(item.createdAt).toLocaleString("vi-VN") : null,
+        completed: true,
+      },
+      {
+        status: "paid",
+        title: "Đã thanh toán",
+        description: "Thanh toán thành công",
+        timestamp: item.holdAt ? new Date(item.holdAt).toLocaleString("vi-VN") : null,
+        completed: item.holdStatus === "Holding" || item.holdStatus === "Released",
+      },
+    ];
+    return timeline;
+  };
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -152,22 +225,9 @@ export default function CustomerOrderDetailPage({
     }).format(price);
   };
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = async (text: string) => {
+    await navigator.clipboard.writeText(text);
     toast.success("Đã sao chép vào clipboard");
-  };
-
-  const handleConfirmActivation = async (subOrderId: string) => {
-    try {
-      // TODO: Call backend API
-      // await orderService.confirmActivation(subOrderId);
-      toast.success("Đã xác nhận kích hoạt thành công. Tiền sẽ được chuyển cho seller.");
-      // Refresh order data
-      // fetchOrder();
-    } catch (error) {
-      console.error("Failed to confirm activation:", error);
-      toast.error("Không thể xác nhận kích hoạt");
-    }
   };
 
   const handleReportIssue = (subOrderId: string) => {
@@ -266,8 +326,7 @@ export default function CustomerOrderDetailPage({
         <div className="space-y-6">
           <h2 className="text-xl font-semibold">Chi tiết đơn hàng</h2>
 
-          {order.subOrders.map((subOrder, index) => {
-            const PaymentStatusIcon = paymentStatusConfig[subOrder.paymentStatus].icon;
+          {order.subOrders.map((subOrder) => {
             const currentStatus = statusConfig[subOrder.status];
 
             return (
@@ -295,40 +354,6 @@ export default function CustomerOrderDetailPage({
                 </CardHeader>
 
                 <CardContent className="space-y-6 pt-6">
-                  {/* Payment Status */}
-                  <Alert
-                    variant={
-                      subOrder.paymentStatus === "paid_out"
-                        ? "success"
-                        : subOrder.paymentStatus === "escrow"
-                        ? "info"
-                        : "default"
-                    }
-                  >
-                    <PaymentStatusIcon className="h-4 w-4" />
-                    <AlertDescription>
-                      <div>
-                        <p className="font-semibold mb-1">
-                          Trạng thái thanh toán:{" "}
-                          {paymentStatusConfig[subOrder.paymentStatus].label}
-                        </p>
-                        {subOrder.paymentStatus === "escrow" ? (
-                          <p className="text-sm">
-                            Tiền đang được giữ. Vui lòng xác nhận sau khi kích hoạt thành
-                            công để tiền được chuyển cho seller.
-                          </p>
-                        ) : subOrder.paymentStatus === "paid_out" ? (
-                          <p className="text-sm">
-                            Tiền đã được chuyển từ Escrow cho seller sau khi bạn xác nhận
-                            kích hoạt.
-                          </p>
-                        ) : null}
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-
-                  <Separator />
-
                   {/* Digital Delivery */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
@@ -382,39 +407,14 @@ export default function CustomerOrderDetailPage({
 
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2">
-                      {subOrder.status === "processing" &&
-                        subOrder.paymentStatus === "escrow" && (
-                          <>
-                            <Button
-                              variant="default"
-                              onClick={() => handleConfirmActivation(subOrder.id)}
-                            >
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Xác nhận đã kích hoạt
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => handleReportIssue(subOrder.id)}
-                            >
-                              <AlertCircle className="mr-2 h-4 w-4" />
-                              Báo cáo vấn đề
-                            </Button>
-                          </>
-                        )}
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href="/help">
-                          <Download className="mr-2 h-3 w-3" />
-                          Tải hướng dẫn
-                        </Link>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleReportIssue(subOrder.id)}
+                      >
+                        <AlertCircle className="mr-2 h-4 w-4" />
+                        Báo cáo vấn đề
                       </Button>
                     </div>
-
-                    {subOrder.status === "processing" && (
-                      <p className="text-xs text-muted-foreground">
-                        💡 Sau khi xác nhận, tiền sẽ được chuyển cho seller và đơn hàng
-                        hoàn tất.
-                      </p>
-                    )}
                   </div>
 
                   <Separator />

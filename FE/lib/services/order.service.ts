@@ -32,6 +32,67 @@ export interface CustomerStats {
   reviewsGiven: number;
 }
 
+export interface SellerOrderItem {
+  // IDs for reference (useful for dispute resolution)
+  id: string;
+  orderId?: string | null;
+  inventoryItemId?: string | null;
+
+  // Order info
+  orderCode: string;
+  orderCreatedAt: string;
+  orderStatus?: string;
+
+  // Customer info (enhanced for dispute resolution)
+  customer: {
+    id: string;
+    email: string;
+    fullName: string;
+    phone?: string | null; // Phone for dispute contact
+  } | null;
+
+  // Product info
+  product: {
+    id: string;
+    title: string;
+    planType: string;
+    durationDays: number;
+    thumbnailUrl?: string | null;
+  } | null;
+
+  // Pricing
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+
+  // Status and escrow
+  itemStatus: string;
+  holdStatus: string;
+  holdAmount: number;
+
+  // Important dates for dispute resolution
+  createdAt: string;
+  deliveredAt?: string | null;
+  safeUntil?: string | null; // Warranty deadline - important for disputes!
+  holdAt?: string | null;
+  releaseAt?: string | null;
+
+  // The actual credential/key
+  credential?: string | null;
+
+  // Secret type for display
+  secretType?: string | null;
+}
+
+export interface SellerOrderItemsResponse {
+  items: SellerOrderItem[];
+  pagination: {
+    total: number;
+    limit: number;
+    skip: number;
+  };
+}
+
 class OrderService {
   /**
    * Get customer's orders
@@ -89,6 +150,23 @@ class OrderService {
   }
 
   /**
+   * Get order by order code
+   * GET /api/orders/code/:orderCode
+   */
+  async getOrderByCode(orderCode: string): Promise<{
+    order: any;
+    items: any[];
+  }> {
+    const response = await apiClient.get<{ order: any; items: any[] }>(`/orders/code/${orderCode}`);
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new Error(response.message || "Failed to get order");
+  }
+
+  /**
    * Create order from cart
    * NOTE: Backend API needs to be implemented - POST /api/orders
    */
@@ -117,6 +195,32 @@ class OrderService {
     }
 
     throw new Error(response.message || "Failed to get customer stats");
+  }
+
+  /**
+   * Get seller order items (sales history)
+   * GET /api/orders/seller/items
+   */
+  async getSellerOrderItems(params?: {
+    limit?: number;
+    skip?: number;
+    status?: string;
+  }): Promise<SellerOrderItemsResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.skip) searchParams.append("skip", params.skip.toString());
+    if (params?.status) searchParams.append("status", params.status);
+
+    const query = searchParams.toString();
+    const url = `/orders/seller/items${query ? `?${query}` : ""}`;
+
+    const response = await apiClient.get<SellerOrderItemsResponse>(url);
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new Error(response.message || "Failed to get seller order items");
   }
 
   /**

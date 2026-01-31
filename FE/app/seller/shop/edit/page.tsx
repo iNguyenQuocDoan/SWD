@@ -75,7 +75,7 @@ export default function EditShopPage() {
       toast.error(error.message || "Lỗi khi tải dữ liệu shop");
       // Delay redirect để toast hiển thị
       setTimeout(() => {
-        router.push("/seller/shop");
+        router.push("/seller");
       }, 1500);
     } finally {
       setIsLoading(false);
@@ -94,7 +94,7 @@ export default function EditShopPage() {
         updateData.shopName = data.shopName;
       }
       if (data.description !== shop.description) {
-        updateData.description = data.description || null;
+        updateData.description = data.description || undefined;
       }
 
       // Check if there are any changes
@@ -111,7 +111,7 @@ export default function EditShopPage() {
       
       // Optionally redirect back to shop page
       setTimeout(() => {
-        router.push("/seller/shop");
+        router.push("/seller");
       }, 1000);
     } catch (error: any) {
       console.error("Error updating shop:", error);
@@ -168,7 +168,7 @@ export default function EditShopPage() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/seller/shop">
+            <Link href="/seller">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -276,7 +276,7 @@ export default function EditShopPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => router.push("/seller/shop")}
+                    onClick={() => router.push("/seller")}
                     disabled={isSaving}
                   >
                     Hủy

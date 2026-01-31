@@ -270,7 +270,7 @@ export default function SellerApplicationStatusPage() {
               {/* Action Buttons */}
               <div className="flex gap-4 pt-4 border-t">
                 {shop.status === "Active" && (
-                  <Button onClick={() => router.push("/seller/shop")}>
+                  <Button onClick={() => router.push("/seller")}>
                     Quản lý Shop
                   </Button>
                 )}

@@ -124,7 +124,6 @@ export default function CustomerDashboard() {
           }
         } catch (error) {
           // If APIs are not available yet, keep default values
-          console.log("Order/Ticket/Review APIs not available yet:", error);
         }
       } catch (error: any) {
         console.error("Failed to fetch customer data:", error);
@@ -271,12 +270,6 @@ export default function CustomerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Button variant="outline" className="h-auto py-6 flex-col" asChild>
-                <Link href="/customer/cart">
-                  <ShoppingCart className="h-6 w-6 mb-2" />
-                  <span>Giỏ hàng</span>
-                </Link>
-              </Button>
               <Button variant="outline" className="h-auto py-6 flex-col" asChild>
                 <Link href="/customer/orders">
                   <Package className="h-6 w-6 mb-2" />

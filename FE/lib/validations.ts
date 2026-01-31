@@ -82,8 +82,7 @@ export const updateShopSchema = z.object({
   description: z
     .string()
     .max(500, VALIDATION_MESSAGES.SHOP.DESCRIPTION_MAX_LENGTH)
-    .optional()
-    .nullable(),
+    .optional(),
 });
 
 export type UpdateShopInput = z.infer<typeof updateShopSchema>;
@@ -94,6 +93,7 @@ export const verifyEmailSchema = z.object({
 
 // Product schemas - khớp với BE model
 export const createProductSchema = z.object({
+  shopId: z.string().min(1, VALIDATION_MESSAGES.PRODUCT.SHOP_REQUIRED),
   platformId: z.string().min(1, VALIDATION_MESSAGES.PRODUCT.PLATFORM_REQUIRED),
   title: z
     .string()
@@ -102,6 +102,7 @@ export const createProductSchema = z.object({
   description: z.string().min(20, VALIDATION_MESSAGES.PRODUCT.DESCRIPTION_MIN_LENGTH),
   warrantyPolicy: z.string().min(10, VALIDATION_MESSAGES.PRODUCT.WARRANTY_POLICY_MIN_LENGTH),
   howToUse: z.string().min(10, VALIDATION_MESSAGES.PRODUCT.HOW_TO_USE_MIN_LENGTH),
+  thumbnailUrl: z.string().url().optional().nullable(),
   planType: z.enum(["Personal", "Family", "Slot", "Shared", "InviteLink"], {
     message: VALIDATION_MESSAGES.PRODUCT.PLAN_TYPE_REQUIRED,
   }),

@@ -48,6 +48,7 @@ export class ProductController {
         planType,
         minPrice,
         maxPrice,
+        shopId,
         page = "1",
         limit = "20",
       } = req.query;
@@ -57,6 +58,7 @@ export class ProductController {
       if (planType) filter.planType = planType;
       if (minPrice) filter.minPrice = Number(minPrice);
       if (maxPrice) filter.maxPrice = Number(maxPrice);
+      if (shopId) filter.shopId = shopId as string;
 
       const products = await this.productService.getApprovedProducts(filter);
 
@@ -206,73 +208,5 @@ export class ProductController {
     }
   };
 
-  // Moderator endpoints
-  getPendingProducts = async (
-    _req: AuthRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      const products = await this.productService.getPendingProducts();
 
-      res.status(200).json({
-        success: true,
-        data: products,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  approveProduct = async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      const moderatorUserId = req.user!.id;
-      const productId = Array.isArray(req.params.productId)
-        ? req.params.productId[0]
-        : req.params.productId;
-
-      const product = await this.productService.approveProduct(
-        productId,
-        moderatorUserId
-      );
-
-      res.status(200).json({
-        success: true,
-        message: "Product approved successfully",
-        data: product,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  rejectProduct = async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      const moderatorUserId = req.user!.id;
-      const productId = Array.isArray(req.params.productId)
-        ? req.params.productId[0]
-        : req.params.productId;
-
-      const product = await this.productService.rejectProduct(
-        productId,
-        moderatorUserId
-      );
-
-      res.status(200).json({
-        success: true,
-        message: "Product rejected successfully",
-        data: product,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
 }

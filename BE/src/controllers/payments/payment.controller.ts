@@ -205,6 +205,7 @@ export class PaymentController {
   async getWalletBalance(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
+
       if (!userId) {
         throw new AppError(MESSAGES.ERROR.AUTH.UNAUTHORIZED, 401);
       }
@@ -221,6 +222,7 @@ export class PaymentController {
         },
       });
     } catch (error) {
+      console.error("[PaymentController] getWalletBalance error:", error);
       next(error);
     }
   }

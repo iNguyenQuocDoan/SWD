@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
-import { useRouter } from "next/navigation";
-import { CreditCard, Wallet, Shield, CheckCircle, AlertCircle } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { CreditCard, Wallet, Shield, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { RequireAuth } from "@/components/auth/RequireAuth";
@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/form";
 
 import { paymentService } from "@/lib/services/payment.service";
+import { orderService } from "@/lib/services/order.service";
+import { productService } from "@/lib/services/product.service";
 
 interface CheckoutItem {
   id: string;
@@ -43,8 +45,9 @@ interface CheckoutData {
   walletBalance: number;
 }
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [checkoutData, setCheckoutData] = useState<CheckoutData>({
@@ -59,41 +62,66 @@ export default function CheckoutPage() {
     const fetchCheckoutData = async () => {
       setIsLoading(true);
       try {
-        // Fetch wallet balance
+        // Fetch wallet balance của người dùng
         const walletBalance = await paymentService.getWalletBalance();
-        
-        // TODO: Fetch cart items from API when available
-        // const cartData = await cartService.getCart();
-        // const items = cartData.items.map(item => ({
-        //   id: item.id,
-        //   title: item.product.title,
-        //   quantity: item.quantity,
-        //   price: item.product.price,
-        // }));
-        // const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        // const serviceFee = Math.round(subtotal * 0.02);
-        // const total = subtotal + serviceFee;
-        
-        // For now, use empty cart
+
+        // Lấy thông tin mua ngay từ query (?product=&quantity=)
+        const productId = searchParams.get("product");
+        const quantityParam = searchParams.get("quantity");
+        const quantity = quantityParam ? Math.max(1, Number(quantityParam)) : 1;
+
+        if (!productId) {
+          // Nếu không có dữ liệu sản phẩm, điều hướng về giỏ hàng
+          toast.error("Không có thông tin đơn hàng. Vui lòng chọn sản phẩm lại.");
+          router.push("/products");
+          return;
+        }
+
+        // Fetch dữ liệu sản phẩm thật từ BE
+        const productRes = await productService.getProductById(productId);
+
+        if (!productRes.success || !productRes.data) {
+          throw new Error("Không thể tải thông tin sản phẩm");
+        }
+
+        const product = productRes.data;
+
+        const item: CheckoutItem = {
+          id: product._id || product.id || productId,
+          title: product.title,
+          quantity,
+          price: product.price,
+        };
+
+        const items = [item];
+        const subtotal = items.reduce(
+          (sum, it) => sum + it.price * it.quantity,
+          0
+        );
+
+        // Không tính thuế/phí cho người mua -> phí dịch vụ = 0, tổng = tạm tính
+        const serviceFee = 0;
+        const total = subtotal;
+
         setCheckoutData({
-          items: [],
-          subtotal: 0,
-          serviceFee: 0,
-          total: 0,
+          items,
+          subtotal,
+          serviceFee,
+          total,
           walletBalance: walletBalance.balance,
         });
       } catch (error: any) {
         console.error("Failed to fetch checkout data:", error);
-        toast.error("Không thể tải dữ liệu thanh toán");
-        // Redirect to cart if checkout data fails
-        router.push("/customer/cart");
+        toast.error(error.message || "Không thể tải dữ liệu thanh toán");
+        // Redirect nếu lỗi
+        router.push("/products");
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchCheckoutData();
-  }, [router]);
+  }, [router, searchParams]);
 
   const form = useForm<CheckoutInput>({
     resolver: zodResolver(checkoutSchema),
@@ -118,14 +146,38 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (checkoutData.items.length === 0) {
+      toast.error("Giỏ hàng trống. Vui lòng thêm sản phẩm.");
+      router.push("/products");
+      return;
+    }
+
     setIsProcessing(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      // Map payment method from form to API format
+      const paymentMethod = data.paymentMethod === "wallet" ? "Wallet" : "Vnpay";
+
+      // Create order via API
+      const result = await orderService.createOrder({
+        items: checkoutData.items.map((item) => ({
+          productId: item.id,
+          quantity: item.quantity,
+        })),
+        paymentMethod,
+      });
+
       toast.success("Đặt hàng thành công!");
-      router.push(`/customer/orders/ORD-${Date.now()}`);
-    }, 2000);
+
+      // Redirect to order detail page
+      const orderCode = (result as any).order?.orderCode || (result as any).orderCode;
+      router.push(`/customer/orders/${orderCode}`);
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      toast.error(error.message || "Đặt hàng thất bại. Vui lòng thử lại.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const insufficientBalance =
@@ -175,7 +227,7 @@ export default function CheckoutPage() {
                       <span>{formatPrice(checkoutData.subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Phí dịch vụ (2%):</span>
+                      <span className="text-muted-foreground">Phí dịch vụ:</span>
                       <span>{formatPrice(checkoutData.serviceFee)}</span>
                     </div>
                     <Separator />
@@ -204,7 +256,7 @@ export default function CheckoutPage() {
                     render={({ field }) => (
                       <FormItem className="space-y-4">
                         <FormControl>
-                          <>
+                          <div className="space-y-4">
                             {/* Wallet Payment */}
                             <div
                               className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
@@ -279,7 +331,7 @@ export default function CheckoutPage() {
                                 </div>
                               </div>
                             </div>
-                          </>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -428,5 +480,26 @@ export default function CheckoutPage() {
       </div>
     </div>
     </RequireAuth>
+  );
+}
+
+function CheckoutLoading() {
+  return (
+    <div className="container py-8">
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Đang tải...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<CheckoutLoading />}>
+      <CheckoutContent />
+    </Suspense>
   );
 }

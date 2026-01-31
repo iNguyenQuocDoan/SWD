@@ -33,6 +33,27 @@ export interface RejectShopRequest {
   moderatorNote?: string;
 }
 
+export interface ShopStats {
+  availableBalance: number;
+  holdBalance: number;
+  escrowAmount: number;
+  paidOutAmount: number;
+  totalOrders: number;
+  weeklyOrders: number;
+  avgRating: number;
+  totalReviews: number;
+  totalProducts: number;
+  approvedProducts: number;
+  pendingProducts: number;
+  inventory: {
+    total: number;
+    available: number;
+    reserved: number;
+    delivered: number;
+  };
+  totalSales: number;
+}
+
 class ShopService {
   /**
    * Create new shop (seller application)
@@ -276,12 +297,33 @@ class ShopService {
    */
   async rejectShop(shopId: string, data?: RejectShopRequest): Promise<Shop> {
     const response = await apiClient.patch<Shop>(`/shops/${shopId}/reject`, data || {});
-    
+
     if (response.success && response.data) {
       return response.data;
     }
-    
+
     throw new Error(response.message || "Failed to reject shop");
+  }
+
+  /**
+   * Get seller dashboard stats
+   */
+  async getMyShopStats(): Promise<ShopStats | null> {
+    try {
+      const response = await apiClient.get<ShopStats>("/shops/me/stats");
+
+      if (response.success && response.data) {
+        return response.data;
+      }
+
+      return null;
+    } catch (error: any) {
+      // Return null if shop not found
+      if (error?.status === 404) {
+        return null;
+      }
+      return null;
+    }
   }
 }
 

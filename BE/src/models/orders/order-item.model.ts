@@ -22,7 +22,8 @@ export interface IOrderItem extends Document {
   releaseAt?: Date | null;
   // Delivery evidence
   deliveryMethod?: DeliveryMethod | null;
-  deliveryContentMasked?: string | null;
+  deliveryContent?: string | null; // Full content for customer (encrypted at rest recommended)
+  deliveryContentMasked?: string | null; // Masked version for display
   evidenceNote?: string | null;
   deliveredAt?: Date | null;
   createdAt: Date;
@@ -106,6 +107,10 @@ const OrderItemSchema = new Schema<IOrderItem>(
     deliveryMethod: {
       type: String,
       enum: ["Account", "InviteLink", "Code", "QR"],
+      default: null,
+    },
+    deliveryContent: {
+      type: String,
       default: null,
     },
     deliveryContentMasked: {
