@@ -11,6 +11,7 @@ import reviewRoutes from "./reviews/review.routes";
 import orderRoutes from "./orders/order.routes";
 import inventoryRoutes from "./inventory/inventory.routes";
 import complaintRoutes from "./complaints/complaint.routes";
+import statsRoutes from "./stats/stats.routes";
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use("/reviews", reviewRoutes);
 router.use("/orders", orderRoutes);
 router.use("/inventory", inventoryRoutes);
 router.use("/complaints", complaintRoutes);
+router.use("/stats", statsRoutes);
 
 export default router;
