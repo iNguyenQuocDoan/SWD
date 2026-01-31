@@ -49,20 +49,6 @@ class VNPayService {
       ipnUrl: process.env.VNPAY_IPN_URL || env.vnpayIpnUrl || `${env.backendUrl}/api/payments/vnpay/ipn`,
     };
     
-    // Validate config
-    if (!this.config.secretKey || this.config.secretKey.length < 32) {
-      console.warn("VNPay Secret Key seems invalid. Length:", this.config.secretKey.length);
-    }
-    
-    // Debug: Log config (remove sensitive data in production)
-    console.log("VNPay Config initialized:", {
-      tmnCode: this.config.tmnCode,
-      vnpUrl: this.config.vnpUrl,
-      returnUrl: this.config.returnUrl,
-      ipnUrl: this.config.ipnUrl,
-      secretKeyLength: this.config.secretKey.length,
-      secretKeyPrefix: this.config.secretKey.substring(0, 10) + "...",
-    });
   }
 
   /**
@@ -160,14 +146,7 @@ class VNPayService {
     // Create HMAC SHA512 hash
     const hmac = crypto.createHmac("sha512", this.config.secretKey);
     const hash = hmac.update(queryString, "utf-8").digest("hex");
-    
-    // Debug logging (remove in production)
-    console.log("VNPay Hash Debug:");
-    console.log("- Query String (for hash):", queryString);
-    console.log("- Secret Key length:", this.config.secretKey.length);
-    console.log("- Secret Key (first 10 chars):", this.config.secretKey.substring(0, 10));
-    console.log("- Hash:", hash);
-    
+
     return hash;
   }
 

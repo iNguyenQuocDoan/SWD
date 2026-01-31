@@ -1,10 +1,11 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { User, IUser, Role } from "@/models";
+import { User, IUser, Role, Shop } from "@/models";
 import { env } from "@/config/env";
 import { AppError } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
 import { ROLE_KEYS } from "@/constants/roles";
+import { SHOP_STATUS } from "@/constants/shopStatus";
 
 export interface LoginResult {
   user: {
@@ -54,6 +55,80 @@ export class AuthService {
     return user;
   }
 
+  /**
+   * Escape special regex characters in a string
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  async registerSeller(
+    email: string,
+    password: string,
+    fullName: string,
+    shopName: string,
+    description: string | null = null
+  ): Promise<{ user: IUser; shop: any }> {
+    // Check if shop name is already taken BEFORE creating the user
+    const existingShopWithName = await Shop.findOne({
+      shopName: { $regex: new RegExp(`^${this.escapeRegex(shopName)}$`, "i") },
+      status: { $in: [SHOP_STATUS.ACTIVE, SHOP_STATUS.PENDING] },
+      isDeleted: false,
+    });
+
+    if (existingShopWithName) {
+      throw new AppError(MESSAGES.ERROR.SHOP.NAME_ALREADY_EXISTS, 400);
+    }
+
+    // Register user with SELLER role
+    const user = await this.register(
+      email,
+      password,
+      fullName,
+      ROLE_KEYS.SELLER
+    );
+
+    // Check if shop already exists (shouldn't happen, but safety check)
+    const existingShop = await Shop.findOne({
+      ownerUserId: user._id,
+      isDeleted: false,
+    });
+
+    if (existingShop) {
+      throw new AppError(MESSAGES.ERROR.SHOP.ALREADY_EXISTS, 400);
+    }
+
+    // Create shop with provided information
+    try {
+      const shop = await Shop.create({
+        ownerUserId: user._id,
+        shopName,
+        description: description || null,
+        status: SHOP_STATUS.PENDING,
+        ratingAvg: 0,
+        totalSales: 0,
+      });
+
+      return { user, shop };
+    } catch (error: unknown) {
+      // If shop creation fails due to duplicate name (race condition),
+      // we need to rollback the user creation
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === 11000
+      ) {
+        // Delete the user we just created
+        await User.findByIdAndDelete(user._id);
+        throw new AppError(MESSAGES.ERROR.SHOP.NAME_ALREADY_EXISTS, 400);
+      }
+      // For other errors, also rollback user creation
+      await User.findByIdAndDelete(user._id);
+      throw error;
+    }
+  }
+
   async login(email: string, password: string): Promise<LoginResult> {
     try {
       // Find user
@@ -66,7 +141,6 @@ export class AuthService {
 
       // Check if roleId is populated
       if (!user.roleId || typeof user.roleId === "string") {
-        console.error("User roleId not populated:", user._id);
         throw new AppError(MESSAGES.ERROR.AUTH.USER_ROLE_NOT_FOUND, 500);
       }
 
@@ -87,7 +161,6 @@ export class AuthService {
       // Generate tokens
       const roleKey = (user.roleId as any).roleKey;
       if (!roleKey) {
-        console.error("Role key not found for user:", user._id);
         throw new AppError(MESSAGES.ERROR.AUTH.USER_ROLE_CONFIG_ERROR, 500);
       }
 
@@ -96,14 +169,6 @@ export class AuthService {
         user._id.toString(),
         user.email
       );
-
-      // Log tokens
-      console.log("\n========== TOKEN GENERATION ==========");
-      console.log(`User: ${user.email} (${user._id})`);
-      console.log(`Role: ${roleKey}`);
-      console.log(`Access Token: ${token}`);
-      console.log(`Refresh Token: ${refreshToken}`);
-      console.log("=======================================\n");
 
       return {
         user: {
@@ -116,9 +181,6 @@ export class AuthService {
         refreshToken,
       };
     } catch (error) {
-      // Log error for debugging
-      console.error("Login error:", error);
-      
       // Re-throw AppError as-is
       if (error instanceof AppError) {
         throw error;
@@ -146,13 +208,6 @@ export class AuthService {
 
       const roleKey = (user.roleId as any).roleKey;
       const token = this.generateToken(user._id.toString(), user.email, roleKey);
-
-      // Log new access token
-      console.log("\n========== TOKEN REFRESH ==========");
-      console.log(`User: ${user.email} (${user._id})`);
-      console.log(`New Access Token: ${token}`);
-      console.log(`Refresh Token (used): ${refreshToken}`);
-      console.log("===================================\n");
 
       return { token };
     } catch (error: unknown) {

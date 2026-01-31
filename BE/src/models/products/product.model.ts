@@ -8,12 +8,14 @@ export interface IProduct extends Document {
   description: string;
   warrantyPolicy: string;
   howToUse: string;
+  thumbnailUrl?: string | null;
   planType: PlanType;
   durationDays: number;
   price: number; // VND
   status: ProductStatus;
   approvedByUserId?: mongoose.Types.ObjectId | null; // MODERATOR
   approvedAt?: Date | null;
+  rejectionReason?: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -48,6 +50,10 @@ const ProductSchema = new Schema<IProduct>(
       type: String,
       required: true,
     },
+    thumbnailUrl: {
+      type: String,
+      default: null,
+    },
     planType: {
       type: String,
       required: true,
@@ -77,6 +83,11 @@ const ProductSchema = new Schema<IProduct>(
     approvedAt: {
       type: Date,
       default: null,
+    },
+    rejectionReason: {
+      type: String,
+      default: null,
+      maxlength: 1000,
     },
     isDeleted: {
       type: Boolean,

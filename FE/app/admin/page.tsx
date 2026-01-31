@@ -30,53 +30,36 @@ import {
   Wallet,
 } from "lucide-react";
 
-// Mock data
-const mockStats = {
-  totalUsers: 1250,
-  totalOrders: 3456,
-  totalRevenue: 125000000,
-  activeTickets: 23,
-  criticalAlerts: 5,
-  pendingSellerApplications: 8,
-  activeProducts: 456,
-  totalShops: 89,
+// TODO: Replace with API data from backend
+const stats = {
+  totalUsers: 0,
+  totalOrders: 0,
+  totalRevenue: 0,
+  activeTickets: 0,
+  criticalAlerts: 0,
+  pendingSellerApplications: 0,
+  activeProducts: 0,
+  totalShops: 0,
 };
 
-const mockRecentUsers = [
-  {
-    id: "USR-001",
-    name: "Nguyễn Văn A",
-    email: "nguyenvana@example.com",
-    role: "customer",
-    status: "active",
-    createdAt: "2026-01-07",
-  },
-  {
-    id: "USR-002",
-    name: "Trần Thị B",
-    email: "tranthib@example.com",
-    role: "seller",
-    status: "active",
-    createdAt: "2026-01-06",
-  },
-];
+// TODO: Fetch from API - GET /api/users?sort=createdAt&limit=5
+const recentUsers: Array<{
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: string;
+}> = [];
 
-const mockPendingApplications = [
-  {
-    id: "APP-001",
-    sellerName: "Shop ABC",
-    email: "shopabc@example.com",
-    submittedAt: "2026-01-07",
-    status: "pending",
-  },
-  {
-    id: "APP-002",
-    sellerName: "Shop XYZ",
-    email: "shopxyz@example.com",
-    submittedAt: "2026-01-06",
-    status: "pending",
-  },
-];
+// TODO: Fetch from API - GET /api/shops/applications/pending
+const pendingApplications: Array<{
+  id: string;
+  sellerName: string;
+  email: string;
+  submittedAt: string;
+  status: string;
+}> = [];
 
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat("vi-VN", {
@@ -121,7 +104,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="text-2xl font-bold">
-                {mockStats.totalUsers.toLocaleString()}
+                {stats.totalUsers.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 <Link
@@ -143,7 +126,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="text-2xl font-bold">
-                {mockStats.totalOrders.toLocaleString()}
+                {stats.totalOrders.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 <Link
@@ -165,7 +148,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="text-2xl font-bold text-green-600">
-                {formatPrice(mockStats.totalRevenue)}
+                {formatPrice(stats.totalRevenue)}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 Tất cả thời gian
@@ -182,7 +165,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="text-2xl font-bold text-red-600">
-                {mockStats.criticalAlerts}
+                {stats.criticalAlerts}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 Cần xử lý ngay
@@ -202,7 +185,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="text-2xl font-bold text-orange-600">
-                {mockStats.activeTickets}
+                {stats.activeTickets}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 Đang mở
@@ -219,7 +202,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="text-2xl font-bold text-blue-600">
-                {mockStats.pendingSellerApplications}
+                {stats.pendingSellerApplications}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 <Link
@@ -241,7 +224,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="text-2xl font-bold">
-                {mockStats.activeProducts}
+                {stats.activeProducts}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 Đang bán
@@ -258,7 +241,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="text-2xl font-bold">
-                {mockStats.totalShops}
+                {stats.totalShops}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 Shop hoạt động
@@ -333,7 +316,7 @@ export default function AdminDashboard() {
                   <div>
                     <CardTitle className="text-base">Đơn đăng ký Seller chờ duyệt</CardTitle>
                     <CardDescription className="text-xs">
-                      {mockStats.pendingSellerApplications} đơn cần xử lý
+                      {stats.pendingSellerApplications} đơn cần xử lý
                     </CardDescription>
                   </div>
                   <Button variant="outline" size="sm" asChild>
@@ -343,7 +326,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="space-y-2">
-                  {mockPendingApplications.map((app) => (
+                  {pendingApplications.map((app) => (
                     <div
                       key={app.id}
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -391,7 +374,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="space-y-2">
-                  {mockRecentUsers.map((user) => (
+                  {recentUsers.map((user) => (
                     <div
                       key={user.id}
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg"
@@ -435,7 +418,7 @@ export default function AdminDashboard() {
                   <div>
                     <CardTitle className="text-base">Quản lý người dùng</CardTitle>
                     <CardDescription className="text-xs">
-                      {mockStats.totalUsers} người dùng trong hệ thống
+                      {stats.totalUsers} người dùng trong hệ thống
                     </CardDescription>
                   </div>
                   <Button variant="outline" size="sm" asChild>
@@ -445,7 +428,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="space-y-2">
-                  {mockRecentUsers.map((user) => (
+                  {recentUsers.map((user) => (
                     <div
                       key={user.id}
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg"
@@ -481,7 +464,7 @@ export default function AdminDashboard() {
                   <div>
                     <CardTitle className="text-base">Đơn đăng ký Seller</CardTitle>
                     <CardDescription className="text-xs">
-                      {mockStats.pendingSellerApplications} đơn chờ duyệt
+                      {stats.pendingSellerApplications} đơn chờ duyệt
                     </CardDescription>
                   </div>
                   <Button variant="outline" size="sm" asChild>
@@ -491,7 +474,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="space-y-2">
-                  {mockPendingApplications.map((app) => (
+                  {pendingApplications.map((app) => (
                     <div
                       key={app.id}
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg"

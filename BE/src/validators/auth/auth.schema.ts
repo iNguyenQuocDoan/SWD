@@ -35,3 +35,16 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, VALIDATION_MESSAGES.AUTH.CURRENT_PASSWORD_REQUIRED),
   newPassword: passwordSchema
 })
+
+// Seller registration schema - includes shop information
+export const registerSellerSchema = registerSchema.extend({
+  shopName: z
+    .string()
+    .min(2, VALIDATION_MESSAGES.SHOP.NAME_MIN_LENGTH)
+    .max(100, VALIDATION_MESSAGES.SHOP.NAME_MAX_LENGTH),
+  description: z
+    .string()
+    .max(500, VALIDATION_MESSAGES.SHOP.DESCRIPTION_MAX_LENGTH)
+    .optional()
+    .nullable(),
+})

@@ -306,3 +306,6 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+// Default export for convenience so services can `import api from "./api"`
+export default apiClient;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,38 +13,41 @@ import { ShoppingCart, Trash2, Minus, Plus, Package, AlertCircle } from "lucide-
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 
-// Mock data
-const mockCartItems = [
-  {
-    id: "1",
-    productId: "1",
-    title: "Netflix Premium - Gói gia đình 3 tháng",
-    platform: "Netflix",
-    packageType: "Gia đình",
-    duration: "3 tháng",
-    price: 299000,
-    quantity: 1,
-    inStock: true,
-    sellerName: "NetflixStore Official",
-  },
-  {
-    id: "2",
-    productId: "2",
-    title: "Spotify Premium - 1 năm",
-    platform: "Spotify",
-    packageType: "Cá nhân",
-    duration: "1 năm",
-    price: 49980,
-    quantity: 2,
-    inStock: true,
-    sellerName: "MusicStore",
-  },
-];
+// Types for backend data
+interface CartItem {
+  id: string;
+  productId: string;
+  title: string;
+  platform: string;
+  packageType: string;
+  duration: string;
+  price: number;
+  quantity: number;
+  inStock: boolean;
+  sellerName: string;
+}
 
 export default function CartPage() {
   const router = useRouter();
-  const [items, setItems] = useState(mockCartItems);
-  const [isLoading, setIsLoading] = useState(false);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCart = async () => {
+      setIsLoading(true);
+      try {
+        // TODO: Fetch from backend
+        // const cartData = await cartService.getCart();
+        // setItems(cartData.items);
+      } catch (error) {
+        console.error("Failed to fetch cart:", error);
+        toast.error("Không thể tải giỏ hàng");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCart();
+  }, []);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -53,30 +56,57 @@ export default function CartPage() {
     }).format(price);
   };
 
-  const updateQuantity = (itemId: string, newQuantity: number) => {
+  const updateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) {
       removeItem(itemId);
       return;
     }
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-    );
-    toast.success("Đã cập nhật số lượng");
+    try {
+      // TODO: Call backend API
+      // await cartService.updateQuantity(itemId, newQuantity);
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, quantity: newQuantity } : item
+        )
+      );
+      toast.success("Đã cập nhật số lượng");
+    } catch (error) {
+      console.error("Failed to update quantity:", error);
+      toast.error("Không thể cập nhật số lượng");
+    }
   };
 
-  const removeItem = (itemId: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== itemId));
-    toast.success("Đã xóa khỏi giỏ hàng");
+  const removeItem = async (itemId: string) => {
+    try {
+      // TODO: Call backend API
+      // await cartService.removeItem(itemId);
+      setItems((prev) => prev.filter((item) => item.id !== itemId));
+      toast.success("Đã xóa khỏi giỏ hàng");
+    } catch (error) {
+      console.error("Failed to remove item:", error);
+      toast.error("Không thể xóa sản phẩm");
+    }
+  };
+
+  const clearCart = async () => {
+    try {
+      // TODO: Call backend API
+      // await cartService.clearCart();
+      setItems([]);
+      toast.success("Đã xóa tất cả");
+    } catch (error) {
+      console.error("Failed to clear cart:", error);
+      toast.error("Không thể xóa giỏ hàng");
+    }
   };
 
   const subtotal = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const serviceFee = Math.round(subtotal * 0.02); // 2% phí dịch vụ
-  const total = subtotal + serviceFee;
+  // Không tính thuế/phí cho người mua ở bước giỏ hàng
+  const serviceFee = 0;
+  const total = subtotal;
 
   const handleCheckout = () => {
     if (items.length === 0) {
@@ -123,10 +153,7 @@ export default function CartPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    setItems([]);
-                    toast.success("Đã xóa tất cả");
-                  }}
+                  onClick={clearCart}
                 >
                   Xóa tất cả
                 </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Shield,
@@ -26,41 +27,62 @@ import {
   Clock,
 } from "lucide-react";
 
-// Mock data
-const mockStats = {
-  pendingProducts: 15,
-  approvedToday: 24,
-  rejectedToday: 3,
-  pendingReports: 8,
-  pendingReviews: 12,
-  pendingComments: 5,
-  suspendedShops: 2,
-  restrictedUsers: 1,
-};
+// Types for backend data
+interface ModeratorStats {
+  pendingProducts: number;
+  approvedToday: number;
+  rejectedToday: number;
+  pendingReports: number;
+  pendingReviews: number;
+  pendingComments: number;
+  suspendedShops: number;
+  restrictedUsers: number;
+}
 
-const mockPendingReports = [
-  {
-    id: "RPT-001",
-    type: "Product",
-    reason: "Fraud",
-    target: "Netflix Premium - Gói gia đình",
-    reporter: "user123",
-    date: "2026-01-07",
-    status: "open",
-  },
-  {
-    id: "RPT-002",
-    type: "Review",
-    reason: "Spam",
-    target: "Review #456",
-    reporter: "user456",
-    date: "2026-01-06",
-    status: "in_review",
-  },
-];
+interface Report {
+  id: string;
+  type: string;
+  reason: string;
+  target: string;
+  reporter: string;
+  date: string;
+  status: "open" | "in_review" | "resolved";
+}
 
 export default function ModeratorDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<ModeratorStats>({
+    pendingProducts: 0,
+    approvedToday: 0,
+    rejectedToday: 0,
+    pendingReports: 0,
+    pendingReviews: 0,
+    pendingComments: 0,
+    suspendedShops: 0,
+    restrictedUsers: 0,
+  });
+  const [reports, setReports] = useState<Report[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // TODO: Fetch from backend
+        // const [statsRes, reportsRes] = await Promise.all([
+        //   moderatorService.getStats(),
+        //   moderatorService.getPendingReports(),
+        // ]);
+        // setStats(statsRes);
+        // setReports(reportsRes);
+      } catch (error) {
+        console.error("Failed to fetch moderator data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
@@ -94,17 +116,23 @@ export default function ModeratorDashboard() {
               <Clock className="h-5 w-5 text-orange-500" />
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold text-orange-600">
-                {mockStats.pendingProducts}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                <Link
-                  href="/moderator/review"
-                  className="text-primary hover:underline"
-                >
-                  Xem hàng đợi
-                </Link>
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {stats.pendingProducts}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    <Link
+                      href="/moderator/review"
+                      className="text-primary hover:underline"
+                    >
+                      Xem hàng đợi
+                    </Link>
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -116,12 +144,18 @@ export default function ModeratorDashboard() {
               <CheckCircle className="h-5 w-5 text-green-500" />
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold text-green-600">
-                {mockStats.approvedToday}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Sản phẩm đã phê duyệt
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-green-600">
+                    {stats.approvedToday}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Sản phẩm đã phê duyệt
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -133,12 +167,18 @@ export default function ModeratorDashboard() {
               <AlertTriangle className="h-5 w-5 text-red-500" />
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold text-red-600">
-                {mockStats.pendingReports}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Cần xem xét
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-red-600">
+                    {stats.pendingReports}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Cần xem xét
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -150,12 +190,18 @@ export default function ModeratorDashboard() {
               <MessageSquare className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold">
-                {mockStats.pendingReviews}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Review cần kiểm tra
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">
+                    {stats.pendingReviews}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Review cần kiểm tra
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -214,7 +260,7 @@ export default function ModeratorDashboard() {
                   <div>
                     <CardTitle className="text-base">Báo cáo gần đây</CardTitle>
                     <CardDescription className="text-xs">
-                      {mockStats.pendingReports} báo cáo cần xử lý
+                      {stats.pendingReports} báo cáo cần xử lý
                     </CardDescription>
                   </div>
                   <Button variant="outline" size="sm" asChild>
@@ -223,48 +269,63 @@ export default function ModeratorDashboard() {
                 </div>
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="space-y-2">
-                  {mockPendingReports.map((report) => (
-                    <div
-                      key={report.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{report.target}</p>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <Badge variant="outline" className="text-xs">{report.type}</Badge>
-                          <Badge variant="destructive" className="text-xs">{report.reason}</Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {report.id}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {report.date}
-                          </span>
-                          <Badge
-                            variant={
-                              report.status === "open"
-                                ? "default"
-                                : "secondary"
-                            }
-                            className="text-xs"
-                          >
-                            {report.status === "open"
-                              ? "Mở"
-                              : "Đang xem xét"}
-                          </Badge>
+                {isLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <Skeleton key={i} className="h-20 w-full" />
+                    ))}
+                  </div>
+                ) : reports.length === 0 ? (
+                  <div className="text-center py-8">
+                    <AlertTriangle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      Không có báo cáo nào cần xử lý.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {reports.map((report) => (
+                      <div
+                        key={report.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{report.target}</p>
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <Badge variant="outline" className="text-xs">{report.type}</Badge>
+                            <Badge variant="destructive" className="text-xs">{report.reason}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {report.id}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {report.date}
+                            </span>
+                            <Badge
+                              variant={
+                                report.status === "open"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className="text-xs"
+                            >
+                              {report.status === "open"
+                                ? "Mở"
+                                : "Đang xem xét"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
+                            <Link href={`/moderator/reports/${report.id}`}>
+                              <Eye className="mr-1.5 h-3.5 w-3.5" />
+                              Xem chi tiết
+                            </Link>
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
-                          <Link href={`/moderator/reports/${report.id}`}>
-                            <Eye className="mr-1.5 h-3.5 w-3.5" />
-                            Xem chi tiết
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -275,36 +336,44 @@ export default function ModeratorDashboard() {
                 <CardDescription className="text-xs">Thống kê công việc đã thực hiện</CardDescription>
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <CheckCircle className="h-6 w-6 text-green-600 mx-auto mb-1.5" />
-                    <p className="text-xl font-bold text-green-600">
-                      {mockStats.approvedToday}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Đã duyệt</p>
+                {isLoading ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} className="h-24 w-full" />
+                    ))}
                   </div>
-                  <div className="text-center p-3 bg-red-50 rounded-lg">
-                    <XCircle className="h-6 w-6 text-red-600 mx-auto mb-1.5" />
-                    <p className="text-xl font-bold text-red-600">
-                      {mockStats.rejectedToday}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Đã từ chối</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <CheckCircle className="h-6 w-6 text-green-600 mx-auto mb-1.5" />
+                      <p className="text-xl font-bold text-green-600">
+                        {stats.approvedToday}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Đã duyệt</p>
+                    </div>
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <XCircle className="h-6 w-6 text-red-600 mx-auto mb-1.5" />
+                      <p className="text-xl font-bold text-red-600">
+                        {stats.rejectedToday}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Đã từ chối</p>
+                    </div>
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <FileText className="h-6 w-6 text-blue-600 mx-auto mb-1.5" />
+                      <p className="text-xl font-bold text-blue-600">
+                        {stats.pendingReports}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Báo cáo xử lý</p>
+                    </div>
+                    <div className="text-center p-3 bg-orange-50 rounded-lg">
+                      <Ban className="h-6 w-6 text-orange-600 mx-auto mb-1.5" />
+                      <p className="text-xl font-bold text-orange-600">
+                        {stats.suspendedShops}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Shop đã khóa</p>
+                    </div>
                   </div>
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <FileText className="h-6 w-6 text-blue-600 mx-auto mb-1.5" />
-                    <p className="text-xl font-bold text-blue-600">
-                      {mockStats.pendingReports}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Báo cáo xử lý</p>
-                  </div>
-                  <div className="text-center p-3 bg-orange-50 rounded-lg">
-                    <Ban className="h-6 w-6 text-orange-600 mx-auto mb-1.5" />
-                    <p className="text-xl font-bold text-orange-600">
-                      {mockStats.suspendedShops}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Shop đã khóa</p>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -324,32 +393,47 @@ export default function ModeratorDashboard() {
                 </div>
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="space-y-2">
-                  {mockPendingReports.map((report) => (
-                    <div
-                      key={report.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{report.target}</p>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <Badge variant="outline" className="text-xs">{report.type}</Badge>
-                          <Badge variant="destructive" className="text-xs">{report.reason}</Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {report.id}
-                          </span>
+                {isLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <Skeleton key={i} className="h-20 w-full" />
+                    ))}
+                  </div>
+                ) : reports.length === 0 ? (
+                  <div className="text-center py-8">
+                    <AlertTriangle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      Không có báo cáo nào.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {reports.map((report) => (
+                      <div
+                        key={report.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{report.target}</p>
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <Badge variant="outline" className="text-xs">{report.type}</Badge>
+                            <Badge variant="destructive" className="text-xs">{report.reason}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {report.id}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
+                            <Link href={`/moderator/reports/${report.id}`}>
+                              Xem chi tiết
+                            </Link>
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
-                          <Link href={`/moderator/reports/${report.id}`}>
-                            Xem chi tiết
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -362,7 +446,7 @@ export default function ModeratorDashboard() {
                   <div>
                     <CardTitle className="text-base">Kiểm duyệt đánh giá</CardTitle>
                     <CardDescription className="text-xs">
-                      {mockStats.pendingReviews} đánh giá cần kiểm tra
+                      {stats.pendingReviews} đánh giá cần kiểm tra
                     </CardDescription>
                   </div>
                   <Button variant="outline" size="sm" asChild>

@@ -4,18 +4,18 @@ import { cn } from "@/lib/utils";
 import { AlertCircle, CheckCircle, Info, AlertTriangle } from "lucide-react";
 
 const alertVariants = cva(
-  "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
+  "relative w-full rounded-lg border-2 p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground shadow-sm",
   {
     variants: {
       variant: {
-        default: "bg-background text-foreground",
+        default: "bg-background text-foreground border-border",
         destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+          "border-red-500 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-100 dark:border-red-600 [&>svg]:text-red-600 dark:[&>svg]:text-red-400",
         warning:
-          "border-orange-500/50 bg-orange-50 text-orange-900 dark:border-orange-500 [&>svg]:text-orange-600",
+          "border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-600 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400",
         success:
-          "border-green-500/50 bg-green-50 text-green-900 dark:border-green-500 [&>svg]:text-green-600",
-        info: "border-blue-500/50 bg-blue-50 text-blue-900 dark:border-blue-500 [&>svg]:text-blue-600",
+          "border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100 dark:border-emerald-600 [&>svg]:text-emerald-600 dark:[&>svg]:text-emerald-400",
+        info: "border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100 dark:border-blue-600 [&>svg]:text-blue-600 dark:[&>svg]:text-blue-400",
       },
     },
     defaultVariants: {

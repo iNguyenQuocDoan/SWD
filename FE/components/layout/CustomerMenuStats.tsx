@@ -19,21 +19,15 @@ export function CustomerMenuStats() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Try to fetch customer dashboard stats from API
-        // If endpoint doesn't exist, use mock data for now
-        try {
-          const response = await apiClient.get<CustomerStats>("/users/profile/stats");
-          if (response.success && response.data) {
-            setStats(response.data);
-            setIsLoading(false);
-            return;
-          }
-        } catch {
-          // API endpoint may not exist yet, use mock data
+        // TODO: Fetch customer dashboard stats from backend API
+        const response = await apiClient.get<CustomerStats>("/users/profile/stats");
+        if (response.success && response.data) {
+          setStats(response.data);
+          setIsLoading(false);
+          return;
         }
-
-        // Fallback: Try to get from orders/wallet endpoints
-        // For now, use mock data until API is ready
+        
+        // Initialize with empty data if API returns no data
         setStats({
           totalOrders: 0,
           pendingOrders: 0,
@@ -42,6 +36,7 @@ export function CustomerMenuStats() {
         });
       } catch (error) {
         console.error("Failed to fetch customer stats:", error);
+        // Initialize with empty data on error
         setStats({
           totalOrders: 0,
           pendingOrders: 0,

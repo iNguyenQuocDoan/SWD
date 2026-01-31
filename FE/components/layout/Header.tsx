@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,9 +16,9 @@ import {
 import { useAuthStore } from "@/lib/auth";
 import { authService } from "@/lib/services/auth.service";
 import { useRouter } from "next/navigation";
+import { useShop } from "@/lib/hooks/useShop";
 import {
   Search,
-  ShoppingCart,
   User,
   LogOut,
   Store,
@@ -26,62 +27,91 @@ import {
   X,
   Wallet,
   Package,
+  Layers,
+  Users,
+  ShoppingBag,
+  ChevronDown,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { CustomerMenuStats } from "./CustomerMenuStats";
 
 export function Header() {
   const { user, isAuthenticated } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
+  const { hasActiveShop, shop } = useShop();
 
   const handleLogout = async () => {
     await authService.logout();
     router.push("/");
   };
 
+  const navLinks = [
+    { href: "/products", label: "Sản phẩm", icon: Package },
+    { href: "/categories", label: "Danh mục", icon: Layers },
+    { href: "/sellers", label: "Người bán", icon: Users },
+  ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-lg supports-[backdrop-filter]:bg-background/60">
+      {/* Top bar - Trust indicators */}
+      <div className="hidden md:block bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border-b border-primary/10">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center gap-6 py-1.5 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <Shield className="h-3.5 w-3.5 text-green-600" />
+              <span>Giao dịch an toàn</span>
+            </div>
+            <div className="h-3 w-px bg-border" />
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span>Người bán uy tín</span>
+            </div>
+            <div className="h-3 w-px bg-border" />
+            <div className="flex items-center gap-1.5">
+              <ShoppingBag className="h-3.5 w-3.5 text-blue-600" />
+              <span>Hỗ trợ 24/7</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main header */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-20 md:h-24 items-center justify-between gap-4">
+        <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-4 md:gap-6 flex-shrink-0">
-            <Link 
-              href="/" 
-              className="flex items-center space-x-2 md:space-x-3 hover:opacity-80 transition-opacity"
+          <div className="flex items-center gap-6 lg:gap-8 shrink-0">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 hover:opacity-90 transition-opacity"
             >
-              <Store className="h-7 w-7 md:h-8 md:w-8" />
-              <span className="font-bold text-lg md:text-xl lg:text-2xl">
-                Sàn Tài Khoản Số
-              </span>
+              <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25">
+                <Store className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div className="hidden sm:block">
+                <span className="font-bold text-lg bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
+                  Sàn Tài Khoản Số
+                </span>
+              </div>
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex gap-6 xl:gap-8">
-              <Link
-                href="/products"
-                className="text-base font-medium transition-colors hover:text-primary"
-              >
-                Sản phẩm
-              </Link>
-              <Link
-                href="/categories"
-                className="text-base font-medium transition-colors hover:text-primary"
-              >
-                Danh mục
-              </Link>
-              <Link
-                href="/sellers"
-                className="text-base font-medium transition-colors hover:text-primary"
-              >
-                Người bán
-              </Link>
+            <nav className="hidden lg:flex items-center gap-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg transition-all hover:text-foreground hover:bg-accent"
+                >
+                  <link.icon className="h-4 w-4" />
+                  {link.label}
+                </Link>
+              ))}
             </nav>
           </div>
 
           {/* Search Bar - Desktop */}
-          <div className="hidden md:flex items-center gap-4 flex-1 max-w-lg mx-4">
+          <div className="hidden md:flex flex-1 max-w-md mx-4">
             <form
               action="/products"
               method="get"
@@ -97,157 +127,211 @@ export function Header() {
                 }
               }}
             >
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 type="search"
                 name="search"
                 placeholder="Tìm kiếm nền tảng, loại gói..."
-                className="pl-10 h-11 text-base w-full"
+                className="pl-10 h-10 bg-muted/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background"
                 autoComplete="off"
               />
             </form>
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-            {/* Mobile Search Button */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-
+          <div className="flex items-center gap-2 shrink-0">
             {!isAuthenticated ? (
               <>
-                <Button variant="ghost" size="sm" className="hidden sm:flex text-base" asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:flex h-9 px-4"
+                  asChild
+                >
                   <Link href="/login">Đăng nhập</Link>
                 </Button>
-                <Button size="sm" className="hidden sm:flex text-base" asChild>
+                <Button
+                  size="sm"
+                  className="hidden sm:flex h-9 px-4 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg shadow-primary/25"
+                  asChild
+                >
                   <Link href="/register">Đăng ký</Link>
                 </Button>
-                {/* Mobile Auth Buttons */}
-                <div className="sm:hidden flex gap-2">
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href="/login">
-                      <User className="h-5 w-5" />
-                    </Link>
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <Button variant="ghost" size="icon" className="h-10 w-10 md:h-11 md:w-11" asChild>
-                  <Link href="/cart">
-                    <ShoppingCart className="h-5 w-5 md:h-6 md:w-6" />
+                {/* Mobile Auth */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="sm:hidden h-9 w-9"
+                  asChild
+                >
+                  <Link href="/login">
+                    <User className="h-5 w-5" />
                   </Link>
                 </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="relative h-10 w-10 md:h-11 md:w-11 rounded-full"
-                    >
-                      <Avatar className="h-10 w-10 md:h-11 md:w-11">
-                        <AvatarImage src={user?.avatar} alt={user?.name} />
-                        <AvatarFallback className="text-base md:text-lg">
-                          {user?.name?.charAt(0) || "U"}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-64" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-base font-medium leading-none">
-                          {user?.name}
-                        </p>
-                        <p className="text-sm leading-none text-muted-foreground">
-                          {user?.email}
-                        </p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild className="text-base">
-                      <Link href="/customer/profile">
-                        <User className="mr-2 h-5 w-5" />
-                        <span>Hồ sơ</span>
+              </>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="relative h-9 gap-2 pl-2 pr-3 rounded-full hover:bg-accent"
+                  >
+                    <Avatar className="h-7 w-7 border-2 border-primary/20">
+                      <AvatarImage src={user?.avatar} alt={user?.name} />
+                      <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-sm font-semibold">
+                        {user?.name?.charAt(0) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden md:block text-sm font-medium max-w-[100px] truncate">
+                      {user?.name}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {user?.name}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user?.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/customer/profile" className="flex items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Hồ sơ</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/customer/wallet" className="flex items-center">
+                      <Wallet className="mr-2 h-4 w-4" />
+                      <span>Ví tiền</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/customer/orders" className="flex items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      <span>Lịch sử đơn hàng</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {/* Seller Options */}
+                  {user?.role === "customer" && !shop && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/seller/register" className="flex items-center">
+                        <Store className="mr-2 h-4 w-4" />
+                        <span>Đăng ký bán hàng</span>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="text-base">
-                      <Link href="/customer/wallet">
-                        <Wallet className="mr-2 h-5 w-5" />
-                        <span>Ví tiền</span>
+                  )}
+                  {shop && shop.status === "Pending" && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/customer/seller-application-status" className="flex items-center">
+                        <Store className="mr-2 h-4 w-4" />
+                        <span>Trạng thái đơn đăng ký</span>
+                        <Badge variant="secondary" className="ml-auto text-xs">
+                          Chờ duyệt
+                        </Badge>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="text-base">
-                      <Link href="/customer/orders">
-                        <Package className="mr-2 h-5 w-5" />
-                        <span>Lịch sử đơn hàng</span>
+                  )}
+                  {hasActiveShop && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/seller" className="flex items-center">
+                        <Store className="mr-2 h-4 w-4 text-green-600" />
+                        <span>Shop của tôi</span>
+                        <Badge variant="default" className="ml-auto text-xs bg-green-600">
+                          Active
+                        </Badge>
                       </Link>
                     </DropdownMenuItem>
-                    {user?.role === "customer" && <CustomerMenuStats />}
-                    {user?.role === "seller" && (
-                      <DropdownMenuItem asChild className="text-base">
-                        <Link href="/seller/shop">
-                          <Store className="mr-2 h-5 w-5" />
+                  )}
+                  {shop && shop.status === "Closed" && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/seller/register?reregister=true" className="flex items-center">
+                        <Store className="mr-2 h-4 w-4" />
+                        <span>Đăng ký lại bán hàng</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {user?.role === "seller" && !hasActiveShop && !shop && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/seller/register" className="flex items-center">
+                        <Store className="mr-2 h-4 w-4" />
+                        <span>Tạo Shop</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {/* Moderator Options */}
+                  {user?.role === "moderator" && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/moderator/shops" className="flex items-center">
+                          <Store className="mr-2 h-4 w-4" />
                           <span>Quản lý Shop</span>
                         </Link>
                       </DropdownMenuItem>
-                    )}
-                    {user?.role === "moderator" && (
-                      <DropdownMenuItem asChild className="text-base">
-                        <Link href="/moderator/review">
-                          <Shield className="mr-2 h-5 w-5" />
-                          <span>Kiểm duyệt</span>
+                      <DropdownMenuItem asChild>
+                        <Link href="/moderator/review" className="flex items-center">
+                          <Shield className="mr-2 h-4 w-4" />
+                          <span>Kiểm duyệt sản phẩm</span>
                         </Link>
                       </DropdownMenuItem>
-                    )}
-                    {user?.role === "admin" && (
-                      <DropdownMenuItem asChild className="text-base">
-                        <Link href="/admin">
-                          <Shield className="mr-2 h-5 w-5" />
+                    </>
+                  )}
+                  {/* Admin Options */}
+                  {user?.role === "admin" && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="flex items-center">
+                          <Shield className="mr-2 h-4 w-4" />
                           <span>Quản trị</span>
                         </Link>
                       </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout} className="text-base">
-                      <LogOut className="mr-2 h-5 w-5" />
-                      <span>Đăng xuất</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Đăng xuất</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             {/* Mobile Menu Toggle */}
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden h-10 w-10"
+              className="lg:hidden h-9 w-9"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               ) : (
-                <Menu className="h-6 w-6" />
+                <Menu className="h-5 w-5" />
               )}
             </Button>
           </div>
         </div>
 
-        {/* Mobile Menu & Search */}
+        {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="lg:hidden border-t py-4 space-y-4">
             {/* Mobile Search */}
             <form
               action="/products"
               method="get"
-              className="relative px-4"
+              className="relative"
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
@@ -260,59 +344,48 @@ export function Header() {
                 setMobileMenuOpen(false);
               }}
             >
-              <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 type="search"
                 name="search"
                 placeholder="Tìm kiếm nền tảng, loại gói..."
-                className="pl-11 h-12 text-base w-full"
+                className="pl-10 h-11 bg-muted/50"
                 autoComplete="off"
               />
             </form>
 
             {/* Mobile Navigation */}
-            <nav className="flex flex-col gap-2 px-4">
-              <Link
-                href="/products"
-                className="text-base font-medium py-3 px-4 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Sản phẩm
-              </Link>
-              <Link
-                href="/categories"
-                className="text-base font-medium py-3 px-4 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Danh mục
-              </Link>
-              <Link
-                href="/sellers"
-                className="text-base font-medium py-3 px-4 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Người bán
-              </Link>
-              {!isAuthenticated && (
-                <>
-                  <div className="border-t my-2"></div>
-                  <Link
-                    href="/login"
-                    className="text-base font-medium py-3 px-4 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Đăng nhập
-                  </Link>
-                  <Link
-                    href="/register"
-                    className="text-base font-medium py-3 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-center"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Đăng ký
-                  </Link>
-                </>
-              )}
+            <nav className="flex flex-col gap-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-lg transition-colors hover:bg-accent"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <link.icon className="h-5 w-5 text-muted-foreground" />
+                  {link.label}
+                </Link>
+              ))}
             </nav>
+
+            {/* Mobile Auth */}
+            {!isAuthenticated && (
+              <>
+                <div className="border-t pt-4 space-y-2">
+                  <Button variant="outline" className="w-full h-11" asChild>
+                    <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                      Đăng nhập
+                    </Link>
+                  </Button>
+                  <Button className="w-full h-11 bg-gradient-to-r from-primary to-primary/90" asChild>
+                    <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                      Đăng ký miễn phí
+                    </Link>
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

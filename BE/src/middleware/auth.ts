@@ -44,11 +44,13 @@ export const authenticate = async (
       return;
     }
 
+    // roleId is populated, so we need to extract _id from the populated object
+    const populatedRole = user.roleId as any;
     req.user = {
       id: user._id.toString(),
       email: user.email,
-      roleId: user.roleId.toString(),
-      roleKey: (user.roleId as any).roleKey,
+      roleId: populatedRole._id.toString(),
+      roleKey: populatedRole.roleKey,
     };
 
     next();

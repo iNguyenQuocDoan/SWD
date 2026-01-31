@@ -84,4 +84,26 @@ export class UserController {
       next(error);
     }
   };
+
+  /**
+   * Get customer dashboard stats
+   * GET /api/users/profile/stats
+   */
+  getCustomerStats = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const stats = await this.userService.getCustomerStats(userId);
+
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

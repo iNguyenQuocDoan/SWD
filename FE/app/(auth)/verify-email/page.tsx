@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/form";
 import { Mail, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { authService } from "@/lib/services/auth.service";
 
 export default function VerifyEmailPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -39,11 +40,15 @@ export default function VerifyEmailPage() {
   const onSubmit = async (data: VerifyEmailInput) => {
     setIsLoading(true);
     try {
-      // TODO: Implement actual verification logic
-      console.log("Verify code:", data.code);
+      await authService.verifyEmail(data.code);
       toast.success("Email đã được xác minh thành công!");
-    } catch (error) {
-      toast.error("Mã xác thực không hợp lệ.");
+      
+      // Redirect to login or home after 1 second
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1000);
+    } catch (error: any) {
+      toast.error(error.message || "Mã xác thực không hợp lệ.");
     } finally {
       setIsLoading(false);
     }
@@ -52,10 +57,10 @@ export default function VerifyEmailPage() {
   const handleResend = async () => {
     setIsResending(true);
     try {
-      // TODO: Implement resend logic
+      await authService.resendVerificationEmail();
       toast.success("Đã gửi lại mã xác thực!");
-    } catch (error) {
-      toast.error("Không thể gửi lại mã. Vui lòng thử lại sau.");
+    } catch (error: any) {
+      toast.error(error.message || "Không thể gửi lại mã. Vui lòng thử lại sau.");
     } finally {
       setIsResending(false);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -16,79 +16,110 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { useAuthStore } from "@/lib/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import {
-  ShoppingCart,
-  Shield,
-  Star,
-  CheckCircle,
-  AlertCircle,
-  Copy,
-  Lock,
-  Clock,
-  Package,
-  User,
-  HelpCircle,
-} from "lucide-react";
+import { Shield, Star, CheckCircle, AlertCircle, Copy, Lock, Clock, Package, User, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
+import { productService } from "@/lib/services/product.service";
 
-// Mock data - sẽ thay thế bằng API call
-// Product structure theo context mới
-const mockProduct = {
-  id: "1",
-  title: "Netflix Premium - Gói gia đình",
-  platform: "Netflix",
-  planType: "Gia đình",
-  durationDays: 90,
-  durationLabel: "3 tháng",
-  price: 299000,
-  description: `Gói Netflix Premium gia đình cho phép xem đồng thời trên 4 thiết bị với độ phân giải 4K Ultra HD. Phù hợp cho gia đình có nhiều thành viên.
+// Types for backend data
+interface ProductShop {
+  id: string;
+  name: string;
+  avatar: string | null;
+  rating: number;
+  listingCount: number;
+  soldCount: number;
+  responseRate: number;
+  joinedDate: string;
+  isVerified: boolean;
+  trustLevel: string;
+  status: string;
+}
 
-Tính năng:
-- Xem không giới hạn trên TV, điện thoại, máy tính
-- Tải xuống để xem offline
-- 4K Ultra HD & HDR
-- Xem đồng thời trên 4 thiết bị
-- Không quảng cáo`,
-  warranty: "Bảo hành 7 ngày - Hoàn tiền 100% nếu không sử dụng được hoặc bị thu hồi sớm",
-  howToUse: `Hướng dẫn sử dụng:
-1. Sau khi nhận thông tin đăng nhập (account/link/code/QR), truy cập netflix.com
-2. Đăng nhập với thông tin đã nhận hoặc quét QR code
-3. Thay đổi mật khẩu nếu cần (khuyến nghị)
-4. Bắt đầu xem phim yêu thích của bạn
+interface Product {
+  id: string;
+  title: string;
+  thumbnailUrl?: string | null;
+  platform: string;
+  planType: string;
+  durationDays: number;
+  durationLabel: string;
+  price: number;
+  description: string;
+  warranty: string;
+  howToUse: string;
+  soldCount: number;
+  inventoryCount: number;
+  inStock: boolean;
+  status: string;
+  shopId: string;
+  shop: ProductShop;
+}
 
-Lưu ý: Không chia sẻ thông tin đăng nhập với người khác để tránh bị thu hồi.`,
-  soldCount: 1234,
-  inventoryCount: 50,
-  inStock: true,
-  status: "approved",
-  shopId: "1",
-  shop: {
-    id: "1",
-    name: "NetflixStore Official",
-    avatar: null,
-    rating: 4.9,
-    listingCount: 156,
-    soldCount: 5234,
-    responseRate: 98,
-    joinedDate: "2023-01-15",
-    isVerified: true,
-    trustLevel: "Trusted",
-    status: "active", // pending | active | suspended | closed
-  },
-};
-
-export default function ProductDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function ProductDetailPage() {
+  const { id: productId } = useParams<{ id: string }>();
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("description");
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      setIsLoading(true);
+      try {
+        const response = await productService.getProductById(productId);
+
+        if (response.success && response.data) {
+          const productData = response.data;
+
+          const mappedProduct: Product = {
+            id: productData._id || productData.id || productId,
+            title: productData.title,
+            thumbnailUrl: productData.thumbnailUrl || null,
+            platform: productData.platformId,
+            planType: productData.planType,
+            durationDays: productData.durationDays,
+            durationLabel: `${productData.durationDays} ngày`,
+            price: productData.price,
+            description: productData.description,
+            warranty: productData.warrantyPolicy,
+            howToUse: productData.howToUse,
+            soldCount: 0,
+            inventoryCount: 0,
+            inStock: productData.status === "Approved",
+            status: productData.status || "Approved",
+            shopId: productData.shopId,
+            shop: {
+              id: productData.shopId,
+              name: "Shop",
+              avatar: null,
+              rating: 0,
+              listingCount: 0,
+              soldCount: 0,
+              responseRate: 0,
+              joinedDate: "",
+              isVerified: false,
+              trustLevel: "Standard",
+              status: "active",
+            },
+          };
+
+          setProduct(mappedProduct);
+        } else {
+          setProduct(null);
+        }
+      } catch {
+        toast.error("Không thể tải thông tin sản phẩm");
+        setProduct(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProduct();
+  }, [productId]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -97,36 +128,60 @@ export default function ProductDetailPage({
     }).format(price);
   };
 
-  const handleAddToCart = () => {
-    if (!isAuthenticated) {
-      toast.info("Vui lòng đăng nhập để thêm vào giỏ hàng", {
-        action: {
-          label: "Đăng nhập",
-          onClick: () => router.push(`/login?redirect=/products/${params.id}`),
-        },
-      });
-      return;
-    }
-    // TODO: Implement add to cart
-    toast.success("Đã thêm vào giỏ hàng");
-  };
-
   const handleBuyNow = () => {
     if (!isAuthenticated) {
-      router.push(`/login?redirect=/products/${params.id}`);
+      router.push(`/login?redirect=/products/${productId}`);
       return;
     }
-    if (!mockProduct.inStock) {
+    if (!product || !product.inStock) {
       toast.error("Sản phẩm đã hết hàng");
       return;
     }
-    router.push(`/checkout?product=${params.id}&quantity=${quantity}`);
+    router.push(`/checkout?product=${productId}&quantity=${quantity}`);
   };
 
   const handleCopyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Đã sao chép");
   };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 lg:py-16">
+        <div className="grid lg:grid-cols-3 gap-8 md:gap-10 lg:gap-12">
+          <div className="lg:col-span-2 space-y-6">
+            <Skeleton className="h-10 w-40" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-6 w-64" />
+            <Skeleton className="h-16 w-48" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+          <div>
+            <Skeleton className="h-96 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 lg:py-16">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            <Package className="h-16 w-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Không tìm thấy sản phẩm</h3>
+            <p className="text-sm text-muted-foreground max-w-sm mb-4">
+              Sản phẩm này không tồn tại hoặc đã bị xóa.
+            </p>
+            <Button onClick={() => router.push("/products")} variant="default">
+              Xem sản phẩm khác
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 lg:py-16">
@@ -135,14 +190,23 @@ export default function ProductDetailPage({
         <div className="lg:col-span-2 space-y-6 md:space-y-8">
           {/* Product Header */}
           <div className="space-y-5 md:space-y-6">
+            {/* Thumbnail */}
+            {product.thumbnailUrl && (
+              <div className="w-full max-w-xl mx-auto rounded-2xl border bg-muted/40 overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={product.thumbnailUrl}
+                  alt={product.title}
+                  className="w-full h-auto max-h-[320px] object-contain bg-background"
+                />
+              </div>
+            )}
+
             {/* Platform & Badges */}
             <div className="flex gap-2 md:gap-3 flex-wrap items-center">
-              <Badge variant="default" className="text-base px-3 py-1.5">
-                {mockProduct.platform}
-              </Badge>
-              <Badge variant="secondary" className="text-base px-3 py-1.5">{mockProduct.planType}</Badge>
-              <Badge variant="outline" className="text-base px-3 py-1.5">{mockProduct.durationLabel}</Badge>
-              {mockProduct.inStock ? (
+              <Badge variant="secondary" className="text-base px-3 py-1.5">{product.planType}</Badge>
+              <Badge variant="outline" className="text-base px-3 py-1.5">{product.durationLabel}</Badge>
+              {product.inStock ? (
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-base px-3 py-1.5">
                   <CheckCircle className="h-4 w-4 mr-1" />
                   Còn hàng
@@ -154,32 +218,32 @@ export default function ProductDetailPage({
 
             {/* Title */}
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">
-              {mockProduct.title}
+              {product.title}
             </h1>
 
             {/* Stats */}
             <div className="flex items-center gap-3 md:gap-4 flex-wrap text-base">
               <span className="text-muted-foreground">
-                Đã bán: <span className="font-semibold text-foreground">{mockProduct.soldCount.toLocaleString()}</span>
+                Đã bán: <span className="font-semibold text-foreground">{product.soldCount.toLocaleString()}</span>
               </span>
-              {mockProduct.inventoryCount > 0 && (
+              {product.inventoryCount > 0 && (
                 <>
                   <Separator orientation="vertical" className="h-5" />
                   <span className="text-muted-foreground">
-                    Còn lại: <span className="font-semibold text-foreground">{mockProduct.inventoryCount}</span> gói trong kho
+                    Còn lại: <span className="font-semibold text-foreground">{product.inventoryCount}</span> gói trong kho
                   </span>
                 </>
               )}
               <Separator orientation="vertical" className="h-5" />
               <span className="text-muted-foreground">
-                Thời hạn: <span className="font-semibold text-foreground">{mockProduct.durationLabel}</span> ({mockProduct.durationDays} ngày)
+                Thời hạn: <span className="font-semibold text-foreground">{product.durationLabel}</span> ({product.durationDays} ngày)
               </span>
             </div>
 
             {/* Price */}
             <div className="flex items-baseline gap-3 pt-2">
               <span className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary">
-                {formatPrice(mockProduct.price)}
+                {formatPrice(product.price)}
               </span>
             </div>
 
@@ -192,48 +256,16 @@ export default function ProductDetailPage({
             </Alert>
           </div>
 
-          {/* Variant Selection */}
-          {!selectedVariant && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl md:text-2xl">Chọn biến thể</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start h-14 text-base"
-                    onClick={() => setSelectedVariant("3months")}
-                  >
-                    <Package className="h-5 w-5 mr-3" />
-                    3 tháng - {formatPrice(299000)}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start h-14 text-base"
-                    onClick={() => setSelectedVariant("1year")}
-                  >
-                    <Package className="h-5 w-5 mr-3" />
-                    1 năm - {formatPrice(999000)}
-                    <Badge variant="secondary" className="ml-auto text-sm">
-                      Tiết kiệm 25%
-                    </Badge>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={(value) => {
             if (value === "reviews" && !isAuthenticated) {
               toast.info("Vui lòng đăng nhập để xem đánh giá", {
                 action: {
                   label: "Đăng nhập",
-                  onClick: () => router.push(`/login?redirect=/products/${params.id}`),
+                  onClick: () => router.push(`/login?redirect=/products/${productId}`),
                 },
               });
-              router.push(`/login?redirect=/products/${params.id}`);
+              router.push(`/login?redirect=/products/${productId}`);
               return;
             }
             setActiveTab(value);
@@ -250,7 +282,7 @@ export default function ProductDetailPage({
             <TabsContent value="description" className="space-y-4 mt-6 md:mt-8">
               <div className="prose max-w-none">
                 <p className="text-base md:text-lg text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {mockProduct.description}
+                  {product.description}
                 </p>
               </div>
             </TabsContent>
@@ -262,7 +294,7 @@ export default function ProductDetailPage({
                   <div>
                     <p className="font-semibold text-lg md:text-xl mb-2">Chính sách bảo hành</p>
                     <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-                      {mockProduct.warranty}
+                      {product.warranty}
                     </p>
                     <p className="text-sm md:text-base text-muted-foreground mt-3 leading-relaxed">
                       Nếu gặp vấn đề (sai gói, không dùng được, bị thu hồi sớm), bạn có thể tạo Support Ticket để được xử lý đổi hàng/hoàn tiền.
@@ -284,7 +316,7 @@ export default function ProductDetailPage({
             <TabsContent value="howToUse" className="space-y-4 mt-6 md:mt-8">
               <div className="prose max-w-none">
                 <p className="text-base md:text-lg text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {mockProduct.howToUse}
+                  {product.howToUse}
                 </p>
               </div>
             </TabsContent>
@@ -298,7 +330,7 @@ export default function ProductDetailPage({
                     <p className="text-sm text-muted-foreground max-w-sm mb-4">
                       Bạn cần đăng nhập để xem đánh giá từ khách hàng
                     </p>
-                    <Button onClick={() => router.push(`/login?redirect=/products/${params.id}`)}>
+                    <Button onClick={() => router.push(`/login?redirect=/products/${productId}`)}>
                       Đăng nhập ngay
                     </Button>
                   </CardContent>
@@ -327,32 +359,32 @@ export default function ProductDetailPage({
             </CardHeader>
             <CardContent className="space-y-5 md:space-y-6">
               <Link
-                href={`/shops/${mockProduct.shop.id}`}
+                href={`/shops/${product.shop.id}`}
                 className="flex items-center gap-4 hover:bg-muted/50 p-3 md:p-4 rounded-lg transition-colors"
               >
                 <Avatar className="h-12 w-12 md:h-14 md:w-14">
                   <AvatarFallback className="text-lg md:text-xl">
-                    {mockProduct.shop.name.charAt(0)}
+                    {product.shop.name.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-                    <p className="font-semibold text-base md:text-lg">{mockProduct.shop.name}</p>
-                    {mockProduct.shop.isVerified && (
+                    <p className="font-semibold text-base md:text-lg">{product.shop.name}</p>
+                    {product.shop.isVerified && (
                       <Badge variant="secondary" className="text-sm px-2.5 py-1">
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Đã xác minh
                       </Badge>
                     )}
                     <Badge 
-                      variant={mockProduct.shop.status === "active" ? "default" : "secondary"}
+                      variant={product.shop.status === "active" ? "default" : "secondary"}
                       className="text-sm px-2.5 py-1"
                     >
-                      {mockProduct.shop.status === "active" ? "Hoạt động" : mockProduct.shop.status}
+                      {product.shop.status === "active" ? "Hoạt động" : product.shop.status}
                     </Badge>
                   </div>
                   <Badge variant="outline" className="text-sm bg-green-50 mt-2 px-2.5 py-1">
-                    {mockProduct.shop.trustLevel}
+                    {product.shop.trustLevel}
                   </Badge>
                 </div>
               </Link>
@@ -362,35 +394,35 @@ export default function ProductDetailPage({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 text-base">
                 <div>
                   <p className="text-muted-foreground mb-2">Sản phẩm</p>
-                  <p className="font-semibold text-lg md:text-xl">{mockProduct.shop.listingCount}</p>
+                  <p className="font-semibold text-lg md:text-xl">{product.shop.listingCount}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-2">Đã bán</p>
                   <p className="font-semibold text-lg md:text-xl">
-                    {mockProduct.shop.soldCount.toLocaleString()}
+                    {product.shop.soldCount.toLocaleString()}
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-2">Đánh giá</p>
                   <div className="flex items-center gap-2">
                     <Star className="h-5 w-5 md:h-6 md:w-6 fill-yellow-400 text-yellow-400" />
-                    <span className="font-semibold text-lg md:text-xl">{mockProduct.shop.rating}</span>
+                    <span className="font-semibold text-lg md:text-xl">{product.shop.rating}</span>
                   </div>
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-2">Phản hồi</p>
-                  <p className="font-semibold text-lg md:text-xl">{mockProduct.shop.responseRate}%</p>
+                  <p className="font-semibold text-lg md:text-xl">{product.shop.responseRate}%</p>
                 </div>
               </div>
 
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1 h-11 md:h-12 text-base" asChild>
-                  <Link href={`/shops/${mockProduct.shop.id}`}>
+                  <Link href={`/shops/${product.shop.id}`}>
                     Xem shop
                   </Link>
                 </Button>
                 <Button variant="outline" size="icon" className="h-11 w-11 md:h-12 md:w-12" asChild>
-                  <Link href={`/shops/${mockProduct.shop.id}/chat`}>
+                  <Link href={`/shops/${product.shop.id}/chat`}>
                     <User className="h-5 w-5" />
                   </Link>
                 </Button>
@@ -429,8 +461,8 @@ export default function ProductDetailPage({
                     className="h-11 w-11"
                     onClick={() => setQuantity(quantity + 1)}
                     disabled={
-                      mockProduct.inventoryCount
-                        ? quantity >= mockProduct.inventoryCount
+                      product.inventoryCount
+                        ? quantity >= product.inventoryCount
                         : false
                     }
                   >
@@ -446,7 +478,7 @@ export default function ProductDetailPage({
                 <div className="flex justify-between text-base md:text-lg">
                   <span className="text-muted-foreground">Đơn giá:</span>
                   <span className="font-semibold">
-                    {formatPrice(mockProduct.price)}
+                    {formatPrice(product.price)}
                   </span>
                 </div>
                 <div className="flex justify-between text-base md:text-lg">
@@ -457,33 +489,24 @@ export default function ProductDetailPage({
                 <div className="flex justify-between text-lg md:text-xl font-bold pt-2">
                   <span>Tổng cộng:</span>
                   <span className="text-primary text-2xl md:text-3xl">
-                    {formatPrice(mockProduct.price * quantity)}
+                    {formatPrice(product.price * quantity)}
                   </span>
                 </div>
               </div>
 
-              {/* CTA Buttons */}
+              {/* CTA Button */}
               <div className="space-y-3">
                 <Button
                   className="w-full h-12 md:h-14 text-base md:text-lg"
                   size="lg"
                   onClick={handleBuyNow}
-                  disabled={!mockProduct.inStock}
+                  disabled={!product.inStock}
                 >
-                  <ShoppingCart className="mr-2 h-5 w-5" />
-                  {mockProduct.inStock ? "Mua ngay" : "Hết hàng"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full h-12 md:h-14 text-base md:text-lg"
-                  onClick={handleAddToCart}
-                  disabled={!mockProduct.inStock}
-                >
-                  Thêm vào giỏ hàng
+                  {product.inStock ? "Mua ngay" : "Hết hàng"}
                 </Button>
               </div>
 
-              {!mockProduct.inStock && (
+              {!product.inStock && (
                 <Alert variant="warning">
                   <AlertIcon.warning className="h-5 w-5" />
                   <AlertDescription className="text-base">

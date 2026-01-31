@@ -62,9 +62,6 @@ export class PaymentService extends BaseService<IPayment> {
         locale: "vn",
         returnUrl: backendReturnUrl,
       });
-      
-      // Debug: Log the payment URL (remove in production)
-      console.log("VNPay Payment URL created:", paymentUrl);
 
     return { payment, paymentUrl };
   }
