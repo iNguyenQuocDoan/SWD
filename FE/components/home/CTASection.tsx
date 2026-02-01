@@ -63,7 +63,8 @@ export function CTASection() {
 
           {/* Right: Content */}
           <FadeIn direction="left" delay={0.3}>
-            <div className="space-y-6 lg:pl-8">
+          <div className="space-y-6 lg:pl-2222 xl:pl-35">
+
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground leading-tight">
                 BẮT ĐẦU BÁN
                 <br />

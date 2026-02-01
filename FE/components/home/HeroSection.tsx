@@ -39,7 +39,8 @@ export function HeroSection() {
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left: Text Content */}
-          <div className="space-y-5 md:space-y-6 text-center lg:text-left">
+          <div className="space-y-5 md:space-y-6 text-center lg:text-left lg:pl-20 xl:pl-24">
+
             {/* Badge */}
             <FadeIn direction="down" delay={0.1}>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md bg-white/20 border border-white/30 text-white text-sm font-medium drop-shadow-md">
@@ -50,7 +51,7 @@ export function HeroSection() {
 
             {/* Headline */}
             <StaggerContainer staggerDelay={0.1} initialDelay={0.2}>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-[1.1] tracking-tight mx-auto max-w-xl">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-[1.1] tracking-tight max-w-xl">
                 <StaggerItem>
                   <span className="block text-white drop-shadow-lg">MARKETPLACE</span>
                 </StaggerItem>
@@ -67,7 +68,7 @@ export function HeroSection() {
 
             {/* Description */}
             <FadeIn direction="up" delay={0.5}>
-              <p className="text-base md:text-lg text-white/90 max-w-xl leading-relaxed drop-shadow-md">
+              <p className="text-base md:text-lg text-white/90 max-w-xl leading-relaxed drop-shadow-md mx-auto lg:mx-0">
                 Mua bán license key, subscription và các sản phẩm số với{" "}
                 <span className="text-white font-medium drop-shadow-lg">
                   hệ thống bảo vệ người mua toàn diện
@@ -77,7 +78,7 @@ export function HeroSection() {
 
             {/* Trust indicators */}
             <FadeIn direction="up" delay={0.6}>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-white/90 drop-shadow-md">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-white/90 drop-shadow-md justify-center lg:justify-start">
                 {[
                   "Giao dịch an toàn",
                   "Bảo vệ người mua",
@@ -93,7 +94,7 @@ export function HeroSection() {
 
             {/* CTA Buttons */}
             <FadeIn direction="up" delay={0.7}>
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row gap-3 pt-2 justify-center lg:justify-start">
                 <Button
                   size="lg"
                   className="h-12 px-6 text-base font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 transition-all duration-300 group rounded-full"
