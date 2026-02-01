@@ -157,7 +157,6 @@ export class DisbursementService {
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error("[Disbursement] Error:", error);
       throw error;
     }
   }
@@ -319,7 +318,6 @@ export class DisbursementService {
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error("[Disbursement] Refund error:", error);
       throw error;
     }
   }

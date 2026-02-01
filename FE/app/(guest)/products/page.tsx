@@ -25,8 +25,9 @@ import {
   ShoppingBag,
   Store,
   ChevronDown,
+  Star,
 } from "lucide-react";
-import { productService } from "@/lib/services/product.service";
+import { productService, type ProductResponse } from "@/lib/services/product.service";
 import { inventoryService } from "@/lib/services/inventory.service";
 import { toast } from "sonner";
 import type { Product } from "@/types";
@@ -248,8 +249,8 @@ function ProductsContent() {
         case "price_high":
           return b.price - a.price;
         case "rating":
-          const aRating = typeof a.shop === "object" ? (a.shop as any).ratingAvg || 0 : 0;
-          const bRating = typeof b.shop === "object" ? (b.shop as any).ratingAvg || 0 : 0;
+          const aRating = (a as unknown as ProductResponse).avgRating || 0;
+          const bRating = (b as unknown as ProductResponse).avgRating || 0;
           return bRating - aRating;
         case "newest":
         default:
@@ -595,14 +596,27 @@ function ProductsContent() {
                         </h3>
 
                         {/* Shop info */}
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
                           <Store className="h-3.5 w-3.5" />
                           <span className="truncate">
-                            {typeof (product as any).shopId === "object"
-                              ? ((product as any).shopId.shopName || "N/A")
-                              : (typeof (product as any).shop === "object"
-                                ? ((product as any).shop.shopName || "N/A")
-                                : "N/A")}
+                            {(() => {
+                              const shopData = (product as any).shopId || (product as any).shop;
+                              if (shopData && typeof shopData === "object" && shopData.shopName) {
+                                return shopData.shopName;
+                              }
+                              return "N/A";
+                            })()}
+                          </span>
+                        </div>
+
+                        {/* Rating */}
+                        <div className="flex items-center gap-1.5 text-sm mb-3">
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium">
+                            {(product as any).avgRating ? (product as any).avgRating.toFixed(1) : "0"}
+                          </span>
+                          <span className="text-muted-foreground">
+                            ({(product as any).reviewCount ?? 0} đánh giá)
                           </span>
                         </div>
 

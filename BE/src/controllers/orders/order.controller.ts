@@ -211,6 +211,35 @@ export class OrderController {
       next(error);
     }
   };
+
+  /**
+   * Confirm delivery of an order item
+   * POST /orders/items/:itemId/confirm
+   */
+  confirmDelivery = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { itemId } = req.params;
+      const itemIdStr = Array.isArray(itemId) ? itemId[0] : itemId;
+      const userId = req.user!.id;
+
+      const orderItem = await orderService.confirmDelivery(itemIdStr, userId);
+
+      res.status(200).json({
+        success: true,
+        message: "Đã xác nhận nhận hàng thành công",
+        data: {
+          _id: orderItem._id,
+          itemStatus: orderItem.itemStatus,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const orderController = new OrderController();

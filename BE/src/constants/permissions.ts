@@ -63,6 +63,7 @@ export const PERMISSIONS = {
   PAYOUT_VIEW: "payout:view",
   CONVERSATION_SELLER_VIEW: "conversation:seller:view",
   CONVERSATION_SELLER_MESSAGE: "conversation:seller:message",
+  REVIEW_REPLY: "review:reply",
 
   // Moderator permissions
   REVIEW_MODERATE: "review:moderate",
@@ -511,6 +512,13 @@ export const PERMISSION_DEFINITIONS = [
     description: "Send message as seller",
     resource: "conversation",
     action: "seller:message",
+  },
+  {
+    permissionKey: PERMISSIONS.REVIEW_REPLY,
+    permissionName: "Reply to Review",
+    description: "Reply to customer reviews as shop owner",
+    resource: "review",
+    action: "reply",
   },
 
   // Moderator permissions
@@ -1020,6 +1028,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.PAYOUT_VIEW,
     PERMISSIONS.CONVERSATION_SELLER_VIEW,
     PERMISSIONS.CONVERSATION_SELLER_MESSAGE,
+    PERMISSIONS.REVIEW_REPLY,
 
     // Public
     PERMISSIONS.PRODUCT_VIEW,

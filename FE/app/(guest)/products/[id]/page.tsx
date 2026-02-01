@@ -21,6 +21,9 @@ import Link from "next/link";
 import { Shield, Star, CheckCircle, AlertCircle, Copy, Lock, Clock, Package, User, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { productService } from "@/lib/services/product.service";
+import { shopService } from "@/lib/services/shop.service";
+import { reviewService } from "@/lib/services/review.service";
+import { ProductReviews } from "@/components/reviews";
 
 // Types for backend data
 interface ProductShop {
@@ -28,6 +31,7 @@ interface ProductShop {
   name: string;
   avatar: string | null;
   rating: number;
+  reviewCount: number;
   listingCount: number;
   soldCount: number;
   responseRate: number;
@@ -75,6 +79,26 @@ export default function ProductDetailPage() {
         if (response.success && response.data) {
           const productData = response.data;
 
+          // Type for populated shop data from API
+          type PopulatedShop = { _id?: string; id?: string; shopName?: string };
+
+          // Get shopId - could be string or object
+          const shopIdObj = productData.shopId as string | PopulatedShop;
+          const shopId = typeof shopIdObj === "object"
+            ? (shopIdObj._id || shopIdObj.id || "")
+            : shopIdObj;
+
+          // Fetch shop details, rating stats, and shop products count in parallel
+          const [shopData, ratingStats, shopProductsRes] = await Promise.all([
+            shopId ? shopService.getShopById(shopId).catch(() => null) : Promise.resolve(null),
+            reviewService.getProductRatingStats(productId).catch(() => null),
+            shopId ? productService.getProducts({ shopId }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+          ]);
+          const shopProductsCount = shopProductsRes?.data?.length || 0;
+
+          // Extract shop info from populated shopId if available
+          const populatedShop = typeof shopIdObj === "object" ? shopIdObj : null;
+
           const mappedProduct: Product = {
             id: productData._id || productData.id || productId,
             title: productData.title,
@@ -87,23 +111,24 @@ export default function ProductDetailPage() {
             description: productData.description,
             warranty: productData.warrantyPolicy,
             howToUse: productData.howToUse,
-            soldCount: 0,
+            soldCount: (productData as unknown as { salesCount?: number }).salesCount || 0,
             inventoryCount: 0,
             inStock: productData.status === "Approved",
             status: productData.status || "Approved",
-            shopId: productData.shopId,
+            shopId: shopId,
             shop: {
-              id: productData.shopId,
-              name: "Shop",
+              id: shopId,
+              name: shopData?.shopName || populatedShop?.shopName || "Shop",
               avatar: null,
-              rating: 0,
-              listingCount: 0,
-              soldCount: 0,
-              responseRate: 0,
-              joinedDate: "",
+              rating: ratingStats?.averageRating || shopData?.ratingAvg || 0,
+              reviewCount: ratingStats?.totalReviews || shopData?.reviewCount || 0,
+              listingCount: shopProductsCount,
+              soldCount: shopData?.totalSales || 0,
+              responseRate: shopData?.responseRate || 0,
+              joinedDate: shopData?.createdAt || "",
               isVerified: false,
               trustLevel: "Standard",
-              status: "active",
+              status: shopData?.status === "Active" ? "active" : (shopData?.status?.toLowerCase() || "active"),
             },
           };
 
@@ -257,19 +282,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={(value) => {
-            if (value === "reviews" && !isAuthenticated) {
-              toast.info("Vui lòng đăng nhập để xem đánh giá", {
-                action: {
-                  label: "Đăng nhập",
-                  onClick: () => router.push(`/login?redirect=/products/${productId}`),
-                },
-              });
-              router.push(`/login?redirect=/products/${productId}`);
-              return;
-            }
-            setActiveTab(value);
-          }} className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-12 md:h-14">
               <TabsTrigger value="description" className="text-sm md:text-base">Mô tả</TabsTrigger>
               <TabsTrigger value="warranty" className="text-sm md:text-base">Bảo hành</TabsTrigger>
@@ -322,30 +335,10 @@ export default function ProductDetailPage() {
             </TabsContent>
 
             <TabsContent value="reviews" className="mt-6">
-              {!isAuthenticated ? (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                    <Lock className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Vui lòng đăng nhập</h3>
-                    <p className="text-sm text-muted-foreground max-w-sm mb-4">
-                      Bạn cần đăng nhập để xem đánh giá từ khách hàng
-                    </p>
-                    <Button onClick={() => router.push(`/login?redirect=/products/${productId}`)}>
-                      Đăng nhập ngay
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  <Star className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Chưa có đánh giá</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm">
-                    Sẽ hiển thị đánh giá từ khách hàng sau khi họ mua và sử dụng sản phẩm
-                  </p>
-                </CardContent>
-              </Card>
-              )}
+              <ProductReviews
+                productId={productId}
+                currentUserId={isAuthenticated ? useAuthStore.getState().user?.id : undefined}
+              />
             </TabsContent>
           </Tabs>
 
@@ -406,7 +399,12 @@ export default function ProductDetailPage() {
                   <p className="text-muted-foreground mb-2">Đánh giá</p>
                   <div className="flex items-center gap-2">
                     <Star className="h-5 w-5 md:h-6 md:w-6 fill-yellow-400 text-yellow-400" />
-                    <span className="font-semibold text-lg md:text-xl">{product.shop.rating}</span>
+                    <span className="font-semibold text-lg md:text-xl">
+                      {product.shop.rating ? product.shop.rating.toFixed(1) : "0"}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      ({product.shop.reviewCount})
+                    </span>
                   </div>
                 </div>
                 <div>

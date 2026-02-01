@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { forgotPasswordSchema, type ForgotPasswordInput } from "@/lib/validations";
@@ -24,13 +24,39 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { authService } from "@/lib/services/auth.service";
+import { useAuthStore } from "@/lib/auth";
+
+// Helper function to get dashboard by role
+const getDashboardByRole = (role?: string) => {
+  switch (role) {
+    case "admin":
+      return "/admin";
+    case "moderator":
+      return "/moderator";
+    case "seller":
+      return "/seller";
+    case "customer":
+    default:
+      return "/";
+  }
+};
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const router = useRouter();
+  const { isAuthenticated, user } = useAuthStore();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      router.replace(getDashboardByRole(user.role));
+    }
+  }, [isAuthenticated, user, router]);
 
   const form = useForm<ForgotPasswordInput>({
     resolver: zodResolver(forgotPasswordSchema),

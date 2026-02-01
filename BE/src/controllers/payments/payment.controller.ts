@@ -63,8 +63,7 @@ export class PaymentController {
         RspCode: result.success ? "00" : "99",
         Message: result.success ? "Confirm Success" : "Confirm Fail",
       });
-    } catch (error) {
-      console.error("VNPay IPN Error:", error);
+    } catch {
       res.status(200).json({
         RspCode: "99",
         Message: "Confirm Fail",
@@ -84,9 +83,8 @@ export class PaymentController {
       // To ensure wallet is credited, we reuse the same logic as IPN here as well.
       try {
         await paymentService.handleVNPayIpn(req.query);
-      } catch (err) {
-        // Log but don't block redirect flow
-        console.error("VNPay Return processing error (non-blocking):", err);
+      } catch {
+        // Non-blocking - continue with redirect
       }
 
       if (!vnp_TxnRef || Array.isArray(vnp_TxnRef) || typeof vnp_TxnRef !== "string") {
@@ -222,7 +220,6 @@ export class PaymentController {
         },
       });
     } catch (error) {
-      console.error("[PaymentController] getWalletBalance error:", error);
       next(error);
     }
   }

@@ -15,7 +15,6 @@ export class PermissionService {
       for (const [roleKey, permissionKeys] of Object.entries(ROLE_PERMISSIONS)) {
         const role = await Role.findOne({ roleKey });
         if (!role) {
-          console.warn(`Role ${roleKey} not found, skipping permission assignment`);
           continue;
         }
 
@@ -24,7 +23,6 @@ export class PermissionService {
         await role.save();
       }
     } catch (error) {
-      console.error("Error assigning default permissions:", error);
       throw error;
     }
   }

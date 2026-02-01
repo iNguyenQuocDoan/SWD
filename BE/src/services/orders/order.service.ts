@@ -500,6 +500,47 @@ export class OrderService extends BaseService<IOrder> {
       .skip(skip)
       .exec();
   }
+
+  /**
+   * Confirm delivery of an order item (customer confirms receipt)
+   * This changes the item status from "Delivered" to "Completed"
+   */
+  async confirmDelivery(
+    orderItemId: string,
+    customerUserId: string
+  ): Promise<IOrderItem> {
+    // Find the order item
+    const orderItem = await OrderItem.findById(orderItemId).populate("orderId");
+
+    if (!orderItem) {
+      throw new AppError("Không tìm thấy mục đơn hàng", 404);
+    }
+
+    // Check ownership via orderId
+    const order = orderItem.orderId as any;
+    if (!order || order.customerUserId.toString() !== customerUserId) {
+      throw new AppError("Bạn không có quyền xác nhận mục này", 403);
+    }
+
+    // Check current status - must be "Delivered"
+    if (orderItem.itemStatus !== "Delivered") {
+      throw new AppError(
+        `Không thể xác nhận. Trạng thái hiện tại: ${orderItem.itemStatus}`,
+        400
+      );
+    }
+
+    // Update status to Completed
+    orderItem.itemStatus = "Completed";
+    await orderItem.save();
+
+    debug.log("Order item confirmed as Completed", {
+      orderItemId,
+      customerUserId,
+    });
+
+    return orderItem;
+  }
 }
 
 export const orderService = new OrderService();

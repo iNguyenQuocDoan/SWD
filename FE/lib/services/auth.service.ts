@@ -173,9 +173,8 @@ class AuthService {
   async logout(): Promise<void> {
     try {
       await apiClient.post("/auth/logout", {});
-    } catch (error) {
+    } catch {
       // Continue with logout even if API call fails
-      console.error("Logout API error:", error);
     } finally {
       // Clear token and auth store
       apiClient.clearToken();

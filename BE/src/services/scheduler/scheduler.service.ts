@@ -46,15 +46,9 @@ export class SchedulerService {
     isProcessing = true;
 
     try {
-      const result = await disbursementService.processAllPendingDisbursements();
-
-      if (result.processed > 0) {
-        if (result.errors.length > 0) {
-          console.warn("[Scheduler] Disbursement errors:", result.errors);
-        }
-      }
-    } catch (error) {
-      console.error("[Scheduler] Disbursement job failed:", error);
+      await disbursementService.processAllPendingDisbursements();
+    } catch {
+      // Disbursement job failed - will retry on next schedule
     } finally {
       isProcessing = false;
     }

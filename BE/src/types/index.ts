@@ -121,3 +121,21 @@ export type AuditSeverity = "Info" | "Warn" | "Critical";
 
 // Platform Catalog Types
 export type PlatformStatus = "Active" | "Hidden";
+
+// Socket Event Types
+export type SocketReviewEventType = "review:created" | "review:updated" | "review:deleted";
+
+export interface SocketReviewPayload {
+  reviewId: string;
+  productId: string;
+  shopId: string;
+  userId?: string;
+  rating?: number;
+  comment?: string;
+  images?: string[];
+  productRatingAvg?: number;
+  productReviewCount?: number;
+  shopRatingAvg?: number;
+  sellerReply?: string;
+  sellerReplyAt?: Date;
+}
