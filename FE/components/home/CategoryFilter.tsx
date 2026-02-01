@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FadeIn, StaggerContainer, StaggerItem } from "@/components/animations";
+import { FadeIn, StaggerItem } from "@/components/animations";
 import { ProductCard } from "./ProductCard";
 import {
   Filter,
@@ -15,10 +15,14 @@ import {
   Gamepad2,
   Palette,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useProducts } from "@/lib/hooks/useProducts";
+import useEmblaCarousel from "embla-carousel-react";
+import Autoplay from "embla-carousel-autoplay";
 
 interface Category {
   id: string;
@@ -55,6 +59,62 @@ export function CategoryFilter() {
     autoFetch: true,
   });
 
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    {
+      align: "center",
+      loop: true,
+      skipSnaps: false,
+      slidesToScroll: 1,
+      containScroll: "trimSnaps",
+    },
+    [
+      Autoplay({
+        delay: 3500,
+        stopOnInteraction: true,
+        stopOnMouseEnter: true,
+      }),
+    ]
+  );
+
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [snapCount, setSnapCount] = useState(0);
+
+  const pageSize = 1;
+  const pageCount = snapCount ? Math.ceil(snapCount / pageSize) : 0;
+  const selectedPage = Math.floor(selectedIndex / pageSize);
+
+  const updateScrollButtons = useCallback(() => {
+    if (!emblaApi) return;
+    setCanScrollPrev(emblaApi.canScrollPrev());
+    setCanScrollNext(emblaApi.canScrollNext());
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+    setSnapCount(emblaApi.scrollSnapList().length);
+  }, [emblaApi]);
+
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+
+  const scrollToPage = useCallback(
+    (pageIndex: number) => {
+      if (!emblaApi) return;
+      emblaApi.scrollTo(pageIndex);
+    },
+    [emblaApi]
+  );
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    updateScrollButtons();
+    emblaApi.on("select", updateScrollButtons);
+    emblaApi.on("reInit", updateScrollButtons);
+    return () => {
+      emblaApi.off("select", updateScrollButtons);
+      emblaApi.off("reInit", updateScrollButtons);
+    };
+  }, [emblaApi, updateScrollButtons]);
+
   const handleCategoryChange = (categoryId: string) => {
     setActiveCategory(categoryId);
     const category = categories.find((c) => c.id === categoryId);
@@ -63,12 +123,12 @@ export function CategoryFilter() {
   };
 
   return (
-    <section className="py-12 md:py-16 lg:py-20 bg-gradient-to-b from-muted/30 to-background overflow-hidden">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <section className="py-12 md:py-16 lg:py-20 overflow-hidden">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <FadeIn direction="up">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div>
+          <div className="flex items-center justify-between mb-8">
+            <div className="w-full lg:max-w-[calc(100%-140px)]">
               <h2 className="text-3xl md:text-4xl font-bold text-foreground">
                 KHÁM PHÁ THÊM
               </h2>
@@ -121,26 +181,98 @@ export function CategoryFilter() {
           </div>
         )}
 
-        {/* Product Grid */}
+        {/* Product Grid (mobile/tablet) */}
         {!loading && !error && products.length > 0 && (
-          <StaggerContainer
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
-            staggerDelay={0.05}
-          >
-            {products.map((product, index) => (
-              <StaggerItem key={product._id || product.id}>
-                <ProductCard
-                  id={product._id || product.id || ""}
-                  name={product.title}
-                  price={product.price}
-                  image={product.thumbnailUrl || undefined}
-                  gradient={gradients[index % gradients.length]}
-                  variant="default"
-                  className="shadow-md"
-                />
-              </StaggerItem>
-            ))}
-          </StaggerContainer>
+          <div className="block lg:hidden">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+              {products.map((product, index) => (
+                <StaggerItem key={product._id || product.id}>
+                  <ProductCard
+                    id={product._id || product.id || ""}
+                    name={product.title}
+                    price={product.price}
+                    image={product.thumbnailUrl || undefined}
+                    gradient={gradients[index % gradients.length]}
+                    variant="default"
+                    className="shadow-md"
+                  />
+                </StaggerItem>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Product Carousel (desktop) */}
+        {!loading && !error && products.length > 0 && (
+          <div className="hidden lg:block">
+            <div className="relative">
+              <div className="overflow-visible" ref={emblaRef}>
+                <div className="flex -ml-6 py-8 items-center">
+                  {products.map((product, index) => (
+                    <div
+                      key={product._id || product.id}
+                      className={`pl-6 flex-[0_0_33.3333%] transition-all duration-300 origin-center ${(() => {
+                        const total = snapCount || products.length;
+                        if (!total) return "opacity-100 scale-100 z-10";
+                        const diff = Math.abs(index - selectedIndex);
+                        const wrapped = Math.min(diff, total - diff);
+                        if (wrapped === 0) return "opacity-100 scale-100 z-20 group-hover:z-50";
+                        if (wrapped === 1) return "opacity-45 scale-90 z-10";
+                        return "opacity-0 scale-75 z-0 pointer-events-none";
+                      })()}`}
+                    >
+                      <ProductCard
+                        id={product._id || product.id || ""}
+                        name={product.title}
+                        price={product.price}
+                        image={product.thumbnailUrl || undefined}
+                        gradient={gradients[index % gradients.length]}
+                        variant="carousel"
+                        description="Sản phẩm hot trong danh mục này"
+                        className="shadow-md"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="absolute -left-6 top-1/2 -translate-y-1/2 rounded-full bg-white/80 hover:bg-white shadow-md z-20"
+                onClick={scrollPrev}
+                disabled={!canScrollPrev}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="absolute -right-6 top-1/2 -translate-y-1/2 rounded-full bg-white/80 hover:bg-white shadow-md z-20"
+                onClick={scrollNext}
+                disabled={!canScrollNext}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+              
+              {/* Pagination Dots */}
+              {pageCount > 1 && (
+                <div className="flex justify-center items-center mt-6 gap-2">
+                  {Array.from({ length: pageCount }).map((_, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => scrollToPage(index)}
+                      className={`h-2.5 w-2.5 rounded-full transition-colors ${index === selectedPage ? "bg-violet-600" : "bg-gray-300 hover:bg-gray-400"}`}
+                      aria-label={`Go to item ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Empty State */}

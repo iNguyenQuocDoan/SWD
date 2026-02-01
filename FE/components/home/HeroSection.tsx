@@ -39,7 +39,7 @@ export function HeroSection() {
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left: Text Content */}
-          <div className="space-y-5 md:space-y-6">
+          <div className="space-y-5 md:space-y-6 text-center lg:text-left">
             {/* Badge */}
             <FadeIn direction="down" delay={0.1}>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md bg-white/20 border border-white/30 text-white text-sm font-medium drop-shadow-md">
@@ -50,7 +50,7 @@ export function HeroSection() {
 
             {/* Headline */}
             <StaggerContainer staggerDelay={0.1} initialDelay={0.2}>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-[1.1] tracking-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-[1.1] tracking-tight mx-auto max-w-xl">
                 <StaggerItem>
                   <span className="block text-white drop-shadow-lg">MARKETPLACE</span>
                 </StaggerItem>

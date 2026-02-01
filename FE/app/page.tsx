@@ -91,7 +91,7 @@ export default function Home() {
       <div className="fixed inset-0 -z-10 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:40px_40px]" />
 
       {/* Content - Centered */}
-      <div className="relative z-0 flex flex-col items-center">
+      <div className="relative z-0 flex flex-col">
         {/* Hero Section */}
         <HeroSection />
 

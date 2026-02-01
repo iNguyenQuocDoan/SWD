@@ -17,12 +17,6 @@ const features = [
     color: "text-green-600 bg-green-100 dark:bg-green-900/30",
   },
   {
-    icon: Zap,
-    title: "AI kiểm duyệt",
-    description: "Sản phẩm được kiểm tra tự động",
-    color: "text-amber-600 bg-amber-100 dark:bg-amber-900/30",
-  },
-  {
     icon: TrendingUp,
     title: "Đánh giá uy tín",
     description: "Hệ thống Trust Level minh bạch",
@@ -32,7 +26,7 @@ const features = [
 
 export function FeaturesRow() {
   return (
-    <section className="py-12 md:py-16 border-y bg-muted/30">
+    <section className="py-12 md:py-16 border-y bg-white/5 backdrop-blur-md">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <FadeIn direction="up">
           <div className="text-center mb-8">
@@ -42,7 +36,7 @@ export function FeaturesRow() {
           </div>
         </FadeIn>
 
-        <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+        <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
           {features.map((feature) => (
             <StaggerItem key={feature.title}>
               <div className="flex flex-col items-center text-center space-y-3 p-4">
