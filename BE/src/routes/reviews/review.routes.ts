@@ -15,6 +15,7 @@ router.get("/product/:productId/stats", wrapRequestHandler(reviewController.getP
 // Shop reviews
 router.get("/shop/:shopId", wrapRequestHandler(reviewController.getReviewsByShop));
 router.get("/shop/:shopId/stats", wrapRequestHandler(reviewController.getShopRatingStats));
+router.get("/shop/:shopId/unreplied-count", wrapRequestHandler(reviewController.getUnrepliedReviewsCount));
 
 // Single review
 router.get("/:reviewId", wrapRequestHandler(reviewController.getReviewById));

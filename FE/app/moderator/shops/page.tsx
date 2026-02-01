@@ -34,6 +34,7 @@ import {
   Star,
   ShoppingBag,
   Eye,
+  MessageCircle,
 } from "lucide-react";
 
 export default function ModeratorShopsPage() {
@@ -239,6 +240,10 @@ export default function ModeratorShopsPage() {
                           <span className="flex items-center gap-1">
                             <Star className="h-3 w-3" />
                             {shop.ratingAvg.toFixed(1)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageCircle className="h-3 w-3 text-blue-500" />
+                            {shop.responseRate ?? 0}% phản hồi
                           </span>
                           <span className="flex items-center gap-1">
                             <ShoppingBag className="h-3 w-3" />

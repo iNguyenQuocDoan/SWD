@@ -13,6 +13,7 @@ export interface IShop extends Document {
   moderatorNote?: string | null; // Ghi chú từ moderator khi duyệt/từ chối
   ratingAvg: number;
   reviewCount: number;
+  responseRate: number; // Phần trăm phản hồi của shop (0-100)
   totalSales: number;
   createdAt: Date;
   updatedAt: Date;
@@ -75,6 +76,12 @@ const ShopSchema = new Schema<IShop>(
       type: Number,
       default: 0,
       min: 0,
+    },
+    responseRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
     },
     totalSales: {
       type: Number,

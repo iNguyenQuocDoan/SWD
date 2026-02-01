@@ -350,6 +350,28 @@ export class ReviewController {
   };
 
   /**
+   * Get unreplied reviews count for seller's shop
+   * GET /reviews/shop/:shopId/unreplied-count
+   */
+  getUnrepliedReviewsCount = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const shopId = Array.isArray(req.params.shopId) ? req.params.shopId[0] : req.params.shopId;
+      const count = await this.reviewService.getUnrepliedReviewsCount(shopId);
+
+      res.status(200).json({
+        success: true,
+        data: { unrepliedCount: count },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * Reply to a review (seller only, once per review)
    * POST /reviews/:reviewId/reply
    */

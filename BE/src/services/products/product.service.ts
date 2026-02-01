@@ -107,6 +107,16 @@ export class ProductService extends BaseService<IProduct> {
       .sort({ createdAt: -1 });
   }
 
+  /**
+   * Get product by ID with shop and platform populated
+   */
+  async getProductByIdWithPopulate(productId: string): Promise<IProduct | null> {
+    return this.model
+      .findById(productId)
+      .populate("platformId")
+      .populate("shopId");
+  }
+
   async getProductsByPlatform(platformId: string): Promise<IProduct[]> {
     return this.model
       .find({
@@ -151,6 +161,86 @@ export class ProductService extends BaseService<IProduct> {
     }
 
     return this.model.find(query).populate("platformId").populate("shopId");
+  }
+
+  /**
+   * Get rating stats for multiple products
+   */
+  async getProductsRatingStats(productIds: string[]): Promise<Record<string, { avgRating: number; reviewCount: number }>> {
+    if (productIds.length === 0) {
+      return {};
+    }
+
+    try {
+      const objectIds = productIds
+        .map((id) => {
+          try {
+            return new mongoose.Types.ObjectId(id);
+          } catch {
+            return null;
+          }
+        })
+        .filter((id): id is mongoose.Types.ObjectId => id !== null);
+
+      if (objectIds.length === 0) {
+        return {};
+      }
+
+      // Get reviews through orderItems to get productId
+      const ratingData = await Review.aggregate([
+        {
+          $match: {
+            status: "Visible",
+          },
+        },
+        {
+          $lookup: {
+            from: "orderitems",
+            localField: "orderItemId",
+            foreignField: "_id",
+            as: "orderItem",
+          },
+        },
+        {
+          $unwind: "$orderItem",
+        },
+        {
+          $match: {
+            "orderItem.productId": { $in: objectIds },
+          },
+        },
+        {
+          $group: {
+            _id: "$orderItem.productId",
+            avgRating: { $avg: "$rating" },
+            reviewCount: { $sum: 1 },
+          },
+        },
+      ]);
+
+      const ratingMap: Record<string, { avgRating: number; reviewCount: number }> = {};
+      ratingData.forEach((item) => {
+        ratingMap[item._id.toString()] = {
+          avgRating: Math.round(item.avgRating * 10) / 10, // Round to 1 decimal
+          reviewCount: item.reviewCount,
+        };
+      });
+
+      // Fill in zeros for products without reviews
+      productIds.forEach((id) => {
+        if (!ratingMap[id]) {
+          ratingMap[id] = { avgRating: 0, reviewCount: 0 };
+        }
+      });
+
+      return ratingMap;
+    } catch {
+      const ratingMap: Record<string, { avgRating: number; reviewCount: number }> = {};
+      productIds.forEach((id) => {
+        ratingMap[id] = { avgRating: 0, reviewCount: 0 };
+      });
+      return ratingMap;
+    }
   }
 
   /**

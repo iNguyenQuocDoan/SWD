@@ -111,6 +111,7 @@ export default function SellerHome() {
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [replyText, setReplyText] = useState("");
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+  const [unrepliedCount, setUnrepliedCount] = useState(0);
 
   const form = useForm<UpdateProductInput>({
     resolver: zodResolver(updateProductSchema),
@@ -125,12 +126,13 @@ export default function SellerHome() {
       }
       setShop(shopData);
 
-      const [productsRes, reviewsData, statsData, shopStatsData, inventoryRes] = await Promise.all([
+      const [productsRes, reviewsData, statsData, shopStatsData, inventoryRes, unrepliedReviewsCount] = await Promise.all([
         productService.getMyProducts(shopData._id),
         reviewService.getReviewsByShop(shopData._id, 1, 10),
         reviewService.getShopRatingStats(shopData._id),
         shopService.getMyShopStats(),
         inventoryService.getMyInventory({ limit: 1000 }),
+        reviewService.getUnrepliedReviewsCount(shopData._id),
       ]);
 
       setProducts(productsRes.data || []);
@@ -138,6 +140,7 @@ export default function SellerHome() {
       setRatingStats(statsData);
       setShopStats(shopStatsData);
       setInventoryItems(inventoryRes.items || []);
+      setUnrepliedCount(unrepliedReviewsCount);
     } catch {
       toast.error("Lỗi khi tải dữ liệu shop");
     } finally {
@@ -478,7 +481,7 @@ export default function SellerHome() {
         </Card>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Sản phẩm</CardTitle>
@@ -501,6 +504,16 @@ export default function SellerHome() {
               <p className="text-xs text-muted-foreground">
                 {shopStats?.totalReviews ?? ratingStats?.totalReviews ?? 0} đánh giá
               </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Tỷ lệ phản hồi</CardTitle>
+              <MessageCircle className="h-5 w-5 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">{shop.responseRate ?? 0}%</div>
+              <p className="text-xs text-muted-foreground">Đánh giá đã phản hồi</p>
             </CardContent>
           </Card>
           <Card>
@@ -565,9 +578,14 @@ export default function SellerHome() {
               <Database className="mr-2 h-4 w-4" />
               Kho hàng ({shopStats?.inventory?.available ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="reviews">
+            <TabsTrigger value="reviews" className="relative">
               <MessageSquare className="mr-2 h-4 w-4" />
               Đánh giá ({ratingStats?.totalReviews || 0})
+              {unrepliedCount > 0 && (
+                <Badge variant="destructive" className="ml-2 h-5 min-w-5 px-1.5 text-xs">
+                  {unrepliedCount}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 

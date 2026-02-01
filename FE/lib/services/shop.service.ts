@@ -16,6 +16,7 @@ export interface Shop {
   moderatorNote?: string | null;
   ratingAvg: number;
   reviewCount: number;
+  responseRate: number; // Phần trăm phản hồi của shop (0-100)
   totalSales: number;
   createdAt: string;
   updatedAt: string;

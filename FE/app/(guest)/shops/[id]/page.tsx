@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { shopService, type Shop } from "@/lib/services/shop.service";
 import { productService, type ProductResponse } from "@/lib/services/product.service";
 import { inventoryService } from "@/lib/services/inventory.service";
-import { Package, Store, Star, MessageSquare } from "lucide-react";
+import { Package, Store, Star, MessageSquare, MessageCircle } from "lucide-react";
 import { ShopReviews } from "@/components/reviews";
 
 const formatPrice = (price: number) =>
@@ -114,7 +114,7 @@ export default function PublicShopPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Sản phẩm</CardTitle>
@@ -132,6 +132,17 @@ export default function PublicShopPage() {
               <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
               <span className="text-lg font-semibold">{shop.ratingAvg?.toFixed(1) ?? "0.0"}</span>
               <span className="text-sm text-muted-foreground">({shop.reviewCount ?? 0})</span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Tỷ lệ phản hồi</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-1">
+              <MessageCircle className="h-4 w-4 text-blue-500" />
+              <span className="text-lg font-semibold text-blue-600">{shop.responseRate ?? 0}%</span>
             </div>
           </CardContent>
         </Card>

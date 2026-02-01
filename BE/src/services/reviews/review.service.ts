@@ -57,10 +57,11 @@ export class ReviewService extends BaseService<IReview> {
       status: "Visible",
     });
 
-    // Update product and shop ratings
+    // Update product and shop ratings, and response rate
     await Promise.all([
       this.updateProductRating(productId),
       this.updateShopRating(shopId),
+      this.updateShopResponseRate(shopId),
     ]);
 
     // Get updated stats for socket event
@@ -263,10 +264,11 @@ export class ReviewService extends BaseService<IReview> {
 
     await Review.findByIdAndDelete(reviewId);
 
-    // Update product and shop ratings
+    // Update product and shop ratings, and response rate
     await Promise.all([
       this.updateProductRating(productId),
       this.updateShopRating(shopId),
+      this.updateShopResponseRate(shopId),
     ]);
 
     // Get updated stats for socket event
@@ -305,10 +307,11 @@ export class ReviewService extends BaseService<IReview> {
     const productId = review.productId.toString();
     const shopId = review.shopId.toString();
 
-    // Update ratings (excluding hidden review)
+    // Update ratings and response rate (excluding hidden review)
     await Promise.all([
       this.updateProductRating(productId),
       this.updateShopRating(shopId),
+      this.updateShopResponseRate(shopId),
     ]);
 
     // Get updated stats for socket event
@@ -347,10 +350,11 @@ export class ReviewService extends BaseService<IReview> {
     const productId = review.productId.toString();
     const shopId = review.shopId.toString();
 
-    // Update ratings
+    // Update ratings and response rate
     await Promise.all([
       this.updateProductRating(productId),
       this.updateShopRating(shopId),
+      this.updateShopResponseRate(shopId),
     ]);
 
     // Get updated stats for socket event
@@ -501,6 +505,40 @@ export class ReviewService extends BaseService<IReview> {
   }
 
   /**
+   * Update shop's response rate (percentage of reviews that have seller reply)
+   */
+  async updateShopResponseRate(shopId: string): Promise<void> {
+    const [totalReviews, repliedReviews] = await Promise.all([
+      Review.countDocuments({ shopId, status: "Visible" }),
+      Review.countDocuments({
+        shopId,
+        status: "Visible",
+        sellerReply: { $ne: null, $exists: true }
+      }),
+    ]);
+
+    const responseRate = totalReviews > 0
+      ? Math.round((repliedReviews / totalReviews) * 100)
+      : 0;
+
+    await Shop.findByIdAndUpdate(shopId, { responseRate });
+  }
+
+  /**
+   * Get count of unreplied reviews for a shop
+   */
+  async getUnrepliedReviewsCount(shopId: string): Promise<number> {
+    return Review.countDocuments({
+      shopId,
+      status: "Visible",
+      $or: [
+        { sellerReply: null },
+        { sellerReply: { $exists: false } }
+      ]
+    });
+  }
+
+  /**
    * Reply to a review (seller only, once per review)
    */
   async replyToReview(
@@ -539,6 +577,9 @@ export class ReviewService extends BaseService<IReview> {
       { new: true }
     ).populate("userId", "fullName avatarUrl")
      .populate("productId", "title thumbnailUrl");
+
+    // Update shop response rate
+    await this.updateShopResponseRate(review.shopId.toString());
 
     // Emit socket event
     emitReviewEvent("review:updated", {

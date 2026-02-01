@@ -253,6 +253,25 @@ class ReviewService {
 
     throw new Error(response.message || "Failed to reply to review");
   }
+
+  /**
+   * Get count of unreplied reviews for a shop (Seller)
+   */
+  async getUnrepliedReviewsCount(shopId: string): Promise<number> {
+    try {
+      const response = await apiClient.get<{ unrepliedCount: number }>(
+        `/reviews/shop/${shopId}/unreplied-count`
+      );
+
+      if (response.success && response.data) {
+        return response.data.unrepliedCount;
+      }
+
+      return 0;
+    } catch {
+      return 0;
+    }
+  }
 }
 
 export const reviewService = new ReviewService();

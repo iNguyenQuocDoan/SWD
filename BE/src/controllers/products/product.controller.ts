@@ -68,33 +68,41 @@ export class ProductController {
 
       const paginatedProducts = products.slice(skip, skip + limitNum);
 
-      // Get sales count for products
+      // Get sales count and rating stats for products
       const productIds = paginatedProducts
         .map((p) => p._id?.toString())
         .filter((id): id is string => !!id);
 
       let salesCounts: Record<string, number> = {};
+      let ratingStats: Record<string, { avgRating: number; reviewCount: number }> = {};
+
       try {
-        salesCounts = await this.productService.getProductsSalesCount(productIds);
+        [salesCounts, ratingStats] = await Promise.all([
+          this.productService.getProductsSalesCount(productIds),
+          this.productService.getProductsRatingStats(productIds),
+        ]);
       } catch {
-        // Continue with empty salesCounts
+        // Continue with empty data
       }
 
-      // Add salesCount to each product
-      const productsWithSales = paginatedProducts.map((product) => {
+      // Add salesCount, avgRating, reviewCount to each product
+      const productsWithStats = paginatedProducts.map((product) => {
         const productId = product._id?.toString() || "";
         const salesCount = productId ? (salesCounts[productId] || 0) : 0;
+        const stats = productId ? (ratingStats[productId] || { avgRating: 0, reviewCount: 0 }) : { avgRating: 0, reviewCount: 0 };
         const productObj = product.toObject ? product.toObject() : product;
 
         return {
           ...productObj,
           salesCount,
+          avgRating: stats.avgRating,
+          reviewCount: stats.reviewCount,
         };
       });
 
       res.status(200).json({
         success: true,
-        data: productsWithSales,
+        data: productsWithStats,
         pagination: {
           page: pageNum,
           limit: limitNum,
@@ -114,15 +122,29 @@ export class ProductController {
   ): Promise<void> => {
     try {
       const productId = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
-      const product = await this.productService.findById(productId);
+      const product = await this.productService.getProductByIdWithPopulate(productId);
 
       if (!product || product.isDeleted || product.status !== "Approved") {
         throw new AppError(MESSAGES.ERROR.PRODUCT.NOT_FOUND, 404);
       }
 
+      // Get sales count and rating stats
+      const [salesCounts, ratingStats] = await Promise.all([
+        this.productService.getProductsSalesCount([productId]),
+        this.productService.getProductsRatingStats([productId]),
+      ]);
+
+      const productObj = product.toObject ? product.toObject() : product;
+      const stats = ratingStats[productId] || { avgRating: 0, reviewCount: 0 };
+
       res.status(200).json({
         success: true,
-        data: product,
+        data: {
+          ...productObj,
+          salesCount: salesCounts[productId] || 0,
+          avgRating: stats.avgRating,
+          reviewCount: stats.reviewCount,
+        },
       });
     } catch (error) {
       next(error);
