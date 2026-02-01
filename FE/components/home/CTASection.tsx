@@ -13,57 +13,51 @@ export function CTASection() {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left: Floating Images */}
           <FadeIn direction="right" delay={0.2}>
-            <div className="relative h-[320px] hidden lg:block overflow-hidden">
-              {/* Image cards with floating animation */}
-              <motion.div
-                className="absolute left-0 top-0 w-48 h-48 rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-400 shadow-xl overflow-hidden"
-                animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-              </motion.div>
+            <div className="relative h-[320px] hidden lg:flex justify-center items-center overflow-hidden">
+            <div className="relative w-[400px] h-[350px] translate-x-[40%]">
 
-              <motion.div
-                className="absolute left-32 top-12 w-56 h-56 rounded-2xl bg-gradient-to-br from-orange-400 to-pink-400 shadow-xl overflow-hidden z-10"
-                animate={{ y: [0, 10, 0], rotate: [2, -2, 2] }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-              </motion.div>
+                <motion.div
+                  className="absolute left-0 top-0 w-48 h-48 rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-400 shadow-xl overflow-hidden"
+                  animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
+                  transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                />
 
-              <motion.div
-                className="absolute left-8 top-52 w-44 h-44 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-xl overflow-hidden"
-                animate={{ y: [0, -10, 0], rotate: [-1, 1, -1] }}
-                transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-              </motion.div>
+                <motion.div
+                  className="absolute left-32 top-12 w-56 h-56 rounded-2xl bg-gradient-to-br from-orange-400 to-pink-400 shadow-xl overflow-hidden z-10"
+                  animate={{ y: [0, 10, 0], rotate: [2, -2, 2] }}
+                  transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                />
 
-              <motion.div
-                className="absolute left-48 bottom-0 w-40 h-52 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-500 shadow-xl overflow-hidden"
-                animate={{ y: [0, 12, 0], rotate: [1, -1, 1] }}
-                transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-              </motion.div>
+                <motion.div
+                  className="absolute left-8 top-52 w-44 h-44 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-xl overflow-hidden"
+                  animate={{ y: [0, -10, 0], rotate: [-1, 1, -1] }}
+                  transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                />
 
-              {/* User avatars overlay */}
-              <div className="absolute left-20 top-40 flex -space-x-3 z-20">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="w-10 h-10 rounded-full border-3 border-white bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold shadow-lg"
-                  >
-                    {String.fromCharCode(64 + i)}
-                  </div>
-                ))}
+                <motion.div
+                  className="absolute left-48 bottom-0 w-40 h-52 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-500 shadow-xl overflow-hidden"
+                  animate={{ y: [0, 12, 0], rotate: [1, -1, 1] }}
+                  transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+                />
+
+                <div className="absolute left-20 top-40 flex -space-x-3 z-20">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="w-10 h-10 rounded-full border-2 border-white bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold shadow-lg"
+                    >
+                      {String.fromCharCode(64 + i)}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </FadeIn>
 
+
           {/* Right: Content */}
           <FadeIn direction="left" delay={0.3}>
-          <div className="space-y-6 lg:pl-2222 xl:pl-35">
+            <div className="space-y-6 lg:pl-2222 xl:pl-35">
 
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground leading-tight">
                 BẮT ĐẦU BÁN
