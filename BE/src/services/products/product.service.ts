@@ -158,30 +158,21 @@ export class ProductService extends BaseService<IProduct> {
    */
   async getProductsSalesCount(productIds: string[]): Promise<Record<string, number>> {
     if (productIds.length === 0) {
-      console.log("[ProductService] No product IDs provided for sales count");
       return {};
     }
 
-    console.log("[ProductService] Getting sales count for products:", {
-      count: productIds.length,
-      ids: productIds.slice(0, 5), // Log first 5
-    });
-
     try {
-      // Convert string IDs to ObjectIds, filter out invalid ones
       const objectIds = productIds
         .map((id) => {
           try {
             return new mongoose.Types.ObjectId(id);
-          } catch (error) {
-            console.warn(`[ProductService] Invalid product ID: ${id}`, error);
+          } catch {
             return null;
           }
         })
         .filter((id): id is mongoose.Types.ObjectId => id !== null);
 
       if (objectIds.length === 0) {
-        console.warn("[ProductService] No valid ObjectIds to query");
         return {};
       }
 
@@ -200,34 +191,19 @@ export class ProductService extends BaseService<IProduct> {
         },
       ]);
 
-      console.log("[ProductService] Sales data from aggregation:", {
-        found: salesData.length,
-        data: salesData.slice(0, 3), // Log first 3
-      });
-
       const salesMap: Record<string, number> = {};
       salesData.forEach((item) => {
-        const id = item._id.toString();
-        salesMap[id] = item.salesCount;
+        salesMap[item._id.toString()] = item.salesCount;
       });
 
-      // Initialize all products with 0 sales if not found
       productIds.forEach((id) => {
         if (!salesMap[id]) {
           salesMap[id] = 0;
         }
       });
 
-      console.log("[ProductService] Final sales map:", {
-        totalProducts: productIds.length,
-        withSales: Object.keys(salesMap).filter((k) => salesMap[k] > 0).length,
-        map: Object.entries(salesMap).slice(0, 5), // Log first 5
-      });
-
       return salesMap;
-    } catch (error) {
-      console.error("[ProductService] Error in getProductsSalesCount:", error);
-      // Return empty map with all products set to 0
+    } catch {
       const salesMap: Record<string, number> = {};
       productIds.forEach((id) => {
         salesMap[id] = 0;
@@ -353,8 +329,7 @@ export class ProductService extends BaseService<IProduct> {
    */
   async getFeaturedProducts(limit: number = 4): Promise<IProduct[]> {
     try {
-      console.log("[ProductService] getFeaturedProducts called with limit:", limit);
-      // First, get sales count per product
+      // Get sales count per product
       const salesByProduct = await OrderItem.aggregate([
       {
         $match: {
@@ -431,10 +406,6 @@ export class ProductService extends BaseService<IProduct> {
       .slice(0, limit);
 
     const productIds = productsWithStats.map((p) => p.productId);
-    console.log("[ProductService] getFeaturedProducts - productIds:", {
-      count: productIds.length,
-      ids: productIds.slice(0, 3).map((id) => id.toString()),
-    });
 
     // Get products
     let products = await this.model
@@ -446,8 +417,6 @@ export class ProductService extends BaseService<IProduct> {
       .populate("platformId")
       .populate("shopId")
       .lean();
-    
-    console.log("[ProductService] getFeaturedProducts - found products:", products.length);
 
     // Sort products to match the stats order
     const productMap = new Map(products.map((p) => [p._id.toString(), p]));
@@ -457,7 +426,6 @@ export class ProductService extends BaseService<IProduct> {
 
     // If we don't have enough products, fill with recent approved products
     if (products.length < limit) {
-      console.log("[ProductService] getFeaturedProducts - filling with recent products, need:", limit - products.length);
       const existingIds = products.map((p) => p._id);
       const additionalProducts = await this.model
         .find({
@@ -472,20 +440,10 @@ export class ProductService extends BaseService<IProduct> {
         .lean();
 
       products.push(...additionalProducts);
-      console.log("[ProductService] getFeaturedProducts - after filling:", products.length);
     }
 
-    console.log("[ProductService] getFeaturedProducts - final result:", {
-      count: products.length,
-      products: products.slice(0, 2).map((p: any) => ({
-        id: p._id?.toString() || p.id,
-        title: p.title,
-      })),
-    });
-
     return products as IProduct[];
-    } catch (error) {
-      console.error("[ProductService] getFeaturedProducts error:", error);
+    } catch {
       // Return empty array on error, but try to get recent products as fallback
       try {
         const fallbackProducts = await this.model
@@ -498,10 +456,8 @@ export class ProductService extends BaseService<IProduct> {
           .sort({ createdAt: -1 })
           .limit(limit)
           .lean();
-        console.log("[ProductService] getFeaturedProducts - using fallback, found:", fallbackProducts.length);
         return fallbackProducts as IProduct[];
-      } catch (fallbackError) {
-        console.error("[ProductService] getFeaturedProducts fallback error:", fallbackError);
+      } catch {
         return [];
       }
     }
@@ -639,16 +595,6 @@ export class ProductService extends BaseService<IProduct> {
 
       products.push(...additionalWithStats);
     }
-
-    console.log("[ProductService] getTopProducts - final result:", {
-      count: products.length,
-      products: products.slice(0, 2).map((p: any) => ({
-        id: p._id?.toString() || p.id,
-        title: p.title,
-        salesCount: p.salesCount,
-        avgRating: p.avgRating,
-      })),
-    });
 
     return products as IProduct[];
   }

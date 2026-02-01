@@ -43,9 +43,6 @@ export class ProductController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      console.log("[Products API] ===== getProducts called =====");
-      console.log("[Products API] Query params:", req.query);
-      
       const {
         platformId,
         planType,
@@ -73,29 +70,13 @@ export class ProductController {
 
       // Get sales count for products
       const productIds = paginatedProducts
-        .map((p) => {
-          const id = p._id?.toString();
-          if (!id) {
-            console.warn("[Products API] Product missing _id:", p);
-          }
-          return id;
-        })
+        .map((p) => p._id?.toString())
         .filter((id): id is string => !!id);
-
-      console.log("[Products API] Getting sales counts for products:", {
-        productIdsCount: productIds.length,
-        productIds: productIds.slice(0, 5), // Log first 5
-      });
 
       let salesCounts: Record<string, number> = {};
       try {
         salesCounts = await this.productService.getProductsSalesCount(productIds);
-        console.log("[Products API] Sales counts received:", {
-          salesCountsKeys: Object.keys(salesCounts).length,
-          salesCounts: Object.entries(salesCounts).slice(0, 5), // Log first 5
-        });
-      } catch (error) {
-        console.error("[Products API] Error getting sales counts:", error);
+      } catch {
         // Continue with empty salesCounts
       }
 
@@ -103,17 +84,7 @@ export class ProductController {
       const productsWithSales = paginatedProducts.map((product) => {
         const productId = product._id?.toString() || "";
         const salesCount = productId ? (salesCounts[productId] || 0) : 0;
-        
         const productObj = product.toObject ? product.toObject() : product;
-        
-        // Debug log per product
-        if (paginatedProducts.indexOf(product) < 3) { // Log first 3 only
-          console.log(`[Products API] Product ${productId}:`, {
-            title: product.title,
-            salesCount,
-            hasId: !!productId,
-          });
-        }
 
         return {
           ...productObj,
@@ -268,25 +239,13 @@ export class ProductController {
   ): Promise<void> => {
     try {
       const limit = Number.parseInt(req.query.limit as string, 10) || 4;
-      console.log("[ProductController] getFeaturedProducts called with limit:", limit);
       const products = await this.productService.getFeaturedProducts(limit);
-      console.log("[ProductController] getFeaturedProducts result:", {
-        count: products.length,
-        products: products.slice(0, 2).map((p: any) => ({
-          id: p._id?.toString() || p.id,
-          title: p.title,
-          status: p.status,
-        })),
-      });
 
-      // Always return an array, even if empty
       res.status(200).json({
         success: true,
         data: Array.isArray(products) ? products : [],
       });
-    } catch (error) {
-      console.error("[ProductController] getFeaturedProducts error:", error);
-      // Return empty array on error instead of throwing
+    } catch {
       res.status(200).json({
         success: true,
         data: [],
@@ -301,24 +260,13 @@ export class ProductController {
   ): Promise<void> => {
     try {
       const limit = Number.parseInt(req.query.limit as string, 10) || 5;
-      console.log("[ProductController] getTopProducts called with limit:", limit);
       const products = await this.productService.getTopProducts(limit);
-      console.log("[ProductController] getTopProducts result:", {
-        count: products.length,
-        products: products.slice(0, 2).map((p: any) => ({
-          id: p._id?.toString() || p.id,
-          title: p.title,
-        })),
-      });
 
-      // Always return an array, even if empty
       res.status(200).json({
         success: true,
         data: Array.isArray(products) ? products : [],
       });
-    } catch (error) {
-      console.error("[ProductController] getTopProducts error:", error);
-      // Return empty array on error instead of throwing
+    } catch {
       res.status(200).json({
         success: true,
         data: [],

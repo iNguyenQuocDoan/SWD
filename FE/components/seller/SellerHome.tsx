@@ -55,12 +55,14 @@ import {
   Eye,
   ShoppingBag,
   MessageSquare,
+  MessageCircle,
   Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
   Loader2,
   Database,
+  Reply,
 } from "lucide-react";
 
 const formatPrice = (price: number) => {
@@ -104,6 +106,12 @@ export default function SellerHome() {
   const [keysText, setKeysText] = useState("");
   const [isSubmittingInventory, setIsSubmittingInventory] = useState(false);
 
+  // Reply to review states
+  const [isReplyModalOpen, setIsReplyModalOpen] = useState(false);
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+
   const form = useForm<UpdateProductInput>({
     resolver: zodResolver(updateProductSchema),
   });
@@ -130,8 +138,7 @@ export default function SellerHome() {
       setRatingStats(statsData);
       setShopStats(shopStatsData);
       setInventoryItems(inventoryRes.items || []);
-    } catch (error) {
-      console.error("Error fetching shop data:", error);
+    } catch {
       toast.error("Lỗi khi tải dữ liệu shop");
     } finally {
       setIsLoading(false);
@@ -223,6 +230,39 @@ export default function SellerHome() {
     }
   };
 
+  const handleReplyClick = (review: Review) => {
+    setSelectedReview(review);
+    setReplyText("");
+    setIsReplyModalOpen(true);
+  };
+
+  const handleReplySubmit = async () => {
+    if (!selectedReview || !replyText.trim()) {
+      toast.error("Vui lòng nhập nội dung phản hồi");
+      return;
+    }
+
+    setIsSubmittingReply(true);
+    try {
+      await reviewService.replyToReview(selectedReview._id, replyText.trim());
+      toast.success("Đã gửi phản hồi thành công");
+      setIsReplyModalOpen(false);
+      await fetchData(); // Refresh reviews
+    } catch (error: unknown) {
+      const maybeMessage =
+        error && typeof error === "object" && "message" in error
+          ? (error as { message?: unknown }).message
+          : undefined;
+      const message =
+        typeof maybeMessage === "string"
+          ? maybeMessage
+          : "Không thể gửi phản hồi. Vui lòng thử lại.";
+      toast.error(message);
+    } finally {
+      setIsSubmittingReply(false);
+    }
+  };
+
   const onUpdateSubmit = async (data: UpdateProductInput) => {
     if (!selectedProduct?._id) return;
 
@@ -257,8 +297,7 @@ export default function SellerHome() {
       toast.success("Đã xóa sản phẩm thành công");
       setProducts((prev) => prev.filter((p) => p._id !== selectedProduct?._id));
       setIsDeleteModalOpen(false);
-    } catch (error) {
-      console.error("Error deleting product:", error);
+    } catch {
       toast.error("Lỗi khi xóa sản phẩm");
     } finally {
       setIsSubmitting(false);
@@ -688,37 +727,110 @@ export default function SellerHome() {
             {ratingStats && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Phân bố đánh giá</CardTitle>
+                  <CardTitle>Thống kê đánh giá</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {/* TODO: render distribution */}
-                  <div className="text-sm text-muted-foreground">Chưa có thống kê chi tiết.</div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-4xl font-bold">{ratingStats.averageRating.toFixed(1)}</div>
+                    <div className="flex-1 space-y-1">
+                      {[5, 4, 3, 2, 1].map((star) => {
+                        const count = ratingStats.ratingDistribution[star] || 0;
+                        const percentage = ratingStats.totalReviews > 0 ? (count / ratingStats.totalReviews) * 100 : 0;
+                        return (
+                          <div key={star} className="flex items-center gap-2 text-sm">
+                            <span className="w-3">{star}</span>
+                            <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-yellow-400 rounded-full"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="w-8 text-right text-muted-foreground">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">Tổng {ratingStats.totalReviews} đánh giá</p>
                 </CardContent>
               </Card>
             )}
             <Card>
               <CardHeader>
                 <CardTitle>Đánh giá gần đây</CardTitle>
-                <CardDescription>Đánh giá từ khách hàng</CardDescription>
+                <CardDescription>Đánh giá từ khách hàng - Bạn có thể phản hồi 1 lần cho mỗi đánh giá</CardDescription>
               </CardHeader>
               <CardContent>
                 {reviews.length === 0 ? (
                   <div className="text-sm text-muted-foreground">Chưa có đánh giá.</div>
                 ) : (
                   <div className="space-y-4">
-                    {reviews.map((r) => (
-                      <div key={(r as any)._id || (r as any).id} className="border rounded-lg p-4 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {renderStars((r as any).rating || 0)}
-                            <span className="text-sm text-muted-foreground">
-                              {(r as any).createdAt ? formatDate((r as any).createdAt) : ""}
-                            </span>
+                    {reviews.map((r) => {
+                      const productInfo = typeof r.productId === "object" ? r.productId : null;
+                      const userInfo = typeof r.userId === "object" ? r.userId : null;
+                      return (
+                        <div key={r._id} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                {renderStars(r.rating)}
+                                <span className="text-sm font-medium">
+                                  {userInfo?.fullName || "Khách hàng"}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  {r.createdAt ? formatDate(r.createdAt) : ""}
+                                </span>
+                              </div>
+                              {productInfo && (
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  Sản phẩm: {productInfo.title}
+                                </p>
+                              )}
+                              <p className="text-sm">{r.comment}</p>
+                              {r.images && r.images.length > 0 && (
+                                <div className="flex gap-2 mt-2">
+                                  {r.images.map((img, idx) => (
+                                    <img
+                                      key={idx}
+                                      src={img}
+                                      alt={`Review image ${idx + 1}`}
+                                      className="w-16 h-16 object-cover rounded-lg border"
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {!r.sellerReply && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleReplyClick(r)}
+                              >
+                                <Reply className="mr-1 h-4 w-4" />
+                                Phản hồi
+                              </Button>
+                            )}
                           </div>
+
+                          {/* Seller Reply */}
+                          {r.sellerReply && (
+                            <div className="ml-6 p-3 bg-muted/50 rounded-lg border-l-2 border-primary">
+                              <div className="flex items-center gap-2 mb-1">
+                                <MessageCircle className="h-4 w-4 text-primary" />
+                                <span className="text-sm font-medium text-primary">Phản hồi của shop</span>
+                                {r.sellerReplyAt && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDate(r.sellerReplyAt)}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm">{r.sellerReply}</p>
+                            </div>
+                          )}
                         </div>
-                        <div className="text-sm">{(r as any).comment || (r as any).content || ""}</div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -941,6 +1053,65 @@ export default function SellerHome() {
             <Link href="/seller/orders">Xem lịch sử bán hàng</Link>
           </Button>
         </div>
+
+        {/* Reply to Review Modal */}
+        <Dialog open={isReplyModalOpen} onOpenChange={setIsReplyModalOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Phản hồi đánh giá</DialogTitle>
+              <DialogDescription>
+                Bạn chỉ có thể phản hồi 1 lần cho mỗi đánh giá. Hãy cân nhắc kỹ trước khi gửi.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedReview && (
+              <div className="space-y-4 py-2">
+                {/* Original Review */}
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    {renderStars(selectedReview.rating)}
+                    <span className="text-sm text-muted-foreground">
+                      {selectedReview.createdAt ? formatDate(selectedReview.createdAt) : ""}
+                    </span>
+                  </div>
+                  <p className="text-sm">{selectedReview.comment}</p>
+                </div>
+
+                {/* Reply Input */}
+                <div className="space-y-2">
+                  <Label htmlFor="reply-text">Nội dung phản hồi *</Label>
+                  <Textarea
+                    id="reply-text"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="Nhập phản hồi của bạn..."
+                    className="min-h-[120px]"
+                    maxLength={1000}
+                  />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {replyText.length}/1000 ký tự
+                  </p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsReplyModalOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                onClick={handleReplySubmit}
+                disabled={isSubmittingReply || !replyText.trim()}
+              >
+                {isSubmittingReply && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Gửi phản hồi
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </RequireAuth>
   );

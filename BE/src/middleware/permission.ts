@@ -58,7 +58,7 @@ export const checkPermission = (...requiredPermissions: string[]) => {
 
       next();
     } catch (error) {
-      console.error("Permission check error:", error);
+      // Permission check error
       res.status(500).json({
         success: false,
         message: MESSAGES.ERROR.GENERAL.INTERNAL_SERVER_ERROR,
@@ -121,7 +121,7 @@ export const checkAllPermissions = (...requiredPermissions: string[]) => {
 
       next();
     } catch (error) {
-      console.error("Permission check error:", error);
+      // Permission check error
       res.status(500).json({
         success: false,
         message: MESSAGES.ERROR.GENERAL.INTERNAL_SERVER_ERROR,
@@ -167,7 +167,7 @@ export const hasPermission = async (
     const userPermissions = new Set(roleDoc.permissions || []);
     return userPermissions.has(requiredPermission);
   } catch (error) {
-    console.error("Permission check error:", error);
+    // Permission check error
     return false;
   }
 };
@@ -210,7 +210,7 @@ export const getUserPermissions = async (
 
     return roleDoc.permissions || [];
   } catch (error) {
-    console.error("Get user permissions error:", error);
+    // Get user permissions error
     return [];
   }
 };

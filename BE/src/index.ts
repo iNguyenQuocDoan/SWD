@@ -1,4 +1,5 @@
 import express from "express";
+import { createServer } from "http";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -9,15 +10,25 @@ import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
 import connectDB from "@/config/database";
 import { env } from "@/config/env";
+import { initializeSocket } from "@/config/socket";
 import apiRoutes from "@/routes";
 import { errorHandler } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
 import { schedulerService } from "@/services/scheduler/scheduler.service";
+import { PermissionService } from "@/services/auth/permission.service";
 
 const app = express();
 
-// Connect to database
-connectDB();
+// Connect to database and sync permissions
+connectDB().then(async () => {
+  try {
+    // Auto-sync permissions on startup
+    await PermissionService.assignDefaultPermissions();
+    console.log("Permissions synced successfully");
+  } catch (error) {
+    console.error("Failed to sync permissions:", error);
+  }
+});
 
 // Start disbursement scheduler (auto-release escrow after 72h)
 schedulerService.startDisbursementScheduler();
@@ -89,11 +100,17 @@ app.use((_req, res) => {
 // Error handler
 app.use(errorHandler);
 
+// Create HTTP server and initialize Socket.io
+const httpServer = createServer(app);
+const io = initializeSocket(httpServer);
+
 // Start server
 const PORT = env.port;
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
   console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
+  console.log(`WebSocket server ready`);
 });
 
+export { io };
 export default app;

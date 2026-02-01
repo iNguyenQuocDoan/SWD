@@ -142,8 +142,7 @@ export const decryptSecret = (cipherText: string | undefined | null): string => 
     let decrypted = decipher.update(dataHex, "hex", "utf8");
     decrypted += decipher.final("utf8");
     return decrypted;
-  } catch (error) {
-    console.error("[decryptSecret] Decryption failed:", error);
+  } catch {
     return "";
   }
 };

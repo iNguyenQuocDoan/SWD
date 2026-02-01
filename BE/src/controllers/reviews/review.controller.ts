@@ -7,14 +7,21 @@ import { z } from "zod";
 // Validation schemas
 const createReviewSchema = z.object({
   orderItemId: z.string().min(1, "Order item ID is required"),
+  productId: z.string().min(1, "Product ID is required"),
   shopId: z.string().min(1, "Shop ID is required"),
   rating: z.number().min(1).max(5),
   comment: z.string().min(1, "Comment is required").max(1000),
+  images: z.array(z.string().url()).max(5, "Maximum 5 images allowed").optional(),
 });
 
 const updateReviewSchema = z.object({
   rating: z.number().min(1).max(5).optional(),
   comment: z.string().min(1).max(1000).optional(),
+  images: z.array(z.string().url()).max(5, "Maximum 5 images allowed").optional(),
+});
+
+const sellerReplySchema = z.object({
+  reply: z.string().min(1, "Reply is required").max(1000, "Reply must be at most 1000 characters"),
 });
 
 export class ReviewController {
@@ -40,15 +47,74 @@ export class ReviewController {
       const review = await this.reviewService.createReview(
         userId,
         validatedData.orderItemId,
+        validatedData.productId,
         validatedData.shopId,
         validatedData.rating,
-        validatedData.comment
+        validatedData.comment,
+        validatedData.images
       );
 
       res.status(201).json({
         success: true,
         message: "Review created successfully",
         data: review,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get reviews by product ID
+   * GET /reviews/product/:productId
+   */
+  getReviewsByProduct = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const productId = Array.isArray(req.params.productId)
+        ? req.params.productId[0]
+        : req.params.productId;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const rating = req.query.rating ? parseInt(req.query.rating as string) : undefined;
+
+      const result = await this.reviewService.getReviewsByProduct(productId, {
+        page,
+        limit,
+        rating,
+        status: "Visible",
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get product rating statistics
+   * GET /reviews/product/:productId/stats
+   */
+  getProductRatingStats = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const productId = Array.isArray(req.params.productId)
+        ? req.params.productId[0]
+        : req.params.productId;
+      const stats = await this.reviewService.getProductRatingStats(productId);
+
+      res.status(200).json({
+        success: true,
+        data: stats,
       });
     } catch (error) {
       next(error);
@@ -277,6 +343,36 @@ export class ReviewController {
       res.status(200).json({
         success: true,
         data: stats,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Reply to a review (seller only, once per review)
+   * POST /reviews/:reviewId/reply
+   */
+  replyToReview = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const reviewId = Array.isArray(req.params.reviewId) ? req.params.reviewId[0] : req.params.reviewId;
+      const validatedData = sellerReplySchema.parse(req.body);
+
+      const review = await this.reviewService.replyToReview(
+        reviewId,
+        userId,
+        validatedData.reply
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Reply added successfully",
+        data: review,
       });
     } catch (error) {
       next(error);

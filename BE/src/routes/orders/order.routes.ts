@@ -16,6 +16,9 @@ router.get("/", orderController.getMyOrders);
 // Get seller order items (history of sales)
 router.get("/seller/items", orderController.getSellerOrderItems);
 
+// Confirm delivery of an order item (customer confirms receipt)
+router.post("/items/:itemId/confirm", orderController.confirmDelivery);
+
 // Get order by order code (must be before /:orderId to avoid conflicts)
 router.get("/code/:orderCode", orderController.getOrderByCode);
 

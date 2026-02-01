@@ -10,7 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { shopService, type Shop } from "@/lib/services/shop.service";
 import { productService, type ProductResponse } from "@/lib/services/product.service";
 import { inventoryService } from "@/lib/services/inventory.service";
-import { Package, Store, Star } from "lucide-react";
+import { Package, Store, Star, MessageSquare } from "lucide-react";
+import { ShopReviews } from "@/components/reviews";
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
@@ -130,6 +131,7 @@ export default function PublicShopPage() {
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
               <span className="text-lg font-semibold">{shop.ratingAvg?.toFixed(1) ?? "0.0"}</span>
+              <span className="text-sm text-muted-foreground">({shop.reviewCount ?? 0})</span>
             </div>
           </CardContent>
         </Card>
@@ -209,6 +211,9 @@ export default function PublicShopPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Shop Reviews */}
+      <ShopReviews shopId={shopId} />
     </div>
   );
 }

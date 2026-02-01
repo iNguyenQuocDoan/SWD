@@ -113,42 +113,18 @@ class ProductService {
    * Get featured products (based on rating and sales)
    */
   async getFeaturedProducts(limit: number = 4): Promise<ApiResponse<ProductResponse[]>> {
-    console.log("[ProductService] getFeaturedProducts called with limit:", limit);
-    try {
-      const response = await apiClient.get<ProductResponse[]>("/products/featured", {
-        params: { limit },
-      });
-      console.log("[ProductService] getFeaturedProducts response:", {
-        success: response.success,
-        hasData: !!response.data,
-        dataLength: Array.isArray(response.data) ? response.data.length : "N/A",
-      });
-      return response;
-    } catch (error) {
-      console.error("[ProductService] getFeaturedProducts error:", error);
-      throw error;
-    }
+    return apiClient.get<ProductResponse[]>("/products/featured", {
+      params: { limit },
+    });
   }
 
   /**
    * Get top products (best selling and highest rated)
    */
   async getTopProducts(limit: number = 5): Promise<ApiResponse<ProductResponse[]>> {
-    console.log("[ProductService] getTopProducts called with limit:", limit);
-    try {
-      const response = await apiClient.get<ProductResponse[]>("/products/top", {
-        params: { limit },
-      });
-      console.log("[ProductService] getTopProducts response:", {
-        success: response.success,
-        hasData: !!response.data,
-        dataLength: Array.isArray(response.data) ? response.data.length : "N/A",
-      });
-      return response;
-    } catch (error) {
-      console.error("[ProductService] getTopProducts error:", error);
-      throw error;
-    }
+    return apiClient.get<ProductResponse[]>("/products/top", {
+      params: { limit },
+    });
   }
 }
 
