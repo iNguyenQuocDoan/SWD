@@ -11,9 +11,9 @@ function RedirectToSellerRegister() {
   }, [router]);
 
   return null;
-      }
+}
 
-export default function BecomeSellerPage() {
+export default function BecomeSellerEkycPage() {
   return (
     <Suspense fallback={null}>
       <RedirectToSellerRegister />

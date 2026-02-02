@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import path from "node:path";
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
+import mongoose from "mongoose";
 import connectDB from "@/config/database";
 import { env } from "@/config/env";
 import apiRoutes from "@/routes";
@@ -15,12 +16,6 @@ import { MESSAGES } from "@/constants/messages";
 import { schedulerService } from "@/services/scheduler/scheduler.service";
 
 const app = express();
-
-// Connect to database
-connectDB();
-
-// Start disbursement scheduler (auto-release escrow after 72h)
-schedulerService.startDisbursementScheduler();
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -89,11 +84,41 @@ app.use((_req, res) => {
 // Error handler
 app.use(errorHandler);
 
-// Start server
+const startServer = async () => {
+  await connectDB();
+
+  // Start disbursement scheduler (auto-release escrow after 72h)
+  schedulerService.startDisbursementScheduler();
+
 const PORT = env.port;
-app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
   console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
 });
+
+  const shutdown = async (signal: string) => {
+    console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+
+    try {
+      await mongoose.connection.close(false);
+    } catch {
+      // ignore
+    }
+
+    process.exit(0);
+  };
+
+  process.on("SIGINT", () => {
+    void shutdown("SIGINT");
+  });
+
+  process.on("SIGTERM", () => {
+    void shutdown("SIGTERM");
+  });
+};
+
+void startServer();
 
 export default app;

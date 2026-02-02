@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { registerSellerSchema, createShopSchema, type RegisterSellerInput, type CreateShopInput } from "@/lib/validations";
+import {
+  registerSellerSchema,
+  createShopSchema,
+  type RegisterSellerInput,
+  type CreateShopInput,
+} from "@/lib/validations";
 import { useAuthStore } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,42 +34,63 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Store, User, Clock, CheckCircle, XCircle, AlertCircle, Calendar, MessageSquare, ArrowRight, ArrowLeft, RefreshCw } from "lucide-react";
+import {
+  Store,
+  User,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Calendar,
+  MessageSquare,
+  ArrowRight,
+  ArrowLeft,
+  RefreshCw,
+  ShieldCheck,
+  ClipboardList,
+} from "lucide-react";
 import { authService } from "@/lib/services/auth.service";
 import { shopService, Shop } from "@/lib/services/shop.service";
 import { Textarea } from "@/components/ui/textarea";
+import { ekycService } from "@/lib/services/ekyc.service";
+import { EkycInline } from "@/components/ekyc/EkycInline";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function RegisterSellerContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingShop, setIsCheckingShop] = useState(true);
   const [existingShop, setExistingShop] = useState<Shop | null>(null);
   const [showReregisterForm, setShowReregisterForm] = useState(false);
+  const [isKycVerified, setIsKycVerified] = useState(false);
+  const [step, setStep] = useState<"shop" | "ekyc">("shop");
+
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Check if coming from reregister link
   const isReregisterMode = searchParams.get("reregister") === "true";
-
-  // Nếu đã đăng nhập, chỉ cần form tạo shop đơn giản
   const isLoggedIn = isAuthenticated && user;
 
-  // Kiểm tra xem user đã có shop chưa
   useEffect(() => {
     const checkExistingShop = async () => {
       if (isLoggedIn) {
         try {
           setIsCheckingShop(true);
-          const shop = await shopService.getMyShop();
-          setExistingShop(shop);
+          const [shop, kyc] = await Promise.all([
+            shopService.getMyShop().catch(() => null),
+            ekycService.getSession().catch(() => null),
+          ]);
 
-          // Auto show form if reregister mode and shop is Closed
+          setExistingShop(shop);
+          setIsKycVerified(kyc?.status === "VERIFIED");
+
           if (isReregisterMode && shop?.status === "Closed") {
             setShowReregisterForm(true);
           }
         } catch (error) {
           console.error("Error checking existing shop:", error);
           setExistingShop(null);
+          setIsKycVerified(false);
         } finally {
           setIsCheckingShop(false);
         }
@@ -73,10 +99,9 @@ function RegisterSellerContent() {
       }
     };
 
-    checkExistingShop();
+    void checkExistingShop();
   }, [isLoggedIn, isReregisterMode]);
 
-  // Dùng schema khác nhau tùy vào trạng thái đăng nhập
   const sellerForm = useForm<RegisterSellerInput>({
     resolver: zodResolver(registerSellerSchema),
     defaultValues: {
@@ -97,7 +122,6 @@ function RegisterSellerContent() {
     },
   });
 
-  // Pre-fill form with old shop data when reregistering
   useEffect(() => {
     if (showReregisterForm && existingShop && existingShop.status === "Closed") {
       shopForm.setValue("shopName", existingShop.shopName);
@@ -105,14 +129,17 @@ function RegisterSellerContent() {
     }
   }, [showReregisterForm, existingShop, shopForm]);
 
-  // Type assertion để TypeScript hiểu
   const form = (isLoggedIn ? shopForm : sellerForm) as typeof sellerForm;
 
   const onSubmit = async (data: RegisterSellerInput | CreateShopInput) => {
     setIsLoading(true);
     try {
       if (isLoggedIn && user) {
-        // Trường hợp 1: User đã đăng nhập → Chỉ tạo Shop mới (hoặc đăng ký lại)
+        if (!isKycVerified) {
+          toast.error("Vui lòng hoàn thành xác thực eKYC trước khi tạo shop.");
+          return;
+        }
+
         const shopData = data as CreateShopInput;
 
         await shopService.createShop({
@@ -120,17 +147,16 @@ function RegisterSellerContent() {
           description: shopData.description || undefined,
         });
 
-        const message = existingShop?.status === "Closed"
+        const message =
+          existingShop?.status === "Closed"
           ? "Đăng ký lại thành công! Shop đang chờ phê duyệt."
           : "Tạo shop thành công! Shop đang chờ phê duyệt.";
 
         toast.success(message);
 
-        // Reset state and reload to show pending status
         setShowReregisterForm(false);
         window.location.href = "/seller/register";
       } else {
-        // Trường hợp 2: Chưa đăng nhập → Tạo User + Shop cùng lúc
         const sellerData = data as RegisterSellerInput;
 
         await authService.registerSeller({
@@ -151,15 +177,12 @@ function RegisterSellerContent() {
       const errorMessage = error?.message || "Đăng ký thất bại. Vui lòng thử lại.";
 
       if (errorMessage.includes("already has a shop") || errorMessage.includes("đã có shop")) {
-        toast.error(
-          "Bạn đã có shop. Vui lòng kiểm tra trạng thái shop của bạn.",
-          {
+        toast.error("Bạn đã có shop. Vui lòng kiểm tra trạng thái shop của bạn.", {
             action: {
               label: "Xem trạng thái",
               onClick: () => router.push("/seller/register"),
             },
-          }
-        );
+        });
       } else {
         toast.error(errorMessage);
       }
@@ -213,7 +236,6 @@ function RegisterSellerContent() {
     }
   };
 
-  // Loading state khi đang kiểm tra shop
   if (isLoggedIn && isCheckingShop) {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
@@ -232,7 +254,6 @@ function RegisterSellerContent() {
     );
   }
 
-  // ========== TRƯỜNG HỢP: Shop bị từ chối (Closed) - Hiển thị trạng thái và option đăng ký lại ==========
   if (isLoggedIn && existingShop && existingShop.status === "Closed" && !showReregisterForm) {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
@@ -240,27 +261,19 @@ function RegisterSellerContent() {
           <CardHeader className="space-y-2">
             <div className="flex items-center gap-3 justify-center">
               <XCircle className="h-8 w-8 md:h-10 md:w-10 text-red-500" />
-              <CardTitle className="text-2xl md:text-3xl text-center">
-                Đơn đăng ký bị từ chối
-              </CardTitle>
+              <CardTitle className="text-2xl md:text-3xl text-center">Đơn đăng ký bị từ chối</CardTitle>
             </div>
-            <CardDescription className="text-center text-base">
-              Đơn đăng ký bán hàng của bạn đã bị từ chối. Vui lòng xem chi tiết bên dưới.
-            </CardDescription>
+            <CardDescription className="text-center text-base">Đơn đăng ký bán hàng của bạn đã bị từ chối. Vui lòng xem chi tiết bên dưới.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Shop Info cũ */}
             <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">{existingShop.shopName}</h3>
                 {getShopStatusBadge(existingShop.status)}
               </div>
-              {existingShop.description && (
-                <p className="text-sm text-muted-foreground">{existingShop.description}</p>
-              )}
+              {existingShop.description && <p className="text-sm text-muted-foreground">{existingShop.description}</p>}
             </div>
 
-            {/* Lý do từ chối - Nổi bật */}
             {existingShop.moderatorNote && (
               <Alert variant="destructive" className="border-2">
                 <MessageSquare className="h-5 w-5" />
@@ -271,7 +284,6 @@ function RegisterSellerContent() {
               </Alert>
             )}
 
-            {/* Thông tin thời gian */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
@@ -289,14 +301,11 @@ function RegisterSellerContent() {
               </div>
             </div>
 
-            {/* Hướng dẫn đăng ký lại */}
             <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
               <div className="flex items-start gap-3">
                 <RefreshCw className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium text-blue-900 dark:text-blue-200">
-                    Bạn có thể đăng ký lại
-                  </p>
+                  <p className="font-medium text-blue-900 dark:text-blue-200">Bạn có thể đăng ký lại</p>
                   <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                     Hãy xem xét lý do từ chối và điều chỉnh thông tin shop phù hợp trước khi đăng ký lại.
                   </p>
@@ -304,21 +313,14 @@ function RegisterSellerContent() {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-col gap-3 pt-2">
-              <Button
-                size="lg"
-                className="w-full h-12 text-base"
-                onClick={() => setShowReregisterForm(true)}
-              >
+              <Button size="lg" className="w-full h-12 text-base" onClick={() => setShowReregisterForm(true)}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Đăng ký lại bán hàng
               </Button>
 
               <Button variant="ghost" asChild className="w-full">
-                <Link href="/">
-                  Quay về trang chủ
-                </Link>
+                <Link href="/">Quay về trang chủ</Link>
               </Button>
             </div>
           </CardContent>
@@ -327,7 +329,6 @@ function RegisterSellerContent() {
     );
   }
 
-  // ========== TRƯỜNG HỢP: Shop đang Pending/Active/Suspended - Hiển thị trạng thái ==========
   if (isLoggedIn && existingShop && existingShop.status !== "Closed") {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
@@ -335,37 +336,26 @@ function RegisterSellerContent() {
           <CardHeader className="space-y-2">
             <div className="flex items-center gap-3 justify-center">
               <Store className="h-8 w-8 md:h-10 md:w-10 text-primary" />
-              <CardTitle className="text-2xl md:text-3xl text-center">
-                Trạng thái đăng ký
-              </CardTitle>
+              <CardTitle className="text-2xl md:text-3xl text-center">Trạng thái đăng ký</CardTitle>
             </div>
-            <CardDescription className="text-center text-base">
-              Bạn đã đăng ký bán hàng. Dưới đây là trạng thái đơn đăng ký của bạn.
-            </CardDescription>
+            <CardDescription className="text-center text-base">Bạn đã đăng ký bán hàng. Dưới đây là trạng thái đơn đăng ký của bạn.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Shop Info */}
             <div className="p-4 bg-muted/50 rounded-lg space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">{existingShop.shopName}</h3>
                 {getShopStatusBadge(existingShop.status)}
               </div>
-              {existingShop.description && (
-                <p className="text-sm text-muted-foreground">{existingShop.description}</p>
-              )}
+              {existingShop.description && <p className="text-sm text-muted-foreground">{existingShop.description}</p>}
             </div>
 
-            {/* Status Details */}
             <div className="space-y-4">
-              {/* Status Message */}
               {existingShop.status === "Pending" && (
                 <div className="p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
                   <div className="flex items-start gap-3">
                     <Clock className="h-6 w-6 text-orange-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="font-medium text-orange-900 dark:text-orange-200">
-                        Đang chờ duyệt
-                      </p>
+                      <p className="font-medium text-orange-900 dark:text-orange-200">Đang chờ duyệt</p>
                       <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
                         Đơn đăng ký của bạn đang được moderator xem xét. Chúng tôi sẽ thông báo khi có kết quả.
                       </p>
@@ -379,9 +369,7 @@ function RegisterSellerContent() {
                   <div className="flex items-start gap-3">
                     <CheckCircle className="h-6 w-6 text-green-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="font-medium text-green-900 dark:text-green-200">
-                        Shop đã được duyệt!
-                      </p>
+                      <p className="font-medium text-green-900 dark:text-green-200">Shop đã được duyệt!</p>
                       <p className="text-sm text-green-700 dark:text-green-300 mt-1">
                         Chúc mừng! Bạn có thể bắt đầu thêm sản phẩm và bán hàng ngay bây giờ.
                       </p>
@@ -395,9 +383,7 @@ function RegisterSellerContent() {
                   <div className="flex items-start gap-3">
                     <AlertCircle className="h-6 w-6 text-yellow-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="font-medium text-yellow-900 dark:text-yellow-200">
-                        Shop bị tạm ngưng
-                      </p>
+                      <p className="font-medium text-yellow-900 dark:text-yellow-200">Shop bị tạm ngưng</p>
                       <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
                         Shop của bạn đã bị tạm ngưng hoạt động. Vui lòng liên hệ admin để biết thêm chi tiết.
                       </p>
@@ -406,7 +392,6 @@ function RegisterSellerContent() {
                 </div>
               )}
 
-              {/* Registration Details */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
@@ -426,7 +411,6 @@ function RegisterSellerContent() {
                 )}
               </div>
 
-              {/* Moderator Note */}
               {existingShop.moderatorNote && (
                 <div className="space-y-2 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <Label className="text-sm font-medium flex items-center gap-2">
@@ -438,7 +422,6 @@ function RegisterSellerContent() {
               )}
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-col gap-3">
               {existingShop.status === "Active" && (
                 <Button asChild className="w-full h-12 text-base">
@@ -450,9 +433,7 @@ function RegisterSellerContent() {
               )}
 
               <Button variant="ghost" asChild className="w-full">
-                <Link href="/">
-                  Quay về trang chủ
-                </Link>
+                <Link href="/">Quay về trang chủ</Link>
               </Button>
             </div>
           </CardContent>
@@ -461,14 +442,14 @@ function RegisterSellerContent() {
     );
   }
 
-  // ========== TRƯỜNG HỢP: Form đăng ký (chưa có shop HOẶC đang đăng ký lại) ==========
   const isReregistering = showReregisterForm && existingShop?.status === "Closed";
+
+  const showInlineEkyc = isLoggedIn;
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[calc(100vh-200px)] py-10 md:py-16">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-xl">
         <CardHeader className="space-y-2">
-          {/* Back button khi đang reregister */}
           {isReregistering && (
             <Button
               variant="ghost"
@@ -491,12 +472,7 @@ function RegisterSellerContent() {
               <Store className="h-8 w-8 md:h-10 md:w-10 text-primary" />
             )}
             <CardTitle className="text-2xl md:text-3xl text-center">
-              {isReregistering
-                ? "Đăng ký lại"
-                : isLoggedIn
-                  ? "Tạo Shop"
-                  : "Đăng ký bán hàng"
-              }
+              {isReregistering ? "Đăng ký lại" : isLoggedIn ? "Tạo Shop" : "Đăng ký bán hàng"}
             </CardTitle>
           </div>
           <CardDescription className="text-center text-base">
@@ -504,30 +480,35 @@ function RegisterSellerContent() {
               ? "Điều chỉnh thông tin và gửi đơn đăng ký mới"
               : isLoggedIn
                 ? `Xin chào ${user?.name}! Tạo shop của bạn để bắt đầu bán sản phẩm số`
-                : "Tạo tài khoản và shop của bạn để bắt đầu bán sản phẩm số"
-            }
+                : "Tạo tài khoản và shop của bạn để bắt đầu bán sản phẩm số"}
           </CardDescription>
-
-          {/* Nhắc nhở lý do từ chối khi đăng ký lại */}
-          {isReregistering && existingShop?.moderatorNote && (
-            <Alert className="mt-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <span className="font-medium">Lưu ý:</span> Đơn trước bị từ chối vì: {existingShop.moderatorNote}
-              </AlertDescription>
-            </Alert>
-          )}
 
           {isLoggedIn && !isReregistering && (
             <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
               <User className="h-4 w-4" />
-              <span>Shop sẽ được liên kết với tài khoản: <strong>{user?.email}</strong></span>
+              <span>
+                Shop sẽ được liên kết với tài khoản: <strong>{user?.email}</strong>
+              </span>
             </div>
           )}
         </CardHeader>
+
         <CardContent>
+          <Tabs value={step} onValueChange={(v) => setStep(v as any)} className="w-full">
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="shop" className="gap-2">
+                <ClipboardList className="h-4 w-4" />
+                Thông tin shop
+              </TabsTrigger>
+              <TabsTrigger value="ekyc" className="gap-2" disabled={!isLoggedIn}>
+                <ShieldCheck className="h-4 w-4" />
+                eKYC
+              </TabsTrigger>
+            </TabsList>
+
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 mt-4">
+                <TabsContent value="shop" className="space-y-5">
               {!isLoggedIn && (
                 <>
                   <FormField
@@ -537,11 +518,7 @@ function RegisterSellerContent() {
                       <FormItem>
                         <FormLabel className="text-base">Tên hiển thị</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Nguyễn Văn A"
-                            className="h-11 text-base"
-                            {...field}
-                          />
+                              <Input placeholder="Nguyễn Văn A" className="h-11 text-base" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -555,12 +532,7 @@ function RegisterSellerContent() {
                       <FormItem>
                         <FormLabel className="text-base">Email</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="example@email.com"
-                            type="email"
-                            className="h-11 text-base"
-                            {...field}
-                          />
+                              <Input placeholder="example@email.com" type="email" className="h-11 text-base" {...field} />
                         </FormControl>
                         <FormMessage />
                         <p className="text-xs text-muted-foreground">
@@ -577,12 +549,7 @@ function RegisterSellerContent() {
                       <FormItem>
                         <FormLabel className="text-base">Mật khẩu</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="••••••••"
-                            type="password"
-                            className="h-11 text-base"
-                            {...field}
-                          />
+                              <Input placeholder="••••••••" type="password" className="h-11 text-base" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -596,12 +563,7 @@ function RegisterSellerContent() {
                       <FormItem>
                         <FormLabel className="text-base">Xác nhận mật khẩu</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="••••••••"
-                            type="password"
-                            className="h-11 text-base"
-                            {...field}
-                          />
+                              <Input placeholder="••••••••" type="password" className="h-11 text-base" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -619,11 +581,7 @@ function RegisterSellerContent() {
                       Tên Shop {isReregistering && <span className="text-muted-foreground">(có thể đổi)</span>}
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Shop của tôi"
-                        className="h-11 text-base"
-                        {...field}
-                      />
+                          <Input placeholder="Shop của tôi" className="h-11 text-base" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -647,29 +605,58 @@ function RegisterSellerContent() {
                       />
                     </FormControl>
                     <FormMessage />
-                    <p className="text-xs text-muted-foreground">
-                      Mô tả về shop của bạn (tùy chọn, tối đa 500 ký tự)
-                    </p>
+                        <p className="text-xs text-muted-foreground">Mô tả về shop của bạn (tùy chọn, tối đa 500 ký tự)</p>
                   </FormItem>
                 )}
               />
 
+                  <div className="flex justify-end">
+                    {showInlineEkyc ? (
+                      <Button type="button" onClick={() => setStep("ekyc")}>
+                        Tiếp tục (eKYC)
+                      </Button>
+                    ) : (
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading ? "Đang đăng ký..." : "Đăng ký bán hàng"}
+                      </Button>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="ekyc" className="space-y-4">
+                  {showInlineEkyc ? (
+                    <>
+                      <EkycInline onVerified={() => setIsKycVerified(true)} />
+
+                      {!isKycVerified ? (
+                        <Alert className="mt-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>Bạn cần hoàn thành eKYC trước khi có thể tạo shop.</AlertDescription>
+                        </Alert>
+                      ) : null}
+
+                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+                        <Button type="button" variant="outline" onClick={() => setStep("shop")}>
+                          Quay lại
+                        </Button>
               <Button
                 type="submit"
-                className="w-full h-12 text-base md:text-lg"
-                disabled={isLoading || !!(isLoggedIn && isCheckingShop)}
+                          disabled={isLoading || !isKycVerified}
               >
-                {isLoading
-                  ? (isReregistering ? "Đang gửi đơn..." : isLoggedIn ? "Đang tạo shop..." : "Đang đăng ký...")
-                  : (isLoggedIn && isCheckingShop)
-                  ? "Đang kiểm tra..."
-                  : isReregistering
-                    ? "Gửi đơn đăng ký lại"
-                    : (isLoggedIn ? "Tạo Shop" : "Đăng ký bán hàng")
-                }
+                          {isLoading ? "Đang tạo shop..." : isReregistering ? "Gửi đơn đăng ký lại" : "Tạo Shop"}
               </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>Vui lòng đăng nhập để thực hiện eKYC và tạo shop.</AlertDescription>
+                    </Alert>
+                  )}
+                </TabsContent>
             </form>
           </Form>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

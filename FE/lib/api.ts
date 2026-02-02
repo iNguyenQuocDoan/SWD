@@ -77,6 +77,12 @@ class ApiClient {
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+
+        // If sending FormData, let Axios set correct multipart boundary
+        if (config.data instanceof FormData && config.headers) {
+          delete (config.headers as any)["Content-Type"];
+          delete (config.headers as any)["content-type"];
+        }
         
         // Disable cache cho tất cả requests, đặc biệt là /auth/me
         if (config.headers) {
