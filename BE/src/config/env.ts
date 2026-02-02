@@ -19,6 +19,9 @@ interface EnvConfig {
   vnpayReturnUrl: string;
   vnpayIpnUrl: string;
   backendUrl: string;
+  cloudinaryCloudName: string;
+  cloudinaryApiKey: string;
+  cloudinaryApiSecret: string;
 }
 
 const getEnvConfig = (): EnvConfig => {
@@ -61,6 +64,9 @@ const getEnvConfig = (): EnvConfig => {
       process.env.VNPAY_RETURN_URL || `${process.env.BACKEND_URL || "http://localhost:3001"}/api/payments/vnpay/return`,
     vnpayIpnUrl: process.env.VNPAY_IPN_URL || "",
     backendUrl: process.env.BACKEND_URL || "http://localhost:3001",
+    cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
+    cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || "",
+    cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || "",
   };
 };
 

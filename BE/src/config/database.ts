@@ -11,8 +11,11 @@ const connectDB = async (retries = MAX_RETRIES): Promise<void> => {
       throw new Error("MONGODB_URI is not defined in environment variables");
     }
 
+    const isProduction = process.env.NODE_ENV === "production";
+
     const conn = await mongoose.connect(mongoURI, {
       serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      autoIndex: !isProduction, // Disable auto index in production to avoid duplicate index errors
     });
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {

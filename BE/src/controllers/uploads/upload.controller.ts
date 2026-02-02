@@ -1,6 +1,6 @@
 import { Response } from "express";
-import path from "node:path";
 import { AuthRequest } from "@/middleware/auth";
+import { uploadToCloudinary } from "@/config/cloudinary";
 
 export class UploadController {
   uploadSingle = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -14,20 +14,28 @@ export class UploadController {
       return;
     }
 
-    // Normalize to URL path (always forward slashes)
-    const relativePath = path.posix.join("uploads", file.filename);
-    const publicUrl = `/uploads/${file.filename}`;
+    try {
+      // Upload to Cloudinary
+      const result = await uploadToCloudinary(file.buffer, "marketplace");
 
-    res.status(201).json({
-      success: true,
-      data: {
-        filename: file.filename,
-        mimetype: file.mimetype,
-        size: file.size,
-        path: relativePath,
-        url: publicUrl,
-      },
-    });
+      res.status(201).json({
+        success: true,
+        data: {
+          filename: result.public_id,
+          mimetype: `image/${result.format}`,
+          size: result.bytes,
+          width: result.width,
+          height: result.height,
+          url: result.secure_url,
+          publicId: result.public_id,
+        },
+      });
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to upload image",
+      });
+    }
   };
 }
-
