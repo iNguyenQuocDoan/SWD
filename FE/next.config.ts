@@ -1,6 +1,52 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Image optimization
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.cloudinary.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "via.placeholder.com",
+        pathname: "/**",
+      },
+    ],
+    // Optimize for Vercel
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24, // 24 hours
+  },
+
+  // Compression
+  compress: true,
+
+  // Production optimizations
+  reactStrictMode: true,
+  poweredByHeader: false,
+
+  // Optimize bundle - tree shake large packages
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "@radix-ui/react-icons",
+      "date-fns",
+      "framer-motion",
+    ],
+  },
+
   // Note: In production on Vercel, API routes are handled by vercel.json routing
   // Only use rewrites for local development
   async rewrites() {
