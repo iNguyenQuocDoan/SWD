@@ -42,7 +42,6 @@ const WalletSchema = new Schema<IWallet>(
   }
 );
 
-// Indexes
-WalletSchema.index({ userId: 1 });
+// Note: userId index is automatically created by unique: true
 
 export default mongoose.model<IWallet>("Wallet", WalletSchema);

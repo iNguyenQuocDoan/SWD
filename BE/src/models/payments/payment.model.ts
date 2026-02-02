@@ -111,7 +111,7 @@ const PaymentSchema = new Schema<IPayment>(
 // Indexes
 PaymentSchema.index({ userId: 1 });
 PaymentSchema.index({ walletId: 1 });
-PaymentSchema.index({ transactionRef: 1 });
+// Note: transactionRef index is automatically created by unique: true
 PaymentSchema.index({ vnpTxnRef: 1 });
 PaymentSchema.index({ status: 1 });
 PaymentSchema.index({ createdAt: -1 });
