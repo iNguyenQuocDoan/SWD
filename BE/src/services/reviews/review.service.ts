@@ -2,6 +2,7 @@ import { BaseService } from "@/services/base.service";
 import { Review, IReview, Shop, OrderItem, Product } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
 import { emitReviewEvent } from "@/config/socket";
+import mongoose from "mongoose";
 
 export class ReviewService extends BaseService<IReview> {
   constructor() {
@@ -57,31 +58,39 @@ export class ReviewService extends BaseService<IReview> {
       status: "Visible",
     });
 
-    // Update product and shop ratings, and response rate
-    await Promise.all([
-      this.updateProductRating(productId),
-      this.updateShopRating(shopId),
-      this.updateShopResponseRate(shopId),
-    ]);
-
-    // Get updated stats for socket event
+    // Get stats và update cùng lúc (chỉ gọi 1 lần)
     const [productStats, shopStats] = await Promise.all([
       this.getProductRatingStats(productId),
       this.getShopRatingStats(shopId),
     ]);
 
-    // Emit socket event
-    emitReviewEvent("review:created", {
-      reviewId: review._id.toString(),
-      productId,
-      shopId,
-      userId,
-      rating,
-      comment,
-      images,
-      productRatingAvg: productStats.averageRating,
-      productReviewCount: productStats.totalReviews,
-      shopRatingAvg: shopStats.averageRating,
+    // Update product, shop ratings và response rate (không cần gọi stats lại)
+    await Promise.all([
+      Product.findByIdAndUpdate(productId, {
+        ratingAvg: productStats.averageRating,
+        reviewCount: productStats.totalReviews,
+      }),
+      Shop.findByIdAndUpdate(shopId, {
+        ratingAvg: shopStats.averageRating,
+        reviewCount: shopStats.totalReviews,
+      }),
+      this.updateShopResponseRate(shopId),
+    ]);
+
+    // Emit socket event (non-blocking)
+    setImmediate(() => {
+      emitReviewEvent("review:created", {
+        reviewId: review._id.toString(),
+        productId,
+        shopId,
+        userId,
+        rating,
+        comment,
+        images,
+        productRatingAvg: productStats.averageRating,
+        productReviewCount: productStats.totalReviews,
+        shopRatingAvg: shopStats.averageRating,
+      });
     });
 
     return review;
@@ -415,70 +424,78 @@ export class ReviewService extends BaseService<IReview> {
   }
 
   /**
-   * Get product rating statistics
+   * Get product rating statistics (optimized with aggregation)
    */
   async getProductRatingStats(productId: string): Promise<{
     averageRating: number;
     totalReviews: number;
     ratingDistribution: Record<number, number>;
   }> {
-    const reviews = await Review.find({ productId, status: "Visible" });
+    const result = await Review.aggregate([
+      { $match: { productId: new mongoose.Types.ObjectId(productId), status: "Visible" } },
+      {
+        $group: {
+          _id: null,
+          totalReviews: { $sum: 1 },
+          avgRating: { $avg: "$rating" },
+          rating1: { $sum: { $cond: [{ $eq: ["$rating", 1] }, 1, 0] } },
+          rating2: { $sum: { $cond: [{ $eq: ["$rating", 2] }, 1, 0] } },
+          rating3: { $sum: { $cond: [{ $eq: ["$rating", 3] }, 1, 0] } },
+          rating4: { $sum: { $cond: [{ $eq: ["$rating", 4] }, 1, 0] } },
+          rating5: { $sum: { $cond: [{ $eq: ["$rating", 5] }, 1, 0] } },
+        },
+      },
+    ]);
 
-    const ratingDistribution: Record<number, number> = {
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-    };
-
-    let totalRating = 0;
-    reviews.forEach((review) => {
-      totalRating += review.rating;
-      ratingDistribution[review.rating]++;
-    });
-
-    const averageRating =
-      reviews.length > 0 ? Math.round((totalRating / reviews.length) * 10) / 10 : 0;
-
+    const stats = result[0];
     return {
-      averageRating,
-      totalReviews: reviews.length,
-      ratingDistribution,
+      averageRating: stats ? Math.round(stats.avgRating * 10) / 10 : 0,
+      totalReviews: stats?.totalReviews || 0,
+      ratingDistribution: {
+        1: stats?.rating1 || 0,
+        2: stats?.rating2 || 0,
+        3: stats?.rating3 || 0,
+        4: stats?.rating4 || 0,
+        5: stats?.rating5 || 0,
+      },
     };
   }
 
   /**
-   * Get shop rating statistics
+   * Get shop rating statistics (optimized with aggregation)
    */
   async getShopRatingStats(shopId: string): Promise<{
     averageRating: number;
     totalReviews: number;
     ratingDistribution: Record<number, number>;
   }> {
-    const reviews = await Review.find({ shopId, status: "Visible" });
+    const result = await Review.aggregate([
+      { $match: { shopId: new mongoose.Types.ObjectId(shopId), status: "Visible" } },
+      {
+        $group: {
+          _id: null,
+          totalReviews: { $sum: 1 },
+          avgRating: { $avg: "$rating" },
+          rating1: { $sum: { $cond: [{ $eq: ["$rating", 1] }, 1, 0] } },
+          rating2: { $sum: { $cond: [{ $eq: ["$rating", 2] }, 1, 0] } },
+          rating3: { $sum: { $cond: [{ $eq: ["$rating", 3] }, 1, 0] } },
+          rating4: { $sum: { $cond: [{ $eq: ["$rating", 4] }, 1, 0] } },
+          rating5: { $sum: { $cond: [{ $eq: ["$rating", 5] }, 1, 0] } },
+        },
+      },
+    ]);
 
-    const ratingDistribution: Record<number, number> = {
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-    };
-
-    let totalRating = 0;
-    reviews.forEach((review) => {
-      totalRating += review.rating;
-      ratingDistribution[review.rating]++;
-    });
-
-    const averageRating =
-      reviews.length > 0 ? Math.round((totalRating / reviews.length) * 10) / 10 : 0;
-
+    const stats = result[0];
     return {
-      averageRating,
-      totalReviews: reviews.length,
-      ratingDistribution,
+      averageRating: stats ? Math.round(stats.avgRating * 10) / 10 : 0,
+      totalReviews: stats?.totalReviews || 0,
+      ratingDistribution: {
+        1: stats?.rating1 || 0,
+        2: stats?.rating2 || 0,
+        3: stats?.rating3 || 0,
+        4: stats?.rating4 || 0,
+        5: stats?.rating5 || 0,
+      },
     };
   }
 

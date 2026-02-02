@@ -223,8 +223,8 @@ export default function PublicShopPage() {
         </CardContent>
       </Card>
 
-      {/* Shop Reviews */}
-      <ShopReviews shopId={shopId} />
+      {/* Shop Reviews - chỉ hiển thị 3 đánh giá mới nhất */}
+      <ShopReviews shopId={shopId} limit={3} showViewAll />
     </div>
   );
 }
