@@ -5,7 +5,7 @@ export interface InventoryItem {
   shopId: string;
   platformId: {
     _id: string;
-    name: string;
+    platformName: string;
     logoUrl?: string;
   } | null;
   productId: {

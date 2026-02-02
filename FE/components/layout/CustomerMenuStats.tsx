@@ -34,8 +34,7 @@ export function CustomerMenuStats() {
           walletBalance: 0,
           supportTickets: 0,
         });
-      } catch (error) {
-        console.error("Failed to fetch customer stats:", error);
+      } catch {
         // Initialize with empty data on error
         setStats({
           totalOrders: 0,

@@ -54,10 +54,7 @@ export const authenticate = async (
     };
 
     next();
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("Authentication error:", error.message);
-    }
+  } catch {
     res.status(401).json({ success: false, message: MESSAGES.ERROR.AUTH.INVALID_TOKEN });
   }
 };

@@ -24,6 +24,9 @@ interface EnvConfig {
   ekycTokenId: string;
   ekycTokenKey: string;
   ekycMacAddress: string;
+  cloudinaryCloudName: string;
+  cloudinaryApiKey: string;
+  cloudinaryApiSecret: string;
 }
 
 const getEnvConfig = (): EnvConfig => {
@@ -36,6 +39,9 @@ const getEnvConfig = (): EnvConfig => {
     "EKYC_ACCESS_TOKEN",
     "EKYC_TOKEN_ID",
     "EKYC_TOKEN_KEY",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET",
   ];
 
   const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
@@ -67,7 +73,6 @@ const getEnvConfig = (): EnvConfig => {
     vnpaySecretKey: process.env.VNPAY_SECRET_KEY!,
     vnpayUrl:
       process.env.VNPAY_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
-    // VNPay should return to backend so we can validate/lookup and then redirect to frontend with ref/status
     vnpayReturnUrl:
       process.env.VNPAY_RETURN_URL || `${process.env.BACKEND_URL || "http://localhost:3001"}/api/payments/vnpay/return`,
     vnpayIpnUrl: process.env.VNPAY_IPN_URL || "",
@@ -77,6 +82,9 @@ const getEnvConfig = (): EnvConfig => {
     ekycTokenId: process.env.EKYC_TOKEN_ID!,
     ekycTokenKey: process.env.EKYC_TOKEN_KEY!,
     ekycMacAddress: process.env.EKYC_MAC_ADDRESS || "TEST1",
+    cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME!,
+    cloudinaryApiKey: process.env.CLOUDINARY_API_KEY!,
+    cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET!,
   };
 };
 

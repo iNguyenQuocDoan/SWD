@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { RoleRedirect } from "@/components/auth/RoleRedirect";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,16 +29,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <RoleRedirect publicRoutes={["/products", "/categories", "/sellers", "/login", "/register"]}>
-            <ConditionalLayout>{children}</ConditionalLayout>
-          </RoleRedirect>
-          <Toaster />
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <RoleRedirect publicRoutes={["/products", "/categories", "/sellers", "/login", "/register"]}>
+              <ConditionalLayout>{children}</ConditionalLayout>
+            </RoleRedirect>
+            <Toaster />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

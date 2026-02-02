@@ -234,20 +234,11 @@ export class ShopService extends BaseService<IShop> {
 
       // Filter out shops where ownerUserId is null (user was deleted)
       const validShops = shops.filter((shop: any) => {
-        const hasOwner = shop.ownerUserId !== null && shop.ownerUserId !== undefined;
-        if (!hasOwner) {
-          console.warn("Shop without owner:", shop._id);
-        }
-        return hasOwner;
+        return shop.ownerUserId !== null && shop.ownerUserId !== undefined;
       });
 
       return validShops;
     } catch (error) {
-      console.error("Error in getPendingShops service:", error);
-      if (error instanceof Error) {
-        console.error("Error message:", error.message);
-        console.error("Error stack:", error.stack);
-      }
       throw error;
     }
   }

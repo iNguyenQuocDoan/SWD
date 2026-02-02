@@ -1,35 +1,75 @@
 import express from "express";
+import { createServer } from "http";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
 import cookieParser from "cookie-parser";
 import path from "node:path";
-import swaggerUi from "swagger-ui-express";
-import YAML from "yamljs";
 import mongoose from "mongoose";
 import connectDB from "@/config/database";
 import { env } from "@/config/env";
+import { initializeSocket } from "@/config/socket";
 import apiRoutes from "@/routes";
 import { errorHandler } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
 import { schedulerService } from "@/services/scheduler/scheduler.service";
+import { PermissionService } from "@/services/auth/permission.service";
 
 const app = express();
 
+const isServerless = process.env.VERCEL === "1" || process.env.AWS_LAMBDA_FUNCTION_NAME;
+const isProduction = env.nodeEnv === "production";
+
+// Connect to database with caching
+let dbConnected = false;
+const ensureDbConnection = async () => {
+  if (!dbConnected) {
+    await connectDB();
+    dbConnected = true;
+
+    // Sync permissions only once (skip on serverless cold starts for speed)
+    if (!isServerless) {
+      try {
+        await PermissionService.assignDefaultPermissions();
+        console.log("Permissions synced successfully");
+      } catch (error) {
+        console.error("Failed to sync permissions:", error);
+      }
+    }
+  }
+};
+
 // Middleware
-app.use(helmet()); // Security headers
+app.use(helmet());
 app.use(
   cors({
     origin: env.corsOrigin,
     credentials: true,
   })
 );
-app.use(compression()); // Compress responses
-app.use(morgan("dev")); // Logging
+app.use(compression());
+
+// Logging - skip in production serverless for speed
+if (!isServerless || !isProduction) {
+  app.use(morgan(isProduction ? "combined" : "dev", {
+    skip: isProduction ? (_req, res) => res.statusCode < 400 : undefined,
+  }));
+}
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
+
+// Ensure DB connection middleware
+app.use(async (_req, _res, next) => {
+  try {
+    await ensureDbConnection();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Health check
 app.get("/health", (_req, res) => {
@@ -40,35 +80,36 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// Swagger UI
-const swaggerFilePath = path.join(__dirname, "..", "swagger.yml");
-let swaggerDocument;
-try {
-  swaggerDocument = YAML.load(swaggerFilePath);
-  console.log("Swagger document loaded successfully");
+// Swagger UI - only in non-serverless (reduces cold start time)
+if (!isServerless) {
+  const swaggerUi = require("swagger-ui-express");
+  const YAML = require("yamljs");
+  const swaggerFilePath = path.join(__dirname, "..", "swagger.yml");
+  try {
+    const swaggerDocument = YAML.load(swaggerFilePath);
+    console.log("Swagger document loaded successfully");
 
-  const swaggerOptions = {
-    customCss: ".swagger-ui .topbar { display: none }",
-    customSiteTitle: "Marketplace API Documentation",
-    persistAuthorization: true, // Giữ authorization khi refresh
-    filter: true,
-    validatorUrl: null,
-    supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
-    docExpansion: "list" as const,
-  };
+    const swaggerOptions = {
+      customCss: ".swagger-ui .topbar { display: none }",
+      customSiteTitle: "Marketplace API Documentation",
+      persistAuthorization: true,
+      filter: true,
+      validatorUrl: null,
+      supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
+      docExpansion: "list" as const,
+    };
 
-  app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
+    app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
+    app.get("/swagger/", (_req, res) => {
+      res.redirect("/swagger");
+    });
+  } catch (err) {
+    console.warn("Could not load swagger file:", err);
+  }
 
-  // Redirect /swagger/ to /swagger
-  app.get("/swagger/", (_req, res) => {
-    res.redirect("/swagger");
-  });
-} catch (err) {
-  console.warn("Could not load swagger file:", err);
+  // Static files (uploads) - only for local development
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 }
-
-// Static files (uploads)
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // API Routes
 app.use("/api", apiRoutes);
@@ -84,41 +125,50 @@ app.use((_req, res) => {
 // Error handler
 app.use(errorHandler);
 
-const startServer = async () => {
-  await connectDB();
+// Create HTTP server and initialize Socket.io
+const httpServer = createServer(app);
+const io = initializeSocket(httpServer);
 
-  // Start disbursement scheduler (auto-release escrow after 72h)
-  schedulerService.startDisbursementScheduler();
+// Start server only on non-serverless
+if (!isServerless) {
+  const startServer = async () => {
+    await ensureDbConnection();
 
-const PORT = env.port;
-  const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
-  console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
-});
+    // Start disbursement scheduler (auto-release escrow after 72h)
+    schedulerService.startDisbursementScheduler();
 
-  const shutdown = async (signal: string) => {
-    console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+    const PORT = env.port;
+    httpServer.listen(PORT, () => {
+      console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
+      console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
+      console.log(`WebSocket server ready`);
+    });
 
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    const shutdown = async (signal: string) => {
+      console.log(`\nReceived ${signal}. Shutting down gracefully...`);
 
-    try {
-      await mongoose.connection.close(false);
-    } catch {
-      // ignore
-    }
+      await new Promise<void>((resolve) => httpServer.close(() => resolve()));
 
-    process.exit(0);
+      try {
+        await mongoose.connection.close(false);
+      } catch {
+        // ignore
+      }
+
+      process.exit(0);
+    };
+
+    process.on("SIGINT", () => {
+      void shutdown("SIGINT");
+    });
+
+    process.on("SIGTERM", () => {
+      void shutdown("SIGTERM");
+    });
   };
 
-  process.on("SIGINT", () => {
-    void shutdown("SIGINT");
-  });
+  void startServer();
+}
 
-  process.on("SIGTERM", () => {
-    void shutdown("SIGTERM");
-  });
-};
-
-void startServer();
-
+export { io };
 export default app;

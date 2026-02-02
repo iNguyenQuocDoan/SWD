@@ -108,9 +108,10 @@ export class OrderService extends BaseService<IOrder> {
         });
       }
 
-      // Calculate fee (2%)
-      const feeAmount = Math.round(totalAmount * 0.02);
-      const payableAmount = totalAmount + feeAmount;
+      // Calculate fee (5%) - phí này người BÁN trả, không phải người mua
+      // Người mua chỉ trả totalAmount, người bán sẽ bị trừ feeAmount khi nhận tiền
+      const feeAmount = Math.round(totalAmount * 0.05);
+      const payableAmount = totalAmount; // Người mua chỉ trả giá gốc
 
       // 2. Check wallet balance (if paying with wallet)
       if (input.paymentMethod === "Wallet") {
@@ -499,6 +500,47 @@ export class OrderService extends BaseService<IOrder> {
       .limit(limit)
       .skip(skip)
       .exec();
+  }
+
+  /**
+   * Confirm delivery of an order item (customer confirms receipt)
+   * This changes the item status from "Delivered" to "Completed"
+   */
+  async confirmDelivery(
+    orderItemId: string,
+    customerUserId: string
+  ): Promise<IOrderItem> {
+    // Find the order item
+    const orderItem = await OrderItem.findById(orderItemId).populate("orderId");
+
+    if (!orderItem) {
+      throw new AppError("Không tìm thấy mục đơn hàng", 404);
+    }
+
+    // Check ownership via orderId
+    const order = orderItem.orderId as any;
+    if (!order || order.customerUserId.toString() !== customerUserId) {
+      throw new AppError("Bạn không có quyền xác nhận mục này", 403);
+    }
+
+    // Check current status - must be "Delivered"
+    if (orderItem.itemStatus !== "Delivered") {
+      throw new AppError(
+        `Không thể xác nhận. Trạng thái hiện tại: ${orderItem.itemStatus}`,
+        400
+      );
+    }
+
+    // Update status to Completed
+    orderItem.itemStatus = "Completed";
+    await orderItem.save();
+
+    debug.log("Order item confirmed as Completed", {
+      orderItemId,
+      customerUserId,
+    });
+
+    return orderItem;
   }
 }
 

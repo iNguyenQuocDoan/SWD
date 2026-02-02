@@ -226,10 +226,6 @@ function CheckoutContent() {
                       <span className="text-muted-foreground">Tạm tính:</span>
                       <span>{formatPrice(checkoutData.subtotal)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Phí dịch vụ:</span>
-                      <span>{formatPrice(checkoutData.serviceFee)}</span>
-                    </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <span>Tổng cộng:</span>
@@ -431,10 +427,6 @@ function CheckoutContent() {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tạm tính:</span>
                       <span>{formatPrice(checkoutData.subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Phí dịch vụ:</span>
-                      <span>{formatPrice(checkoutData.serviceFee)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">

@@ -13,11 +13,14 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "VERCEL": "1"
   },
+  "regions": ["sin1"],
   "functions": {
     "dist/index.js": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "memory": 1024
     }
   },
   "installCommand": "yarn install",

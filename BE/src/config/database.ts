@@ -1,50 +1,60 @@
 import mongoose from "mongoose";
 
-const MAX_RETRIES = 5;
-const RETRY_DELAY = 5000; // 5 seconds
+const isServerless = process.env.VERCEL === "1" || process.env.AWS_LAMBDA_FUNCTION_NAME;
+const isProduction = process.env.NODE_ENV === "production";
 
-const connectDB = async (retries = MAX_RETRIES): Promise<void> => {
+// Cache connection for serverless (avoid reconnecting on every request)
+let isConnected = false;
+
+const connectDB = async (): Promise<void> => {
+  // If already connected, skip
+  if (isConnected && mongoose.connection.readyState === 1) {
+    return;
+  }
+
   try {
     const mongoURI = process.env.MONGODB_URI;
-    
+
     if (!mongoURI) {
       throw new Error("MONGODB_URI is not defined in environment variables");
     }
 
-    const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-    });
+    // Optimize settings for serverless
+    const options: mongoose.ConnectOptions = {
+      serverSelectionTimeoutMS: isServerless ? 3000 : 5000,
+      socketTimeoutMS: isServerless ? 10000 : 45000,
+      autoIndex: !isProduction,
+      maxPoolSize: isServerless ? 1 : 10,
+      minPoolSize: 0,
+      maxIdleTimeMS: isServerless ? 10000 : 30000,
+    };
+
+    const conn = await mongoose.connect(mongoURI, options);
+    isConnected = true;
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error("Database connection error:", error);
-    
-    if (retries > 0) {
-      console.log(
-        `Retrying MongoDB connection... (${MAX_RETRIES - retries + 1}/${MAX_RETRIES})`
-      );
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-      return connectDB(retries - 1);
-    }
-    
-    console.error("\nFailed to connect to MongoDB after all retries.");
-    console.error("Please ensure MongoDB is running or update MONGODB_URI in .env file");
-    console.error("   - For local MongoDB: mongodb://localhost:27017/marketplace");
-    console.error("   - For MongoDB Atlas: mongodb+srv://username:password@cluster.mongodb.net/dbname\n");
-    process.exit(1);
+    isConnected = false;
+    throw error;
   }
 };
 
-// Handle connection events
-mongoose.connection.on("disconnected", () => {
-  console.log("MongoDB disconnected");
-});
+// Handle connection events (only log in development)
+if (!isProduction) {
+  mongoose.connection.on("disconnected", () => {
+    isConnected = false;
+    console.log("MongoDB disconnected");
+  });
 
-mongoose.connection.on("error", (err: Error) => {
-  console.error("MongoDB connection error:", err);
-});
+  mongoose.connection.on("error", (err: Error) => {
+    isConnected = false;
+    console.error("MongoDB connection error:", err);
+  });
 
-mongoose.connection.on("reconnected", () => {
-  console.log("MongoDB reconnected");
-});
+  mongoose.connection.on("reconnected", () => {
+    isConnected = true;
+    console.log("MongoDB reconnected");
+  });
+}
 
 export default connectDB;

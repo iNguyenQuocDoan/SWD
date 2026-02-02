@@ -34,9 +34,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function Header() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, isLoading } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
   const { hasActiveShop, shop } = useShop();
@@ -140,7 +141,11 @@ export function Header() {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2 shrink-0">
-            {!isAuthenticated ? (
+            <ThemeToggle />
+            {isLoading ? (
+              // Skeleton while loading auth state
+              <div className="h-9 w-24 bg-muted animate-pulse rounded-lg" />
+            ) : !isAuthenticated ? (
               <>
                 <Button
                   variant="ghost"
@@ -370,7 +375,7 @@ export function Header() {
             </nav>
 
             {/* Mobile Auth */}
-            {!isAuthenticated && (
+            {!isLoading && !isAuthenticated && (
               <>
                 <div className="border-t pt-4 space-y-2">
                   <Button variant="outline" className="w-full h-11" asChild>

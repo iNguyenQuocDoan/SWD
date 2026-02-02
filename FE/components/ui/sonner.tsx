@@ -27,19 +27,19 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       toastOptions={{
         classNames: {
-          toast: "group-[.toaster]:shadow-lg group-[.toaster]:border-2",
+          toast: "shadow-lg border-2",
           success:
-            "group-[.toaster]:bg-emerald-50 group-[.toaster]:text-emerald-900 group-[.toaster]:border-emerald-500 dark:group-[.toaster]:bg-emerald-950 dark:group-[.toaster]:text-emerald-100 dark:group-[.toaster]:border-emerald-600 [&>svg]:text-emerald-600 dark:[&>svg]:text-emerald-400",
+            "!bg-emerald-50 !text-emerald-900 !border-emerald-500 dark:!bg-emerald-950 dark:!text-emerald-100 dark:!border-emerald-600 [&>svg]:!text-emerald-600 dark:[&>svg]:!text-emerald-400",
           error:
-            "group-[.toaster]:bg-red-50 group-[.toaster]:text-red-900 group-[.toaster]:border-red-500 dark:group-[.toaster]:bg-red-950 dark:group-[.toaster]:text-red-100 dark:group-[.toaster]:border-red-600 [&>svg]:text-red-600 dark:[&>svg]:text-red-400",
+            "!bg-red-50 !text-red-900 !border-red-500 dark:!bg-red-950 dark:!text-red-100 dark:!border-red-600 [&>svg]:!text-red-600 dark:[&>svg]:!text-red-400",
           warning:
-            "group-[.toaster]:bg-amber-50 group-[.toaster]:text-amber-900 group-[.toaster]:border-amber-500 dark:group-[.toaster]:bg-amber-950 dark:group-[.toaster]:text-amber-100 dark:group-[.toaster]:border-amber-600 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400",
-          info: "group-[.toaster]:bg-blue-50 group-[.toaster]:text-blue-900 group-[.toaster]:border-blue-500 dark:group-[.toaster]:bg-blue-950 dark:group-[.toaster]:text-blue-100 dark:group-[.toaster]:border-blue-600 [&>svg]:text-blue-600 dark:[&>svg]:text-blue-400",
-          description: "group-[.toast]:text-muted-foreground",
+            "!bg-amber-50 !text-amber-900 !border-amber-500 dark:!bg-amber-950 dark:!text-amber-100 dark:!border-amber-600 [&>svg]:!text-amber-600 dark:[&>svg]:!text-amber-400",
+          info: "!bg-blue-50 !text-blue-900 !border-blue-500 dark:!bg-blue-950 dark:!text-blue-100 dark:!border-blue-600 [&>svg]:!text-blue-600 dark:[&>svg]:!text-blue-400",
+          description: "text-muted-foreground",
           actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+            "bg-primary text-primary-foreground",
           cancelButton:
-            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+            "bg-muted text-muted-foreground",
         },
       }}
       style={

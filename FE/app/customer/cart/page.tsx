@@ -104,8 +104,6 @@ export default function CartPage() {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  // Không tính thuế/phí cho người mua ở bước giỏ hàng
-  const serviceFee = 0;
   const total = subtotal;
 
   const handleCheckout = () => {
@@ -256,10 +254,6 @@ export default function CartPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Tạm tính:</span>
                       <span className="font-medium">{formatPrice(subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Phí dịch vụ (2%):</span>
-                      <span className="font-medium">{formatPrice(serviceFee)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-base font-bold">

@@ -75,24 +75,27 @@ export class DisbursementService {
         shop.ownerUserId.toString()
       );
 
-      // Calculate amount (minus platform fee if applicable)
-      const disbursementAmount = orderItem.holdAmount;
+      // Calculate platform fee (5%) - người BÁN trả phí này
+      const platformFee = Math.round(orderItem.holdAmount * 0.05);
+      const sellerReceiveAmount = orderItem.holdAmount - platformFee;
 
-      // Release escrow to seller
-      // Note: Using direct DB operations here since we're in a session
+      // Release escrow: Customer holdBalance giảm toàn bộ holdAmount
+      // Seller chỉ nhận holdAmount - platformFee (98%)
+      // Platform Fee (2%) được giữ lại trong hệ thống
       await Wallet.findByIdAndUpdate(
         customerWallet._id,
         {
-          $inc: { holdBalance: -disbursementAmount },
+          $inc: { holdBalance: -orderItem.holdAmount },
           $set: { updatedAt: new Date() },
         },
         { session }
       );
 
+      // Seller nhận tiền sau khi trừ phí 2%
       await Wallet.findByIdAndUpdate(
         sellerWallet._id,
         {
-          $inc: { balance: disbursementAmount },
+          $inc: { balance: sellerReceiveAmount },
           $set: { updatedAt: new Date() },
         },
         { session }
@@ -152,12 +155,11 @@ export class DisbursementService {
 
       return {
         success: true,
-        message: `Disbursed ${disbursementAmount} VND to seller`,
+        message: `Disbursed ${sellerReceiveAmount} VND to seller (after ${platformFee} VND platform fee)`,
       };
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error("[Disbursement] Error:", error);
       throw error;
     }
   }
@@ -319,7 +321,6 @@ export class DisbursementService {
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error("[Disbursement] Refund error:", error);
       throw error;
     }
   }

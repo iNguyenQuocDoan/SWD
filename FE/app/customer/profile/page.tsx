@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/auth";
 import {
   Card,
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle,
   AlertCircle,
@@ -20,9 +22,13 @@ import {
   Shield,
   ShoppingBag,
   MessageSquare,
+  ArrowRight,
+  Package,
 } from "lucide-react";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import Link from "next/link";
+import { orderService, type OrdersResponse } from "@/lib/services/order.service";
+import type { Order } from "@/types";
 
 // Helper function to get initials from name
 function getInitials(name: string): string {
@@ -55,8 +61,50 @@ function getRoleText(role: string): string {
   return map[role] || role;
 }
 
+// Helper to get order status badge
+function getOrderStatusBadge(status: string) {
+  switch (status) {
+    case "Pending":
+      return <Badge variant="outline" className="border-yellow-500 text-yellow-600">Chờ thanh toán</Badge>;
+    case "Paid":
+      return <Badge variant="outline" className="border-blue-500 text-blue-600">Đã thanh toán</Badge>;
+    case "Processing":
+      return <Badge variant="outline" className="border-purple-500 text-purple-600">Đang xử lý</Badge>;
+    case "Completed":
+      return <Badge variant="outline" className="border-green-500 text-green-600">Hoàn thành</Badge>;
+    case "Cancelled":
+      return <Badge variant="outline" className="border-red-500 text-red-600">Đã hủy</Badge>;
+    case "Refunded":
+      return <Badge variant="outline" className="border-gray-500 text-gray-600">Hoàn tiền</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+}
+
 export default function CustomerProfilePage() {
   const { user } = useAuthStore();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const [totalOrders, setTotalOrders] = useState(0);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setIsLoadingOrders(true);
+        const response = await orderService.getMyOrders({ limit: 5, page: 1 });
+        setOrders(response.orders);
+        setTotalOrders(response.pagination.total);
+      } catch (error) {
+        console.error("Failed to fetch orders:", error);
+      } finally {
+        setIsLoadingOrders(false);
+      }
+    };
+
+    if (user) {
+      fetchOrders();
+    }
+  }, [user]);
 
   if (!user) {
     return null;
@@ -234,13 +282,87 @@ export default function CustomerProfilePage() {
 
           <TabsContent value="orders" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Đơn hàng gần đây</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Đơn hàng gần đây</CardTitle>
+                  <CardDescription>
+                    {totalOrders > 0 ? `Bạn có ${totalOrders} đơn hàng` : "Danh sách đơn hàng của bạn"}
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/customer/orders">
+                    Xem tất cả
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Chưa có đơn hàng nào
-                </p>
+                {isLoadingOrders ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      Chưa có đơn hàng nào
+                    </p>
+                    <Button variant="link" asChild className="mt-2">
+                      <Link href="/products">Khám phá sản phẩm</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {orders.map((order) => (
+                      <Link
+                        key={order.id}
+                        href={`/customer/orders/${order.id}`}
+                        className="block"
+                      >
+                        <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">
+                                #{order.orderCode}
+                              </span>
+                              {getOrderStatusBadge(order.status)}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(order.createdAt).toLocaleDateString("vi-VN", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-sm">
+                              {order.payableAmount.toLocaleString("vi-VN")} VND
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {order.orderItems?.length || 0} sản phẩm
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+
+                    {totalOrders > 5 && (
+                      <div className="text-center pt-2">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href="/customer/orders">
+                            Xem thêm {totalOrders - 5} đơn hàng khác
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

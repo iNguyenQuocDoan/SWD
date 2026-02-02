@@ -23,6 +23,9 @@ export interface ProductResponse {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  salesCount?: number; // Number of items sold
+  avgRating?: number; // Average rating
+  reviewCount?: number; // Number of reviews
 }
 
 // Backend returns: { success, data: ProductResponse[], pagination }
@@ -104,6 +107,24 @@ class ProductService {
    */
   async deleteProduct(productId: string): Promise<ApiResponse<null>> {
     return apiClient.delete<null>(`/products/${productId}`);
+  }
+
+  /**
+   * Get featured products (based on rating and sales)
+   */
+  async getFeaturedProducts(limit: number = 4): Promise<ApiResponse<ProductResponse[]>> {
+    return apiClient.get<ProductResponse[]>("/products/featured", {
+      params: { limit },
+    });
+  }
+
+  /**
+   * Get top products (best selling and highest rated)
+   */
+  async getTopProducts(limit: number = 5): Promise<ApiResponse<ProductResponse[]>> {
+    return apiClient.get<ProductResponse[]>("/products/top", {
+      params: { limit },
+    });
   }
 }
 

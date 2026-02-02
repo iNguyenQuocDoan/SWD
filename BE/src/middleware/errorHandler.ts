@@ -20,15 +20,6 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  // Always log errors for debugging
-  console.error("Error occurred:", {
-    message: err.message,
-    stack: err.stack,
-    name: err.name,
-    url: _req.url,
-    method: _req.method,
-  });
-
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       success: false,
@@ -37,8 +28,10 @@ export const errorHandler = (
     return;
   }
 
-  // Log full error details
-  console.error("Full error details:", err);
+  // Log unexpected errors in development only
+  if (env.nodeEnv !== "production") {
+    console.error("Unexpected error:", err.message);
+  }
 
   res.status(500).json({
     success: false,
