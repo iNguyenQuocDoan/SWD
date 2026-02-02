@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { useAuthStore } from "@/lib/auth";
 import { authService } from "@/lib/services/auth.service";
 import { apiClient } from "@/lib/api";
 import type { User } from "@/types";
+
+// Use useLayoutEffect on client to run before paint
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /**
  * Decode JWT payload (không verify, chỉ lấy payload).
@@ -55,31 +58,57 @@ function minimalUserFromJwt(payload: { userId: string; email: string; roleKey?: 
 
 /**
  * Auth Provider - Kiểm tra đăng nhập khi load app.
- * Nếu getMe lỗi nhưng có token hợp lệ: dùng JWT decode để set user tối thiểu,
- * tránh bị đẩy về /login khi ấn sang trang khác.
+ * Sử dụng JWT decode để set user ngay lập tức (tránh flash),
+ * sau đó gọi API để lấy thông tin đầy đủ.
  */
 export function AuthProvider({ children }: { readonly children: React.ReactNode }) {
+  // Synchronous initial check - runs before first paint to prevent flash
+  useIsomorphicLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const token = localStorage.getItem("accessToken");
+    const hasCookie = document.cookie.includes("accessToken=");
+
+    if (token || hasCookie) {
+      // Immediately set user from JWT to prevent flash
+      const payload = token ? decodeJwtPayload(token) : null;
+      if (payload?.userId && payload?.email) {
+        const { user } = useAuthStore.getState();
+        // Only set if not already set (prevent overwriting full user data)
+        if (!user) {
+          useAuthStore.getState().setUser(
+            minimalUserFromJwt({ userId: payload.userId, email: payload.email, roleKey: payload.roleKey })
+          );
+        }
+      }
+    } else {
+      useAuthStore.getState().setUser(null);
+    }
+  }, []);
+
+  // Async check for full user data
   useEffect(() => {
     const checkAuth = async (retryCount = 0) => {
       try {
         await authService.getMe();
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const err = error as { response?: { status?: number }; message?: string };
         // Kiểm tra cookie trước khi quyết định
-        const hasCookie = typeof globalThis.window !== "undefined" && 
+        const hasCookie = typeof globalThis.window !== "undefined" &&
                          globalThis.document.cookie.includes("accessToken=");
         const hasLocalStorage = !!globalThis.localStorage?.getItem("accessToken");
-        
+
         // Nếu không còn cookie và localStorage, clear auth state
         if (!hasCookie && !hasLocalStorage) {
           apiClient.clearToken();
           useAuthStore.getState().setUser(null);
           return;
         }
-        
+
         // Nếu lỗi là 304 Not Modified và chưa retry, retry với timestamp mới
-        const is304 = error?.response?.status === 304 || 
-                     error?.message?.includes("304 Not Modified");
-        
+        const is304 = err?.response?.status === 304 ||
+                     err?.message?.includes("304 Not Modified");
+
         if (is304 && retryCount < 2 && (hasCookie || hasLocalStorage)) {
           // Retry với timestamp mới để bypass cache
           setTimeout(() => {
@@ -87,18 +116,9 @@ export function AuthProvider({ children }: { readonly children: React.ReactNode 
           }, 100);
           return;
         }
-        
-        // Nếu đã retry hoặc không phải 304, dùng JWT fallback
-        const token = globalThis.localStorage?.getItem("accessToken");
-        const payload = token ? decodeJwtPayload(token) : null;
-        if (payload?.userId && payload?.email) {
-          useAuthStore.getState().setUser(
-            minimalUserFromJwt({ userId: payload.userId, email: payload.email, roleKey: payload.roleKey })
-          );
-        } else {
-          apiClient.clearToken();
-          useAuthStore.getState().setUser(null);
-        }
+
+        // Nếu đã retry hoặc không phải 304, giữ nguyên user từ JWT (đã set ở trên)
+        // Không cần làm gì thêm vì user đã được set từ useLayoutEffect
       }
     };
 
@@ -109,18 +129,16 @@ export function AuthProvider({ children }: { readonly children: React.ReactNode 
 
     if (hasToken) {
       checkAuth();
-    } else {
-      useAuthStore.getState().setUser(null);
     }
 
     // Kiểm tra cookie định kỳ để phát hiện khi cookie bị xóa
     const checkCookieInterval = setInterval(() => {
       if (typeof globalThis.window === "undefined") return;
-      
+
       const hasCookie = globalThis.document.cookie.includes("accessToken=");
       const hasLocalStorage = !!globalThis.localStorage?.getItem("accessToken");
       const { isAuthenticated } = useAuthStore.getState();
-      
+
       // Nếu đang authenticated nhưng không còn cookie và localStorage
       if (isAuthenticated && !hasCookie && !hasLocalStorage) {
         // Cookie đã bị xóa - đăng xuất ngay
