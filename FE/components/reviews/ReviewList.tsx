@@ -18,7 +18,7 @@ interface ReviewListProps {
   // Pagination
   page: number;
   totalPages: number;
-  onPageChange: (page: number) => void;
+  onPageChange?: (page: number) => void;
   // Filtering
   selectedRating?: number;
   onRatingFilter?: (rating: number | undefined) => void;
@@ -126,8 +126,8 @@ export function ReviewList({
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
+      {/* Pagination - chỉ hiển thị khi có onPageChange và totalPages > 1 */}
+      {onPageChange && totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           <Button
             variant="outline"

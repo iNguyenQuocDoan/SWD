@@ -108,9 +108,10 @@ export class OrderService extends BaseService<IOrder> {
         });
       }
 
-      // Calculate fee (2%)
-      const feeAmount = Math.round(totalAmount * 0.02);
-      const payableAmount = totalAmount + feeAmount;
+      // Calculate fee (5%) - phí này người BÁN trả, không phải người mua
+      // Người mua chỉ trả totalAmount, người bán sẽ bị trừ feeAmount khi nhận tiền
+      const feeAmount = Math.round(totalAmount * 0.05);
+      const payableAmount = totalAmount; // Người mua chỉ trả giá gốc
 
       // 2. Check wallet balance (if paying with wallet)
       if (input.paymentMethod === "Wallet") {
