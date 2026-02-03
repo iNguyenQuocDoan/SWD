@@ -5,3 +5,4 @@ export { TopProducts } from "./TopProducts";
 export { CategoryFilter } from "./CategoryFilter";
 export { CTASection } from "./CTASection";
 export { ProductCard } from "./ProductCard";
+export { AnimatedBackground } from "./AnimatedBackground";

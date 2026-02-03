@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Search,
   X,
@@ -515,36 +516,24 @@ function ProductsContent() {
                     key={product._id || product.id}
                     className="group relative overflow-hidden border-0 shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 h-full flex flex-col bg-card"
                   >
-                    <Link href={`/products/${product._id || product.id}`} className="flex-1 flex flex-col">
+                    <Link href={`/products/${product._id || product.id}`} prefetch={true} className="flex-1 flex flex-col">
                       {/* Thumbnail */}
                       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                         {(product as any).thumbnailUrl ? (
-                          <>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={(product as any).thumbnailUrl}
-                              alt={product.title}
-                              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
-                              loading="lazy"
-                              onError={(e) => {
-                                // Fallback to icon if image fails to load
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                const parent = target.parentElement;
-                                if (parent) {
-                                  const fallback = parent.querySelector('.product-image-fallback') as HTMLElement;
-                                  if (fallback) {
-                                    fallback.style.display = 'flex';
-                                  }
-                                }
-                              }}
-                            />
-                          </>
+                          <Image
+                            src={(product as any).thumbnailUrl}
+                            alt={product.title}
+                            fill
+                            className="object-contain group-hover:scale-105 transition-transform duration-500"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
+                          />
                         ) : null}
                         {/* Fallback icon */}
-                        <div className="product-image-fallback absolute inset-0 h-full w-full flex items-center justify-center" style={{ display: (product as any).thumbnailUrl ? 'none' : 'flex' }}>
-                          <Package className="h-16 w-16 text-muted-foreground/30" />
-                        </div>
+                        {!(product as any).thumbnailUrl && (
+                          <div className="absolute inset-0 h-full w-full flex items-center justify-center">
+                            <Package className="h-16 w-16 text-muted-foreground/30" />
+                          </div>
+                        )}
 
                         {/* Badges overlay - Top Left */}
                         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">

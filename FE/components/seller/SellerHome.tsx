@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -629,10 +630,9 @@ export default function SellerHome() {
                         className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border rounded-xl hover:bg-muted/40 transition-colors"
                       >
                         <div className="flex-1 flex items-start gap-4">
-                          <div className="h-16 w-16 rounded-xl border bg-muted/30 overflow-hidden flex items-center justify-center flex-shrink-0">
+                          <div className="relative h-16 w-16 rounded-xl border bg-muted/30 overflow-hidden flex items-center justify-center flex-shrink-0">
                             {product.thumbnailUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={product.thumbnailUrl} alt={product.title} className="h-full w-full object-cover" />
+                              <Image src={product.thumbnailUrl} alt={product.title} fill className="object-cover" sizes="64px" />
                             ) : (
                               <Package className="h-6 w-6 text-muted-foreground" />
                             )}
@@ -703,10 +703,9 @@ export default function SellerHome() {
                           <TableRow key={product._id || product.id}>
                             <TableCell>
                               <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg border bg-muted/30 overflow-hidden flex items-center justify-center shrink-0">
+                                <div className="relative h-10 w-10 rounded-lg border bg-muted/30 overflow-hidden flex items-center justify-center shrink-0">
                                   {product.thumbnailUrl ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={product.thumbnailUrl} alt={product.title} className="h-full w-full object-cover" />
+                                    <Image src={product.thumbnailUrl} alt={product.title} fill className="object-cover" sizes="40px" />
                                   ) : (
                                     <Package className="h-4 w-4 text-muted-foreground" />
                                   )}
@@ -809,12 +808,15 @@ export default function SellerHome() {
                               {r.images && r.images.length > 0 && (
                                 <div className="flex gap-2 mt-2">
                                   {r.images.map((img, idx) => (
-                                    <img
-                                      key={idx}
-                                      src={img}
-                                      alt={`Review image ${idx + 1}`}
-                                      className="w-16 h-16 object-cover rounded-lg border"
-                                    />
+                                    <div key={idx} className="relative w-16 h-16 rounded-lg border overflow-hidden">
+                                      <Image
+                                        src={img}
+                                        alt={`Review image ${idx + 1}`}
+                                        fill
+                                        className="object-cover"
+                                        sizes="64px"
+                                      />
+                                    </div>
                                   ))}
                                 </div>
                               )}
@@ -865,12 +867,15 @@ export default function SellerHome() {
             {selectedProduct && (
               <div className="space-y-4 py-4 text-sm">
                 {selectedProduct.thumbnailUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={selectedProduct.thumbnailUrl}
-                    alt={selectedProduct.title}
-                    className="w-full h-auto max-h-64 object-contain rounded-lg border bg-muted/20"
-                  />
+                  <div className="relative w-full h-64 rounded-lg border bg-muted/20 overflow-hidden">
+                    <Image
+                      src={selectedProduct.thumbnailUrl}
+                      alt={selectedProduct.title}
+                      fill
+                      className="object-contain"
+                      sizes="(max-width: 768px) 100vw, 500px"
+                    />
+                  </div>
                 )}
                 <h3 className="font-bold text-xl">{selectedProduct.title}</h3>
                 <div className="grid grid-cols-2 gap-4">
