@@ -6,6 +6,7 @@ import morgan from "morgan";
 import compression from "compression";
 import cookieParser from "cookie-parser";
 import path from "node:path";
+import mongoose from "mongoose";
 import connectDB from "@/config/database";
 import { env } from "@/config/env";
 import { initializeSocket } from "@/config/socket";
@@ -38,14 +39,6 @@ const ensureDbConnection = async () => {
     }
   }
 };
-
-// Initial connection
-ensureDbConnection().catch(console.error);
-
-// Start scheduler only on non-serverless environments
-if (!isServerless) {
-  schedulerService.startDisbursementScheduler();
-}
 
 // Middleware
 app.use(helmet());
@@ -138,12 +131,43 @@ const io = initializeSocket(httpServer);
 
 // Start server only on non-serverless
 if (!isServerless) {
-  const PORT = env.port;
-  httpServer.listen(PORT, () => {
-    console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
-    console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
-    console.log(`WebSocket server ready`);
-  });
+  const startServer = async () => {
+    await ensureDbConnection();
+
+    // Start disbursement scheduler (auto-release escrow after 72h)
+    schedulerService.startDisbursementScheduler();
+
+    const PORT = env.port;
+    httpServer.listen(PORT, () => {
+      console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
+      console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
+      console.log(`WebSocket server ready`);
+    });
+
+    const shutdown = async (signal: string) => {
+      console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+
+      await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+
+      try {
+        await mongoose.connection.close(false);
+      } catch {
+        // ignore
+      }
+
+      process.exit(0);
+    };
+
+    process.on("SIGINT", () => {
+      void shutdown("SIGINT");
+    });
+
+    process.on("SIGTERM", () => {
+      void shutdown("SIGTERM");
+    });
+  };
+
+  void startServer();
 }
 
 export { io };

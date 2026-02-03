@@ -48,6 +48,10 @@ export type { IConversation } from "./support/conversation.model";
 export { default as Message } from "./support/message.model";
 export type { IMessage } from "./support/message.model";
 
+// eKYC models
+export { default as KycSession } from "./ekyc/kyc-session.model";
+export type { IKycSession, KycStatus } from "./ekyc/kyc-session.model";
+
 // Common models (keep at root)
 export { default as AuditLog } from "./AuditLog";
 export type { IAuditLog } from "./AuditLog";

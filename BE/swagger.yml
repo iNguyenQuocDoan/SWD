@@ -38,6 +38,8 @@ tags:
     description: Shop management endpoints
   - name: Products
     description: Product management endpoints
+  - name: Orders
+    description: Order management endpoints
   - name: Uploads
     description: File upload endpoints
 
@@ -1025,6 +1027,77 @@ components:
       description: Enter JWT token
 
   schemas:
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        roleKey:
+          type: string
+        roleName:
+          type: string
+        emailVerified:
+          type: boolean
+        phoneVerified:
+          type: boolean
+        trustLevel:
+          type: number
+        status:
+          type: string
+          enum: [Active, Locked, Banned]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserProfileUpdateRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+        phone:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        roleKey:
+          type: string
+        status:
+          type: string
+          enum: [Active, Locked, Banned]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
     Shop:
       type: object
       properties:
