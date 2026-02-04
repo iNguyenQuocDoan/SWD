@@ -24,6 +24,23 @@ const nextConfig: NextConfig = {
         hostname: "via.placeholder.com",
         pathname: "/**",
       },
+      // Bing images (thumbnails from search)
+      {
+        protocol: "https",
+        hostname: "th.bing.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.bing.com",
+        pathname: "/**",
+      },
+      // Common image CDNs - allow any external images
+      {
+        protocol: "https",
+        hostname: "**",
+        pathname: "/**",
+      },
     ],
     // Optimize for Vercel
     formats: ["image/avif", "image/webp"],

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -182,11 +183,13 @@ export default function PublicShopPage() {
                     <Card className="h-full hover:shadow-md transition-shadow overflow-hidden">
                       <CardContent className="p-0">
                         {p.thumbnailUrl && (
-                          <div className="aspect-video w-full overflow-hidden bg-muted">
-                            <img
+                          <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                            <Image
                               src={p.thumbnailUrl}
                               alt={p.title}
-                              className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform"
+                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
                             />
                           </div>
                         )}
