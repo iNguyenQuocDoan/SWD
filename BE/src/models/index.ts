@@ -44,9 +44,9 @@ export type { IReport } from "./reviews/report.model";
 export { default as SupportTicket } from "./support/support-ticket.model";
 export type { ISupportTicket } from "./support/support-ticket.model";
 export { default as Conversation } from "./support/conversation.model";
-export type { IConversation } from "./support/conversation.model";
+export type { IConversation, IConversationUnreadCount } from "./support/conversation.model";
 export { default as Message } from "./support/message.model";
-export type { IMessage } from "./support/message.model";
+export type { IMessage, IMessageAttachment } from "./support/message.model";
 
 // eKYC models
 export { default as KycSession } from "./ekyc/kyc-session.model";

@@ -32,6 +32,9 @@ export const PERMISSIONS = {
   TICKET_VIEW: "ticket:view",
   TICKET_UPDATE: "ticket:update",
   TICKET_CLOSE: "ticket:close",
+  TICKET_VIEW_ALL: "ticket:view:all", // Staff view all tickets
+  TICKET_ASSIGN: "ticket:assign", // Assign ticket to staff
+  TICKET_ESCALATE: "ticket:escalate", // Escalate ticket priority
   REVIEW_CREATE: "review:create",
   REVIEW_UPDATE: "review:update",
   REVIEW_DELETE: "review:delete",
@@ -39,6 +42,8 @@ export const PERMISSIONS = {
   CONVERSATION_VIEW: "conversation:view",
   CONVERSATION_CREATE: "conversation:create",
   CONVERSATION_MESSAGE: "conversation:message",
+  CONVERSATION_INTERNAL_NOTE: "conversation:internal_note", // Staff internal notes
+  CONVERSATION_VIEW_ALL: "conversation:view:all", // Staff view all conversations
   REFUND_REQUEST: "refund:request",
 
   // Seller permissions
@@ -309,6 +314,27 @@ export const PERMISSION_DEFINITIONS = [
     action: "close",
   },
   {
+    permissionKey: PERMISSIONS.TICKET_VIEW_ALL,
+    permissionName: "View All Tickets",
+    description: "View all support tickets (staff)",
+    resource: "ticket",
+    action: "view:all",
+  },
+  {
+    permissionKey: PERMISSIONS.TICKET_ASSIGN,
+    permissionName: "Assign Ticket",
+    description: "Assign ticket to staff member",
+    resource: "ticket",
+    action: "assign",
+  },
+  {
+    permissionKey: PERMISSIONS.TICKET_ESCALATE,
+    permissionName: "Escalate Ticket",
+    description: "Escalate ticket priority",
+    resource: "ticket",
+    action: "escalate",
+  },
+  {
     permissionKey: PERMISSIONS.REVIEW_CREATE,
     permissionName: "Create Review",
     description: "Create product review",
@@ -356,6 +382,20 @@ export const PERMISSION_DEFINITIONS = [
     description: "Send message in conversation",
     resource: "conversation",
     action: "message",
+  },
+  {
+    permissionKey: PERMISSIONS.CONVERSATION_INTERNAL_NOTE,
+    permissionName: "Add Internal Note",
+    description: "Add internal staff note to conversation",
+    resource: "conversation",
+    action: "internal_note",
+  },
+  {
+    permissionKey: PERMISSIONS.CONVERSATION_VIEW_ALL,
+    permissionName: "View All Conversations",
+    description: "View all conversations (staff)",
+    resource: "conversation",
+    action: "view:all",
   },
   {
     permissionKey: PERMISSIONS.REFUND_REQUEST,
@@ -1040,6 +1080,16 @@ export const ROLE_PERMISSIONS = {
   ],
 
   MODERATOR: [
+    // Support ticket handling
+    PERMISSIONS.TICKET_VIEW_ALL,
+    PERMISSIONS.TICKET_ASSIGN,
+    PERMISSIONS.TICKET_ESCALATE,
+    PERMISSIONS.TICKET_UPDATE,
+    PERMISSIONS.TICKET_CLOSE,
+    // Conversation handling
+    PERMISSIONS.CONVERSATION_VIEW_ALL,
+    PERMISSIONS.CONVERSATION_MESSAGE,
+    PERMISSIONS.CONVERSATION_INTERNAL_NOTE,
     // Product moderation
     // Review moderation
     PERMISSIONS.REVIEW_MODERATE,

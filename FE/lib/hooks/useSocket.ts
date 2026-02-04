@@ -3,7 +3,15 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
-// Socket event types
+// Debug logger
+const DEBUG = process.env.NODE_ENV === "development";
+const log = (action: string, data?: unknown) => {
+  if (DEBUG) {
+    console.log(`[Socket] ${action}`, data ?? "");
+  }
+};
+
+// Socket event types - Reviews
 export interface SocketReviewPayload {
   reviewId: string;
   productId: string;
@@ -19,6 +27,56 @@ export interface SocketReviewPayload {
 
 type ReviewEventType = "review:created" | "review:updated" | "review:deleted";
 type ReviewEventHandler = (payload: SocketReviewPayload) => void;
+
+// Socket event types - Chat
+export interface SocketMessagePayload {
+  messageId: string;
+  conversationId: string;
+  senderUserId: string;
+  senderName?: string;
+  messageType: "Text" | "System" | "Attachment";
+  body?: string;
+  attachments?: Array<{
+    url: string;
+    type: string;
+    fileName?: string;
+  }>;
+  isInternal?: boolean;
+  sentAt: Date | string;
+}
+
+export interface SocketConversationPayload {
+  conversationId: string;
+  status?: string;
+  lastMessagePreview?: string;
+  lastMessageAt?: Date | string;
+  unreadCount?: Record<string, number>;
+}
+
+export interface SocketTicketPayload {
+  ticketId: string;
+  ticketCode: string;
+  status?: string;
+  priority?: string;
+  assignedToUserId?: string;
+  customerUserId?: string;
+}
+
+export interface TypingPayload {
+  conversationId: string;
+  userId: string;
+  userName?: string;
+}
+
+type ChatEventType = "message:new" | "message:read" | "message:deleted";
+type ConversationEventType = "conversation:updated" | "conversation:closed";
+type TicketEventType = "ticket:created" | "ticket:updated" | "ticket:assigned" | "ticket:escalated" | "ticket:resolved";
+type TypingEventType = "typing:start" | "typing:stop";
+
+type ChatEventHandler = (payload: SocketMessagePayload) => void;
+type ConversationEventHandler = (payload: SocketConversationPayload) => void;
+type TicketEventHandler = (payload: SocketTicketPayload) => void;
+type TypingEventHandler = (payload: TypingPayload) => void;
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:3001";
 
@@ -119,15 +177,155 @@ export function useSocket() {
     };
   }, []);
 
+  // ===== Chat Socket Methods =====
+
+  // Join conversation room
+  const joinConversation = useCallback((conversationId: string) => {
+    if (socketRef.current?.connected) {
+      log("joinConversation", conversationId);
+      socketRef.current.emit("join:conversation", conversationId);
+    }
+  }, []);
+
+  // Leave conversation room
+  const leaveConversation = useCallback((conversationId: string) => {
+    if (socketRef.current?.connected) {
+      log("leaveConversation", conversationId);
+      socketRef.current.emit("leave:conversation", conversationId);
+    }
+  }, []);
+
+  // Join user room for personal notifications
+  const joinUserRoom = useCallback((userId: string) => {
+    if (socketRef.current?.connected) {
+      log("joinUserRoom", userId);
+      socketRef.current.emit("join:user", userId);
+    }
+  }, []);
+
+  // Leave user room
+  const leaveUserRoom = useCallback((userId: string) => {
+    if (socketRef.current?.connected) {
+      log("leaveUserRoom", userId);
+      socketRef.current.emit("leave:user", userId);
+    }
+  }, []);
+
+  // Join staff tickets room
+  const joinStaffTickets = useCallback(() => {
+    if (socketRef.current?.connected) {
+      log("joinStaffTickets");
+      socketRef.current.emit("join:staff:tickets");
+    }
+  }, []);
+
+  // Leave staff tickets room
+  const leaveStaffTickets = useCallback(() => {
+    if (socketRef.current?.connected) {
+      log("leaveStaffTickets");
+      socketRef.current.emit("leave:staff:tickets");
+    }
+  }, []);
+
+  // Send typing indicator
+  const sendTypingStart = useCallback((conversationId: string, userId: string, userName: string) => {
+    if (socketRef.current?.connected) {
+      socketRef.current.emit("typing:start", { conversationId, userId, userName });
+    }
+  }, []);
+
+  const sendTypingStop = useCallback((conversationId: string, userId: string) => {
+    if (socketRef.current?.connected) {
+      socketRef.current.emit("typing:stop", { conversationId, userId });
+    }
+  }, []);
+
+  // Subscribe to chat events
+  const onChatEvent = useCallback(
+    (eventType: ChatEventType, handler: ChatEventHandler) => {
+      if (socketRef.current) {
+        log("subscribing to", eventType);
+        socketRef.current.on(eventType, handler);
+      }
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.off(eventType, handler);
+        }
+      };
+    },
+    []
+  );
+
+  // Subscribe to conversation events
+  const onConversationEvent = useCallback(
+    (eventType: ConversationEventType, handler: ConversationEventHandler) => {
+      if (socketRef.current) {
+        log("subscribing to", eventType);
+        socketRef.current.on(eventType, handler);
+      }
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.off(eventType, handler);
+        }
+      };
+    },
+    []
+  );
+
+  // Subscribe to ticket events
+  const onTicketEvent = useCallback(
+    (eventType: TicketEventType, handler: TicketEventHandler) => {
+      if (socketRef.current) {
+        log("subscribing to", eventType);
+        socketRef.current.on(eventType, handler);
+      }
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.off(eventType, handler);
+        }
+      };
+    },
+    []
+  );
+
+  // Subscribe to typing events
+  const onTypingEvent = useCallback(
+    (eventType: TypingEventType, handler: TypingEventHandler) => {
+      if (socketRef.current) {
+        socketRef.current.on(eventType, handler);
+      }
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.off(eventType, handler);
+        }
+      };
+    },
+    []
+  );
+
   return {
     socket: socketRef.current,
     isConnected,
+    // Review methods
     joinProductRoom,
     leaveProductRoom,
     joinShopRoom,
     leaveShopRoom,
     onReviewEvent,
     onAnyReviewEvent,
+    // Chat methods
+    joinConversation,
+    leaveConversation,
+    joinUserRoom,
+    leaveUserRoom,
+    joinStaffTickets,
+    leaveStaffTickets,
+    sendTypingStart,
+    sendTypingStop,
+    onChatEvent,
+    onConversationEvent,
+    onTicketEvent,
+    onTypingEvent,
   };
 }
 
@@ -232,6 +430,128 @@ export function useShopReviews(
     onReviewCreated,
     onReviewUpdated,
     onReviewDeleted,
+  ]);
+
+  return { isConnected };
+}
+
+/**
+ * Hook to subscribe to real-time chat messages for a specific conversation
+ */
+export function useChatMessages(
+  conversationId: string | null,
+  onMessageNew?: ChatEventHandler,
+  onMessageDeleted?: ChatEventHandler,
+  onTypingStart?: TypingEventHandler,
+  onTypingStop?: TypingEventHandler
+) {
+  const {
+    isConnected,
+    joinConversation,
+    leaveConversation,
+    onChatEvent,
+    onTypingEvent,
+  } = useSocket();
+
+  useEffect(() => {
+    if (!conversationId || !isConnected) return;
+
+    log("useChatMessages - joining conversation", conversationId);
+    joinConversation(conversationId);
+
+    const unsubNew = onMessageNew
+      ? onChatEvent("message:new", onMessageNew)
+      : () => {};
+    const unsubDeleted = onMessageDeleted
+      ? onChatEvent("message:deleted", onMessageDeleted)
+      : () => {};
+    const unsubTypingStart = onTypingStart
+      ? onTypingEvent("typing:start", onTypingStart)
+      : () => {};
+    const unsubTypingStop = onTypingStop
+      ? onTypingEvent("typing:stop", onTypingStop)
+      : () => {};
+
+    return () => {
+      log("useChatMessages - leaving conversation", conversationId);
+      leaveConversation(conversationId);
+      unsubNew();
+      unsubDeleted();
+      unsubTypingStart();
+      unsubTypingStop();
+    };
+  }, [
+    conversationId,
+    isConnected,
+    joinConversation,
+    leaveConversation,
+    onChatEvent,
+    onTypingEvent,
+    onMessageNew,
+    onMessageDeleted,
+    onTypingStart,
+    onTypingStop,
+  ]);
+
+  return { isConnected };
+}
+
+/**
+ * Hook to subscribe to user notifications (new messages, ticket updates)
+ */
+export function useUserNotifications(
+  userId: string | null,
+  onNewMessage?: ChatEventHandler,
+  onConversationUpdate?: ConversationEventHandler,
+  onTicketUpdate?: TicketEventHandler
+) {
+  const {
+    isConnected,
+    joinUserRoom,
+    leaveUserRoom,
+    onChatEvent,
+    onConversationEvent,
+    onTicketEvent,
+  } = useSocket();
+
+  useEffect(() => {
+    if (!userId || !isConnected) return;
+
+    log("useUserNotifications - joining user room", userId);
+    joinUserRoom(userId);
+
+    const unsubNewMessage = onNewMessage
+      ? onChatEvent("message:new", onNewMessage)
+      : () => {};
+    const unsubConvUpdate = onConversationUpdate
+      ? onConversationEvent("conversation:updated", onConversationUpdate)
+      : () => {};
+    const unsubTicketCreated = onTicketUpdate
+      ? onTicketEvent("ticket:created", onTicketUpdate)
+      : () => {};
+    const unsubTicketUpdated = onTicketUpdate
+      ? onTicketEvent("ticket:updated", onTicketUpdate)
+      : () => {};
+
+    return () => {
+      log("useUserNotifications - leaving user room", userId);
+      leaveUserRoom(userId);
+      unsubNewMessage();
+      unsubConvUpdate();
+      unsubTicketCreated();
+      unsubTicketUpdated();
+    };
+  }, [
+    userId,
+    isConnected,
+    joinUserRoom,
+    leaveUserRoom,
+    onChatEvent,
+    onConversationEvent,
+    onTicketEvent,
+    onNewMessage,
+    onConversationUpdate,
+    onTicketUpdate,
   ]);
 
   return { isConnected };

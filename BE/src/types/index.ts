@@ -58,6 +58,10 @@ export type TicketStatus =
   | "Resolved"
   | "Closed";
 
+export type TicketType = "Complaint" | "Dispute" | "General";
+
+export type TicketPriority = "Low" | "Medium" | "High" | "Urgent";
+
 export type ResolutionType =
   | "None"
   | "FullRefund"
@@ -138,4 +142,54 @@ export interface SocketReviewPayload {
   shopRatingAvg?: number;
   sellerReply?: string;
   sellerReplyAt?: Date;
+}
+
+// Chat Socket Event Types
+export type SocketChatEventType =
+  | "message:new"
+  | "message:read"
+  | "message:deleted"
+  | "conversation:updated"
+  | "conversation:closed"
+  | "typing:start"
+  | "typing:stop";
+
+export type SocketTicketEventType =
+  | "ticket:created"
+  | "ticket:updated"
+  | "ticket:assigned"
+  | "ticket:escalated"
+  | "ticket:resolved";
+
+export interface SocketMessagePayload {
+  messageId: string;
+  conversationId: string;
+  senderUserId: string;
+  senderName?: string;
+  messageType: MessageType;
+  body?: string;
+  attachments?: Array<{
+    url: string;
+    type: AttachmentType;
+    fileName?: string;
+  }>;
+  isInternal?: boolean;
+  sentAt: Date;
+}
+
+export interface SocketConversationPayload {
+  conversationId: string;
+  status?: ConversationStatus;
+  lastMessagePreview?: string;
+  lastMessageAt?: Date;
+  unreadCount?: { [userId: string]: number };
+}
+
+export interface SocketTicketPayload {
+  ticketId: string;
+  ticketCode: string;
+  status?: string;
+  priority?: string;
+  assignedToUserId?: string;
+  customerUserId?: string;
 }

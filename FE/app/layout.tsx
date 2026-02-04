@@ -6,6 +6,7 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { RoleRedirect } from "@/components/auth/RoleRedirect";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { ChatProvider } from "@/components/chat";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -85,6 +86,7 @@ export default function RootLayout({
               <ConditionalLayout>{children}</ConditionalLayout>
             </RoleRedirect>
             <Toaster />
+            <ChatProvider />
           </AuthProvider>
         </ThemeProvider>
       </body>

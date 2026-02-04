@@ -52,9 +52,8 @@ export class EkycProcessController {
     const cardLivenessRaw = await faceService.cardLiveness({
       img: session.frontHash,
       client_session,
-      // @ts-expect-error - token optional depending on VNPT spec version
       token,
-    });
+    } as Parameters<typeof faceService.cardLiveness>[0]);
 
     const ocrNormalized = normalizeOcr({ ocrFrontRaw, ocrBackRaw });
 

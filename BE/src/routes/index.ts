@@ -13,6 +13,7 @@ import inventoryRoutes from "./inventory/inventory.routes";
 import complaintRoutes from "./complaints/complaint.routes";
 import ekycRoutes from "./ekyc/ekyc.routes";
 import statsRoutes from "./stats/stats.routes";
+import supportRoutes from "./support";
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.use("/inventory", inventoryRoutes);
 router.use("/complaints", complaintRoutes);
 router.use("/ekyc", ekycRoutes);
 router.use("/stats", statsRoutes);
+router.use("/support", supportRoutes);
 
 export default router;

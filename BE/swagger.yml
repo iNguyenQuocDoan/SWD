@@ -42,6 +42,8 @@ tags:
     description: Order management endpoints
   - name: Uploads
     description: File upload endpoints
+  - name: Support
+    description: Chat, Conversations, Messages and Support Tickets
 
 paths:
   /health:
@@ -1018,6 +1020,546 @@ paths:
         '403':
           description: Forbidden
 
+  # Support - Conversations
+  /api/support/conversations:
+    get:
+      summary: Get conversations
+      description: Get conversations for current user based on their role
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [OrderItem, Shop, Support]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [Open, Closed, Blocked]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Conversations list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationsResponse'
+        '401':
+          description: Unauthorized
+    post:
+      summary: Create conversation
+      description: Create a new conversation (Shop or OrderItem type)
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+      responses:
+        '201':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /api/support/conversations/unread-count:
+    get:
+      summary: Get total unread count
+      description: Get total unread messages count across all conversations
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      unreadCount:
+                        type: integer
+        '401':
+          description: Unauthorized
+
+  /api/support/conversations/{id}:
+    get:
+      summary: Get conversation by ID
+      description: Get conversation details with access control
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Conversation not found
+
+  /api/support/conversations/{id}/status:
+    patch:
+      summary: Update conversation status
+      description: Update conversation status (Close, Block)
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [Open, Closed, Blocked]
+      responses:
+        '200':
+          description: Status updated
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Conversation not found
+
+  /api/support/conversations/{id}/read:
+    post:
+      summary: Mark conversation as read
+      description: Mark all messages in conversation as read for current user
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Marked as read
+        '401':
+          description: Unauthorized
+        '404':
+          description: Conversation not found
+
+  # Support - Messages
+  /api/support/messages:
+    post:
+      summary: Send message
+      description: Send a message to a conversation
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/support/messages/{conversationId}:
+    get:
+      summary: Get messages
+      description: Get messages for a conversation with pagination
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: before
+          in: query
+          description: Get messages before this timestamp (for pagination)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Messages list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagesResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/support/messages/{id}:
+    delete:
+      summary: Delete message
+      description: Soft delete a message (only sender can delete)
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Message deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Message not found
+
+  /api/support/messages/search:
+    get:
+      summary: Search messages
+      description: Search messages across conversations
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+        '401':
+          description: Unauthorized
+
+  # Support - Tickets
+  /api/support/tickets:
+    get:
+      summary: Get tickets
+      description: Get support tickets with filtering
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [Open, InReview, NeedMoreInfo, Resolved, Closed]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [Low, Medium, High, Urgent]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [Complaint, Dispute, General]
+        - name: assignedToUserId
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Tickets list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketsResponse'
+        '401':
+          description: Unauthorized
+    post:
+      summary: Create ticket
+      description: Create a support ticket for an order item
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTicketRequest'
+      responses:
+        '201':
+          description: Ticket created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      ticket:
+                        $ref: '#/components/schemas/Ticket'
+                      conversationId:
+                        type: string
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /api/support/tickets/stats:
+    get:
+      summary: Get ticket statistics
+      description: Get ticket statistics (count by status, priority, avg resolution time)
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Ticket stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/TicketStats'
+        '401':
+          description: Unauthorized
+
+  /api/support/tickets/{id}:
+    get:
+      summary: Get ticket by ID
+      description: Get ticket details with access control
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ticket details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Ticket not found
+    patch:
+      summary: Update ticket
+      description: Update ticket (status, priority, resolution)
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTicketRequest'
+      responses:
+        '200':
+          description: Ticket updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Ticket not found
+
+  /api/support/tickets/{id}/assign:
+    post:
+      summary: Assign ticket to staff
+      description: Assign ticket to a staff member (Moderator/Admin only)
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - staffUserId
+              properties:
+                staffUserId:
+                  type: string
+      responses:
+        '200':
+          description: Ticket assigned
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Ticket not found
+
+  /api/support/tickets/{id}/escalate:
+    post:
+      summary: Escalate ticket
+      description: Escalate ticket priority (Moderator/Admin only)
+      tags:
+        - Support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Ticket escalated
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Ticket not found
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1336,3 +1878,389 @@ components:
                   type: integer
                 skip:
                   type: integer
+
+    # Support Schemas
+    Conversation:
+      type: object
+      properties:
+        _id:
+          type: string
+        type:
+          type: string
+          enum: [OrderItem, Shop, Support]
+        customerUserId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/UserBasic'
+        sellerUserId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/UserBasic'
+          nullable: true
+        staffUserId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/UserBasic'
+          nullable: true
+        shopId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/ShopBasic'
+          nullable: true
+        orderItemId:
+          type: string
+          nullable: true
+        ticketId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/TicketBasic'
+          nullable: true
+        status:
+          type: string
+          enum: [Open, Closed, Blocked]
+        lastMessageAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastMessagePreview:
+          type: string
+          nullable: true
+        unreadCount:
+          type: object
+          additionalProperties:
+            type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserBasic:
+      type: object
+      properties:
+        _id:
+          type: string
+        fullName:
+          type: string
+        email:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+
+    ShopBasic:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        logo:
+          type: string
+          nullable: true
+
+    TicketBasic:
+      type: object
+      properties:
+        _id:
+          type: string
+        ticketCode:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+        priority:
+          type: string
+
+    CreateConversationRequest:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [OrderItem, Shop]
+        shopId:
+          type: string
+          description: Required for Shop type
+        orderItemId:
+          type: string
+          description: Required for OrderItem type
+
+    ConversationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Conversation'
+
+    ConversationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            conversations:
+              type: array
+              items:
+                $ref: '#/components/schemas/Conversation'
+            total:
+              type: integer
+            page:
+              type: integer
+            totalPages:
+              type: integer
+
+    Message:
+      type: object
+      properties:
+        _id:
+          type: string
+        conversationId:
+          type: string
+        senderUserId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/UserBasic'
+        messageType:
+          type: string
+          enum: [Text, System, Attachment]
+        body:
+          type: string
+          nullable: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageAttachment'
+        isInternal:
+          type: boolean
+          description: Internal note visible only to staff
+        sentAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        readBy:
+          type: array
+          items:
+            type: string
+        isDeleted:
+          type: boolean
+
+    MessageAttachment:
+      type: object
+      properties:
+        url:
+          type: string
+        type:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+
+    SendMessageRequest:
+      type: object
+      required:
+        - conversationId
+        - messageType
+      properties:
+        conversationId:
+          type: string
+        messageType:
+          type: string
+          enum: [Text, Attachment]
+        body:
+          type: string
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageAttachment'
+        isInternal:
+          type: boolean
+          description: Mark as internal note (staff only)
+
+    MessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Message'
+
+    MessagesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+            total:
+              type: integer
+            hasMore:
+              type: boolean
+
+    Ticket:
+      type: object
+      properties:
+        _id:
+          type: string
+        ticketCode:
+          type: string
+          description: Auto-generated ticket code (e.g., TK250204001)
+        customerUserId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/UserBasic'
+        orderItemId:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [Complaint, Dispute, General]
+        priority:
+          type: string
+          enum: [Low, Medium, High, Urgent]
+        status:
+          type: string
+          enum: [Open, InReview, NeedMoreInfo, Resolved, Closed]
+        assignedToUserId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/UserBasic'
+          nullable: true
+        resolutionType:
+          type: string
+          enum: [None, FullRefund, PartialRefund, Replacement, NoAction]
+        refundAmount:
+          type: number
+          nullable: true
+        decidedByUserId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/UserBasic'
+          nullable: true
+        decisionNote:
+          type: string
+          nullable: true
+        decidedAt:
+          type: string
+          format: date-time
+          nullable: true
+        escalatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        escalatedByUserId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateTicketRequest:
+      type: object
+      required:
+        - orderItemId
+        - title
+        - content
+      properties:
+        orderItemId:
+          type: string
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+        content:
+          type: string
+          minLength: 10
+          maxLength: 2000
+        type:
+          type: string
+          enum: [Complaint, Dispute, General]
+          default: General
+        priority:
+          type: string
+          enum: [Low, Medium, High]
+          default: Medium
+
+    UpdateTicketRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [Open, InReview, NeedMoreInfo, Resolved, Closed]
+        priority:
+          type: string
+          enum: [Low, Medium, High, Urgent]
+        assignedToUserId:
+          type: string
+        resolutionType:
+          type: string
+          enum: [None, FullRefund, PartialRefund, Replacement, NoAction]
+        refundAmount:
+          type: number
+        decisionNote:
+          type: string
+
+    TicketResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Ticket'
+
+    TicketsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            tickets:
+              type: array
+              items:
+                $ref: '#/components/schemas/Ticket'
+            total:
+              type: integer
+            page:
+              type: integer
+            totalPages:
+              type: integer
+
+    TicketStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        byStatus:
+          type: object
+          additionalProperties:
+            type: integer
+        byPriority:
+          type: object
+          additionalProperties:
+            type: integer
+        avgResolutionTime:
+          type: number
+          description: Average resolution time in hours

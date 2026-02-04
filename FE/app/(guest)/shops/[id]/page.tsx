@@ -11,8 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { shopService, type Shop } from "@/lib/services/shop.service";
 import { productService, type ProductResponse } from "@/lib/services/product.service";
 import { inventoryService } from "@/lib/services/inventory.service";
-import { Package, Store, Star, MessageSquare, MessageCircle } from "lucide-react";
+import { Package, Store, Star, MessageCircle } from "lucide-react";
 import { ShopReviews } from "@/components/reviews";
+import { ChatWithShopButton } from "@/components/chat";
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
@@ -109,9 +110,16 @@ export default function PublicShopPage() {
             {shop.description || "Shop chưa có mô tả."}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href={`/products?shopId=${shop._id}`}>Xem tất cả sản phẩm</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <ChatWithShopButton
+            shopId={shop._id}
+            shopName={shop.shopName}
+            variant="outline"
+          />
+          <Button asChild variant="outline">
+            <Link href={`/products?shopId=${shop._id}`}>Xem tất cả sản phẩm</Link>
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -190,6 +198,7 @@ export default function PublicShopPage() {
                               fill
                               className="object-cover group-hover:scale-105 transition-transform"
                               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
+                              unoptimized={p.thumbnailUrl?.startsWith("data:")}
                             />
                           </div>
                         )}

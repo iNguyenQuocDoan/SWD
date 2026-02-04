@@ -27,7 +27,8 @@ export class EkycService {
     }
 
     const form = new FormData();
-    const blob = new Blob([params.fileBuffer], { type: params.mimetype });
+    // Cast Buffer to BlobPart for Node.js 22+ compatibility
+    const blob = new Blob([params.fileBuffer as unknown as BlobPart], { type: params.mimetype });
     form.append("file", blob, params.filename);
     form.append("title", params.title ?? "ekyc_upload");
     form.append("description", params.description ?? "ekyc_upload");

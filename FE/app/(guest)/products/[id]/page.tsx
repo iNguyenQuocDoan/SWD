@@ -24,6 +24,7 @@ import { productService } from "@/lib/services/product.service";
 import { shopService } from "@/lib/services/shop.service";
 import { reviewService } from "@/lib/services/review.service";
 import { ProductReviews } from "@/components/reviews";
+import { ChatWithShopButton } from "@/components/chat";
 
 // Types for backend data
 interface ProductShop {
@@ -419,11 +420,12 @@ export default function ProductDetailPage() {
                     Xem shop
                   </Link>
                 </Button>
-                <Button variant="outline" size="icon" className="h-11 w-11 md:h-12 md:w-12" asChild>
-                  <Link href={`/shops/${product.shop.id}/chat`}>
-                    <User className="h-5 w-5" />
-                  </Link>
-                </Button>
+                <ChatWithShopButton
+                  shopId={product.shop.id}
+                  shopName={product.shop.name}
+                  variant="outline"
+                  className="h-11 md:h-12"
+                />
               </div>
             </CardContent>
           </Card>
