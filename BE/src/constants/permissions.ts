@@ -87,6 +87,30 @@ export const PERMISSIONS = {
   USER_UNRESTRICT: "user:unrestrict",
   CONTENT_MODERATE: "content:moderate",
 
+  // Complaint Moderation permissions (NEW)
+  // Seller complaint permissions
+  COMPLAINT_VIEW_SHOP: "complaint:view:shop", // Seller view shop complaints
+  COMPLAINT_RESPOND: "complaint:respond", // Seller respond to complaints
+  COMPLAINT_PROPOSE_RESOLUTION: "complaint:propose", // Seller propose resolution
+
+  // Customer complaint permissions
+  COMPLAINT_ESCALATE: "complaint:escalate", // Customer escalate to moderator
+  COMPLAINT_APPEAL: "complaint:appeal", // Customer/Seller file appeal
+
+  // Moderator complaint permissions
+  COMPLAINT_QUEUE_VIEW: "complaint:queue:view", // View complaint queue
+  COMPLAINT_ASSIGN: "complaint:assign", // Assign complaints
+  COMPLAINT_DECISION: "complaint:decision", // Make decisions
+  COMPLAINT_INTERNAL_NOTE: "complaint:internal_note", // Add internal notes
+  COMPLAINT_REQUEST_INFO: "complaint:request_info", // Request more info
+
+  // Admin/Senior Mod complaint permissions
+  COMPLAINT_APPEAL_REVIEW: "complaint:appeal:review", // Review appeals
+  COMPLAINT_PENALTY_ISSUE: "complaint:penalty:issue", // Issue seller penalties
+  COMPLAINT_STATS_VIEW: "complaint:stats:view", // View moderator stats
+  COMPLAINT_CONFIG: "complaint:config", // Configure escalation rules
+  COMPLAINT_TEMPLATE_MANAGE: "complaint:template:manage", // Manage decision templates
+
   // Admin permissions
   USER_VIEW: "user:view",
   USER_CREATE: "user:create",
@@ -957,6 +981,113 @@ export const PERMISSION_DEFINITIONS = [
     resource: "system",
     action: "monitor",
   },
+
+  // Complaint Moderation permissions
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_VIEW_SHOP,
+    permissionName: "View Shop Complaints",
+    description: "View complaints for own shop",
+    resource: "complaint",
+    action: "view:shop",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_RESPOND,
+    permissionName: "Respond to Complaint",
+    description: "Respond to customer complaints",
+    resource: "complaint",
+    action: "respond",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_PROPOSE_RESOLUTION,
+    permissionName: "Propose Resolution",
+    description: "Propose resolution for complaints",
+    resource: "complaint",
+    action: "propose",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_ESCALATE,
+    permissionName: "Escalate Complaint",
+    description: "Escalate complaint to moderator",
+    resource: "complaint",
+    action: "escalate",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_APPEAL,
+    permissionName: "Appeal Decision",
+    description: "Appeal moderator decision",
+    resource: "complaint",
+    action: "appeal",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_QUEUE_VIEW,
+    permissionName: "View Complaint Queue",
+    description: "View complaint moderation queue",
+    resource: "complaint",
+    action: "queue:view",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_ASSIGN,
+    permissionName: "Assign Complaint",
+    description: "Assign complaints to moderators",
+    resource: "complaint",
+    action: "assign",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_DECISION,
+    permissionName: "Make Decision",
+    description: "Make decision on complaints",
+    resource: "complaint",
+    action: "decision",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_INTERNAL_NOTE,
+    permissionName: "Add Internal Note",
+    description: "Add internal notes to complaints",
+    resource: "complaint",
+    action: "internal_note",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_REQUEST_INFO,
+    permissionName: "Request Information",
+    description: "Request more information from parties",
+    resource: "complaint",
+    action: "request_info",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_APPEAL_REVIEW,
+    permissionName: "Review Appeal",
+    description: "Review and decide on appeals",
+    resource: "complaint",
+    action: "appeal:review",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_PENALTY_ISSUE,
+    permissionName: "Issue Penalty",
+    description: "Issue penalties to sellers",
+    resource: "complaint",
+    action: "penalty:issue",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_STATS_VIEW,
+    permissionName: "View Complaint Stats",
+    description: "View moderator statistics",
+    resource: "complaint",
+    action: "stats:view",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_CONFIG,
+    permissionName: "Configure Complaints",
+    description: "Configure complaint escalation rules",
+    resource: "complaint",
+    action: "config",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_TEMPLATE_MANAGE,
+    permissionName: "Manage Templates",
+    description: "Manage decision templates",
+    resource: "complaint",
+    action: "template:manage",
+  },
 ] as const;
 
 /**
@@ -1006,6 +1137,9 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.CONVERSATION_MESSAGE,
     // Refund
     PERMISSIONS.REFUND_REQUEST,
+    // Complaint (Customer)
+    PERMISSIONS.COMPLAINT_ESCALATE,
+    PERMISSIONS.COMPLAINT_APPEAL,
     // Public
     PERMISSIONS.PRODUCT_VIEW,
     PERMISSIONS.PRODUCT_SEARCH,
@@ -1070,6 +1204,12 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.CONVERSATION_SELLER_MESSAGE,
     PERMISSIONS.REVIEW_REPLY,
 
+    // Complaint (Seller)
+    PERMISSIONS.COMPLAINT_VIEW_SHOP,
+    PERMISSIONS.COMPLAINT_RESPOND,
+    PERMISSIONS.COMPLAINT_PROPOSE_RESOLUTION,
+    PERMISSIONS.COMPLAINT_APPEAL,
+
     // Public
     PERMISSIONS.PRODUCT_VIEW,
     PERMISSIONS.PRODUCT_SEARCH,
@@ -1116,6 +1256,14 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.USER_UNRESTRICT,
     // General
     PERMISSIONS.CONTENT_MODERATE,
+    // Complaint Moderation
+    PERMISSIONS.COMPLAINT_QUEUE_VIEW,
+    PERMISSIONS.COMPLAINT_ASSIGN,
+    PERMISSIONS.COMPLAINT_DECISION,
+    PERMISSIONS.COMPLAINT_INTERNAL_NOTE,
+    PERMISSIONS.COMPLAINT_REQUEST_INFO,
+    PERMISSIONS.COMPLAINT_PENALTY_ISSUE,
+    PERMISSIONS.COMPLAINT_STATS_VIEW,
     // Public
     PERMISSIONS.PRODUCT_VIEW,
     PERMISSIONS.PRODUCT_SEARCH,

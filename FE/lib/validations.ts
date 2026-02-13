@@ -161,6 +161,48 @@ export const replyTicketSchema = z.object({
   isInternal: z.boolean().optional(),
 });
 
+// Complaint schemas
+export const createComplaintSchema = z.object({
+  orderItemId: z.string().min(1, VALIDATION_MESSAGES.COMPLAINT.ORDER_ITEM_REQUIRED),
+  title: z
+    .string()
+    .min(5, VALIDATION_MESSAGES.COMPLAINT.TITLE_MIN_LENGTH)
+    .max(200, VALIDATION_MESSAGES.COMPLAINT.TITLE_MAX_LENGTH),
+  content: z.string().min(20, VALIDATION_MESSAGES.COMPLAINT.CONTENT_MIN_LENGTH),
+  category: z.enum([
+    "ProductQuality",
+    "NotAsDescribed",
+    "AccountNotWorking",
+    "DeliveryIssue",
+    "Fraud",
+    "Other",
+  ], { message: VALIDATION_MESSAGES.COMPLAINT.CATEGORY_REQUIRED }),
+  subcategory: z.enum([
+    "WrongCredentials",
+    "AlreadyUsed",
+    "ExpiredEarly",
+    "CannotActivate",
+    "WrongProduct",
+    "MissingFeatures",
+    "Other",
+  ]).optional(),
+});
+
+export const fileAppealSchema = z.object({
+  reason: z.string().min(20, VALIDATION_MESSAGES.COMPLAINT.APPEAL_REASON_MIN),
+});
+
+export const makeDecisionSchema = z.object({
+  resolution: z.enum([
+    "FullRefund",
+    "PartialRefund",
+    "Replace",
+    "Reject",
+  ], { message: VALIDATION_MESSAGES.COMPLAINT.RESOLUTION_REQUIRED }),
+  reason: z.string().min(10, VALIDATION_MESSAGES.COMPLAINT.DECISION_REASON_MIN),
+  refundAmount: z.number().min(0).optional(),
+});
+
 // Moderation schemas
 export const moderateProductSchema = z.object({
   productId: z.string(),
@@ -287,3 +329,6 @@ export type SearchProductInput = z.infer<typeof searchProductSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type DepositInput = z.infer<typeof depositSchema>;
 export type WithdrawalInput = z.infer<typeof withdrawalSchema>;
+export type CreateComplaintInput = z.infer<typeof createComplaintSchema>;
+export type FileAppealInput = z.infer<typeof fileAppealSchema>;
+export type MakeDecisionInput = z.infer<typeof makeDecisionSchema>;
