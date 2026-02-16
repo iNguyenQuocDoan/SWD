@@ -92,6 +92,30 @@ export class ComplaintService {
   // ===== Buyer Methods =====
 
   /**
+   * Find the single moderator in the system (cached query)
+   */
+  private async findModerator(): Promise<any> {
+    const moderator = await User.findOne({
+      roleId: { $exists: true },
+    }).populate({
+      path: "roleId",
+      match: { roleKey: "MODERATOR" },
+    });
+
+    // If roleId is null after populate with match, the user is not a moderator
+    if (!moderator?.roleId) {
+      // Fallback: find any user with MODERATOR role
+      const allModerators = await User.find({
+        roleId: { $exists: true },
+      }).populate("roleId");
+
+      return allModerators.find((u) => (u.roleId as any)?.roleKey === "MODERATOR");
+    }
+
+    return moderator;
+  }
+
+  /**
    * Create a new complaint with category system
    */
   async createComplaint(
@@ -131,13 +155,16 @@ export class ComplaintService {
       );
     }
 
-    // Check for existing open complaint
-    const existingTicket = await SupportTicket.findOne({
-      orderItemId: input.orderItemId,
-      status: {
-        $nin: ["Resolved", "Closed"],
-      },
-    });
+    // Parallel queries: check existing ticket, get users, find moderator
+    const [existingTicket, customer, seller, moderator] = await Promise.all([
+      SupportTicket.findOne({
+        orderItemId: input.orderItemId,
+        status: { $nin: ["Resolved", "Closed"] },
+      }),
+      User.findById(customerId),
+      User.findById(shop.ownerUserId),
+      this.findModerator(),
+    ]);
 
     if (existingTicket) {
       throw new AppError(
@@ -146,11 +173,9 @@ export class ComplaintService {
       );
     }
 
-    // Get customer and seller info for trust levels
-    const [customer, seller] = await Promise.all([
-      User.findById(customerId),
-      User.findById(shop.ownerUserId),
-    ]);
+    if (!moderator) {
+      throw new AppError("Hệ thống chưa có moderator, vui lòng liên hệ admin", 500);
+    }
 
     // Prepare evidence array
     const buyerEvidence: IComplaintEvidence[] = (input.evidence || []).map(
@@ -165,10 +190,11 @@ export class ComplaintService {
 
     // Create order snapshot
     const product = orderItem.productId as any;
+    const orderValue = orderItem.subtotal || orderItem.unitPrice * orderItem.quantity;
     const orderSnapshot = {
       orderId: order._id,
       orderCode: order.orderCode,
-      totalAmount: orderItem.subtotal || orderItem.unitPrice * orderItem.quantity,
+      totalAmount: orderValue,
       paidAt: order.paidAt || new Date(),
       productTitle: product?.title || "N/A",
       productThumbnail: product?.thumbnailUrl || null,
@@ -176,7 +202,10 @@ export class ComplaintService {
       deliveredAt: orderItem.deliveredAt,
     };
 
-    // Create ticket - goes directly to moderator queue
+    const buyerTrustLevel = customer?.trustLevel || 50;
+    const sellerTrustLevel = seller?.trustLevel || 50;
+
+    // Create ticket - already assigned to moderator
     const ticket = await SupportTicket.create({
       ticketCode: this.generateTicketCode(),
       customerUserId: new mongoose.Types.ObjectId(customerId),
@@ -186,12 +215,16 @@ export class ComplaintService {
       type: "Complaint",
       category: input.category,
       subcategory: input.subcategory || null,
-      status: "InQueue", // Goes directly to moderator queue
+      status: "ModeratorAssigned",
       resolutionType: "None",
 
-      // Shop info (for reference only)
+      // Shop info
       shopId: shop._id,
       sellerUserId: shop.ownerUserId,
+
+      // Auto-assign to moderator
+      assignedToUserId: moderator._id,
+      firstResponseAt: new Date(),
 
       // Evidence
       buyerEvidence,
@@ -201,35 +234,60 @@ export class ComplaintService {
       escalationLevel: "Level2_Moderator",
 
       // Priority calculation
-      orderValue: orderItem.subtotal || orderItem.unitPrice * orderItem.quantity,
-      buyerTrustLevel: customer?.trustLevel || 50,
-      sellerTrustLevel: seller?.trustLevel || 50,
+      orderValue,
+      buyerTrustLevel,
+      sellerTrustLevel,
     });
 
-    // Calculate and update priority
+    // Calculate priority
     const calculatedPriority = this.calculatePriority(ticket);
-    await SupportTicket.findByIdAndUpdate(ticket._id, { calculatedPriority });
+    const isHighValue = orderValue >= COMPLAINT_CONFIG.HIGH_VALUE_THRESHOLD;
 
-    // Update order item and order status
-    await OrderItem.findByIdAndUpdate(input.orderItemId, {
-      itemStatus: "Disputed",
-    });
-    await Order.findByIdAndUpdate(order._id, { status: "Disputed" });
+    // Parallel updates: priority, order status, queue, timeline
+    await Promise.all([
+      // Update ticket priority
+      SupportTicket.findByIdAndUpdate(ticket._id, { calculatedPriority }),
 
-    // Add timeline event
-    await this.addTimelineEvent(
-      ticket._id.toString(),
-      "Created",
-      customerId,
-      "BUYER",
-      `Khiếu nại được tạo: ${input.category}`,
-      { category: input.category, subcategory: input.subcategory }
-    );
+      // Update order item and order status
+      OrderItem.findByIdAndUpdate(input.orderItemId, { itemStatus: "Disputed" }),
+      Order.findByIdAndUpdate(order._id, { status: "Disputed" }),
 
-    // Add to moderator queue immediately
-    await this.addToModeratorQueue(ticket._id.toString());
+      // Add to ComplaintQueue (for tracking/stats)
+      ComplaintQueue.create({
+        ticketId: ticket._id,
+        queuePriority: calculatedPriority,
+        status: "Assigned",
+        addedToQueueAt: new Date(),
+        pickedUpAt: new Date(),
+        assignedModeratorId: moderator._id,
+        orderValue,
+        buyerTrustLevel,
+        sellerTrustLevel,
+        ticketAge: 0,
+        isHighValue,
+        isEscalated: false,
+        sellerTimeoutOccurred: false,
+      }),
 
-    // TODO: Notify moderators via socket
+      // Add timeline events
+      this.addTimelineEvent(
+        ticket._id.toString(),
+        "Created",
+        customerId,
+        "BUYER",
+        `Khiếu nại được tạo: ${input.category}`,
+        { category: input.category, subcategory: input.subcategory }
+      ),
+      this.addTimelineEvent(
+        ticket._id.toString(),
+        "ModeratorAssigned",
+        moderator._id.toString(),
+        "SYSTEM",
+        `Khiếu nại được tự động gán cho moderator: ${moderator.fullName}`
+      ),
+    ]);
+
+    // TODO: Notify moderator via socket
 
     return ticket;
   }
@@ -374,33 +432,72 @@ export class ComplaintService {
       throw new AppError("Không thể từ chối ở trạng thái này", 400);
     }
 
-    // Escalate to moderator
-    await SupportTicket.findByIdAndUpdate(ticketId, {
-      status: "InQueue",
-      escalationLevel: "Level2_Moderator",
-      escalationReason: reason,
-      escalatedAt: new Date(),
-      escalatedByUserId: new mongoose.Types.ObjectId(buyerId),
-    });
+    // Find moderator first
+    const moderator = await this.findModerator();
+    if (!moderator) {
+      throw new AppError("Hệ thống chưa có moderator", 500);
+    }
 
-    // Add to moderator queue
-    await this.addToModeratorQueue(ticketId);
+    const ticketAge = (Date.now() - ticket.createdAt.getTime()) / (1000 * 60 * 60);
+    const isHighValue = ticket.orderValue >= COMPLAINT_CONFIG.HIGH_VALUE_THRESHOLD;
 
-    await this.addTimelineEvent(
-      ticketId,
-      "BuyerRejected",
-      buyerId,
-      "BUYER",
-      `Người mua từ chối phản hồi và leo thang: ${reason}`
-    );
+    // Parallel: update ticket, queue, and add timeline events
+    await Promise.all([
+      // Update ticket with escalation info + moderator assignment
+      SupportTicket.findByIdAndUpdate(ticketId, {
+        status: "ModeratorAssigned",
+        escalationLevel: "Level2_Moderator",
+        escalationReason: reason,
+        escalatedAt: new Date(),
+        escalatedByUserId: new mongoose.Types.ObjectId(buyerId),
+        assignedToUserId: moderator._id,
+        firstResponseAt: ticket.firstResponseAt || new Date(),
+      }),
 
-    await this.addTimelineEvent(
-      ticketId,
-      "EscalatedToMod",
-      buyerId,
-      "BUYER",
-      "Khiếu nại được leo thang lên Moderator"
-    );
+      // Update/Create queue entry
+      ComplaintQueue.findOneAndUpdate(
+        { ticketId: ticket._id },
+        {
+          ticketId: ticket._id,
+          queuePriority: ticket.calculatedPriority,
+          status: "Assigned",
+          addedToQueueAt: new Date(),
+          pickedUpAt: new Date(),
+          assignedModeratorId: moderator._id,
+          orderValue: ticket.orderValue,
+          buyerTrustLevel: ticket.buyerTrustLevel,
+          sellerTrustLevel: ticket.sellerTrustLevel,
+          ticketAge,
+          isHighValue,
+          isEscalated: true,
+          sellerTimeoutOccurred: false,
+        },
+        { upsert: true, new: true }
+      ),
+
+      // Timeline events
+      this.addTimelineEvent(
+        ticketId,
+        "BuyerRejected",
+        buyerId,
+        "BUYER",
+        `Người mua từ chối phản hồi và leo thang: ${reason}`
+      ),
+      this.addTimelineEvent(
+        ticketId,
+        "EscalatedToMod",
+        buyerId,
+        "BUYER",
+        "Khiếu nại được leo thang lên Moderator"
+      ),
+      this.addTimelineEvent(
+        ticketId,
+        "ModeratorAssigned",
+        moderator._id.toString(),
+        "SYSTEM",
+        `Khiếu nại được tự động gán cho moderator: ${moderator.fullName}`
+      ),
+    ]);
 
     return (await SupportTicket.findById(ticketId))!;
   }
@@ -626,41 +723,62 @@ export class ComplaintService {
   // ===== Moderator Methods =====
 
   /**
-   * Add complaint to moderator queue
+   * Auto-assign complaint to the single moderator (for escalation cases)
    */
   private async addToModeratorQueue(ticketId: string): Promise<void> {
-    const ticket = await SupportTicket.findById(ticketId);
-    if (!ticket) return;
+    // Parallel: get ticket and moderator
+    const [ticket, moderator] = await Promise.all([
+      SupportTicket.findById(ticketId),
+      this.findModerator(),
+    ]);
 
-    const ticketAge =
-      (Date.now() - ticket.createdAt.getTime()) / (1000 * 60 * 60);
+    if (!ticket || !moderator) {
+      console.error("Ticket or moderator not found");
+      return;
+    }
+
+    const ticketAge = (Date.now() - ticket.createdAt.getTime()) / (1000 * 60 * 60);
     const isHighValue = ticket.orderValue >= COMPLAINT_CONFIG.HIGH_VALUE_THRESHOLD;
 
-    await ComplaintQueue.findOneAndUpdate(
-      { ticketId: ticket._id },
-      {
-        ticketId: ticket._id,
-        queuePriority: ticket.calculatedPriority,
-        status: "InQueue",
-        addedToQueueAt: new Date(),
-        orderValue: ticket.orderValue,
-        buyerTrustLevel: ticket.buyerTrustLevel,
-        sellerTrustLevel: ticket.sellerTrustLevel,
-        ticketAge,
-        isHighValue,
-        isEscalated: ticket.escalationLevel !== "Level1_BuyerSeller",
-        sellerTimeoutOccurred: ticket.sellerResponseStatus === "Timeout",
-      },
-      { upsert: true, new: true }
-    );
+    // Parallel updates
+    await Promise.all([
+      // Update/Create queue entry
+      ComplaintQueue.findOneAndUpdate(
+        { ticketId: ticket._id },
+        {
+          ticketId: ticket._id,
+          queuePriority: ticket.calculatedPriority,
+          status: "Assigned",
+          addedToQueueAt: new Date(),
+          pickedUpAt: new Date(),
+          assignedModeratorId: moderator._id,
+          orderValue: ticket.orderValue,
+          buyerTrustLevel: ticket.buyerTrustLevel,
+          sellerTrustLevel: ticket.sellerTrustLevel,
+          ticketAge,
+          isHighValue,
+          isEscalated: ticket.escalationLevel !== "Level1_BuyerSeller",
+          sellerTimeoutOccurred: ticket.sellerResponseStatus === "Timeout",
+        },
+        { upsert: true, new: true }
+      ),
 
-    await this.addTimelineEvent(
-      ticketId,
-      "AddedToQueue",
-      "system",
-      "SYSTEM",
-      "Khiếu nại được thêm vào hàng đợi moderator"
-    );
+      // Update ticket
+      SupportTicket.findByIdAndUpdate(ticketId, {
+        status: "ModeratorAssigned",
+        assignedToUserId: moderator._id,
+        firstResponseAt: ticket.firstResponseAt || new Date(),
+      }),
+
+      // Add timeline
+      this.addTimelineEvent(
+        ticketId,
+        "ModeratorAssigned",
+        moderator._id.toString(),
+        "SYSTEM",
+        `Khiếu nại được tự động gán cho moderator: ${moderator.fullName}`
+      ),
+    ]);
   }
 
   /**
@@ -676,8 +794,8 @@ export class ComplaintService {
       throw new AppError("Khiếu nại không tồn tại", 404);
     }
 
-    if (ticket.status !== "InQueue" && ticket.status !== "Escalated") {
-      throw new AppError("Khiếu nại không trong hàng đợi", 400);
+    if (ticket.status !== "ModeratorAssigned" && ticket.status !== "Escalated") {
+      throw new AppError("Khiếu nại không thể gán lại", 400);
     }
 
     await SupportTicket.findByIdAndUpdate(ticketId, {
@@ -924,34 +1042,79 @@ export class ComplaintService {
   async autoEscalateTimeouts(): Promise<{ escalated: number; failed: number }> {
     const now = new Date();
 
-    const expiredTickets = await SupportTicket.find({
-      status: "AwaitingSeller",
-      sellerResponseStatus: "Pending",
-      sellerResponseDeadline: { $lt: now },
-    });
+    // Parallel: get expired tickets and moderator
+    const [expiredTickets, moderator] = await Promise.all([
+      SupportTicket.find({
+        status: "AwaitingSeller",
+        sellerResponseStatus: "Pending",
+        sellerResponseDeadline: { $lt: now },
+      }),
+      this.findModerator(),
+    ]);
+
+    if (!moderator) {
+      console.error("No moderator found for auto-escalation");
+      return { escalated: 0, failed: expiredTickets.length };
+    }
 
     let escalated = 0;
     let failed = 0;
 
     for (const ticket of expiredTickets) {
       try {
-        await SupportTicket.findByIdAndUpdate(ticket._id, {
-          status: "InQueue",
-          sellerResponseStatus: "Timeout",
-          escalationLevel: "Level2_Moderator",
-          escalationReason: "Người bán không phản hồi trong thời hạn",
-          autoEscalatedAt: now,
-        });
+        const ticketAge = (Date.now() - ticket.createdAt.getTime()) / (1000 * 60 * 60);
+        const isHighValue = ticket.orderValue >= COMPLAINT_CONFIG.HIGH_VALUE_THRESHOLD;
 
-        await this.addToModeratorQueue(ticket._id.toString());
+        // Parallel updates for each ticket
+        await Promise.all([
+          // Update ticket
+          SupportTicket.findByIdAndUpdate(ticket._id, {
+            status: "ModeratorAssigned",
+            sellerResponseStatus: "Timeout",
+            escalationLevel: "Level2_Moderator",
+            escalationReason: "Người bán không phản hồi trong thời hạn",
+            autoEscalatedAt: now,
+            assignedToUserId: moderator._id,
+            firstResponseAt: ticket.firstResponseAt || new Date(),
+          }),
 
-        await this.addTimelineEvent(
-          ticket._id.toString(),
-          "SellerTimeout",
-          "system",
-          "SYSTEM",
-          "Tự động leo thang do người bán không phản hồi"
-        );
+          // Update/Create queue entry
+          ComplaintQueue.findOneAndUpdate(
+            { ticketId: ticket._id },
+            {
+              ticketId: ticket._id,
+              queuePriority: ticket.calculatedPriority,
+              status: "Assigned",
+              addedToQueueAt: new Date(),
+              pickedUpAt: new Date(),
+              assignedModeratorId: moderator._id,
+              orderValue: ticket.orderValue,
+              buyerTrustLevel: ticket.buyerTrustLevel,
+              sellerTrustLevel: ticket.sellerTrustLevel,
+              ticketAge,
+              isHighValue,
+              isEscalated: true,
+              sellerTimeoutOccurred: true,
+            },
+            { upsert: true, new: true }
+          ),
+
+          // Timeline events
+          this.addTimelineEvent(
+            ticket._id.toString(),
+            "SellerTimeout",
+            "system",
+            "SYSTEM",
+            "Tự động leo thang do người bán không phản hồi"
+          ),
+          this.addTimelineEvent(
+            ticket._id.toString(),
+            "ModeratorAssigned",
+            moderator._id.toString(),
+            "SYSTEM",
+            `Khiếu nại được tự động gán cho moderator: ${moderator.fullName}`
+          ),
+        ]);
 
         escalated++;
       } catch (error) {

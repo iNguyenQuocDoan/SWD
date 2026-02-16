@@ -121,6 +121,53 @@ export class ComplaintQueueService {
   }
 
   /**
+   * Pick multiple complaints from queue (auto-assign to moderator)
+   */
+  async pickMultipleFromQueue(
+    moderatorId: string,
+    count: number = 5
+  ): Promise<IComplaintQueue[]> {
+    const maxCount = Math.min(count, 10); // Limit max to 10 at once
+    const pickedItems: IComplaintQueue[] = [];
+
+    for (let i = 0; i < maxCount; i++) {
+      const queueItem = await ComplaintQueue.findOneAndUpdate(
+        { status: "InQueue", assignedModeratorId: null },
+        {
+          status: "Assigned",
+          assignedModeratorId: new mongoose.Types.ObjectId(moderatorId),
+          pickedUpAt: new Date(),
+        },
+        {
+          sort: { queuePriority: -1, addedToQueueAt: 1 },
+          new: true,
+        }
+      ).populate({
+        path: "ticketId",
+        populate: [
+          { path: "customerUserId", select: "fullName email" },
+          { path: "sellerUserId", select: "fullName email" },
+        ],
+      });
+
+      if (!queueItem) {
+        break; // No more items in queue
+      }
+
+      // Update the ticket status
+      await SupportTicket.findByIdAndUpdate(queueItem.ticketId, {
+        status: "ModeratorAssigned",
+        assignedToUserId: new mongoose.Types.ObjectId(moderatorId),
+        firstResponseAt: new Date(),
+      });
+
+      pickedItems.push(queueItem);
+    }
+
+    return pickedItems;
+  }
+
+  /**
    * Get moderator workload stats
    */
   async getModeratorWorkload(): Promise<

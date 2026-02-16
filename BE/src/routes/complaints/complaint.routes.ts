@@ -56,12 +56,7 @@ router.get(
   wrapRequestHandler(complaintController.getQueueStats)
 );
 
-// Pick next complaint from queue (moderator)
-router.post(
-  "/queue/pick",
-  checkPermission(PERMISSIONS.COMPLAINT_ASSIGN),
-  wrapRequestHandler(complaintController.pickFromQueue)
-);
+// NOTE: Queue picking removed - complaints are auto-assigned to single moderator
 
 // ===== Moderator Workload Routes =====
 

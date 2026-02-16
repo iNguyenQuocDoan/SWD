@@ -222,6 +222,43 @@ export class ComplaintController {
   };
 
   /**
+   * Pick multiple complaints from queue
+   * POST /api/complaints/queue/pick-multiple
+   */
+  pickMultipleFromQueue = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const count = Math.min(Math.max(Number(req.body.count) || 5, 1), 10);
+      const queueItems = await complaintQueueService.pickMultipleFromQueue(userId, count);
+
+      if (queueItems.length === 0) {
+        res.status(200).json({
+          success: true,
+          message: "Không có khiếu nại nào trong hàng đợi",
+          data: [],
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: `Đã nhận ${queueItems.length} khiếu nại`,
+        data: queueItems,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * Assign complaint to moderator
    * POST /api/complaints/:id/assign
    */
