@@ -65,7 +65,7 @@ export class ComplaintController {
       const { id } = req.params;
       const input = addEvidenceSchema.parse(req.body);
 
-      const ticket = await complaintService.addEvidence(id, userId, input, "buyer");
+      const ticket = await complaintService.addEvidence(id, userId, input);
 
       res.status(200).json({
         success: true,

@@ -52,12 +52,6 @@ export type WalletTxnDirection = "In" | "Out";
 
 // Support Ticket Types
 export type TicketStatus =
-  | "Open"
-  | "AwaitingSeller"
-  | "SellerResponded"
-  | "BuyerReviewing"
-  | "Escalated"
-  | "InQueue"
   | "ModeratorAssigned"
   | "InReview"
   | "NeedMoreInfo"
@@ -105,10 +99,7 @@ export type ComplaintSubcategory =
   | "RefuseRefund"
   | "PartialRefundDispute";
 
-export type SellerResponseStatus = "Pending" | "Responded" | "Timeout";
-
 export type EscalationLevel =
-  | "Level1_BuyerSeller"
   | "Level2_Moderator"
   | "Level3_SeniorMod"
   | "Level4_Admin";

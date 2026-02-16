@@ -6,9 +6,7 @@ import {
   TicketPriority,
   ComplaintCategory,
   ComplaintSubcategory,
-  SellerResponseStatus,
   EscalationLevel,
-  EvidenceType,
   PenaltyType,
   IComplaintEvidence,
   IInternalNote,
@@ -149,31 +147,22 @@ export interface ISupportTicket extends Document {
   priority: TicketPriority;
   status: TicketStatus;
 
-  // Category System (NEW)
+  // Category System
   category?: ComplaintCategory | null;
   subcategory?: ComplaintSubcategory | null;
 
-  // Multi-party Dispute (NEW)
+  // Shop/Seller Info
   shopId?: mongoose.Types.ObjectId | null;
   sellerUserId?: mongoose.Types.ObjectId | null;
-  sellerResponseDeadline?: Date | null;
-  sellerRespondedAt?: Date | null;
-  sellerResponse?: string | null;
-  sellerResponseStatus: SellerResponseStatus;
-  sellerProposedResolution?: ResolutionType | null;
-  sellerProposedRefundAmount?: number | null;
 
-  // Evidence System (NEW)
+  // Evidence System
   buyerEvidence: IComplaintEvidence[];
-  sellerEvidence: IComplaintEvidence[];
 
   // Order Snapshot (NEW)
   orderSnapshot?: IOrderSnapshot | null;
 
-  // Escalation Tracking (NEW)
+  // Escalation Tracking
   escalationLevel: EscalationLevel;
-  escalationReason?: string | null;
-  autoEscalatedAt?: Date | null;
 
   // Appeal Mechanism (NEW)
   isAppeal: boolean;
@@ -206,8 +195,6 @@ export interface ISupportTicket extends Document {
   decidedByUserId?: mongoose.Types.ObjectId | null;
   decisionNote?: string | null;
   decidedAt?: Date | null;
-  escalatedAt?: Date | null;
-  escalatedByUserId?: mongoose.Types.ObjectId | null;
 
   createdAt: Date;
   updatedAt: Date;
@@ -256,12 +243,6 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
       type: String,
       required: true,
       enum: [
-        "Open",
-        "AwaitingSeller",
-        "SellerResponded",
-        "BuyerReviewing",
-        "Escalated",
-        "InQueue",
         "ModeratorAssigned",
         "InReview",
         "NeedMoreInfo",
@@ -272,7 +253,7 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
         "Resolved",
         "Closed",
       ],
-      default: "Open",
+      default: "ModeratorAssigned",
     },
 
     // Category System (NEW)
@@ -312,7 +293,7 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
       default: null,
     },
 
-    // Multi-party Dispute (NEW)
+    // Shop/Seller Info
     shopId: {
       type: Schema.Types.ObjectId,
       ref: "Shop",
@@ -323,40 +304,9 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
       ref: "User",
       default: null,
     },
-    sellerResponseDeadline: {
-      type: Date,
-      default: null,
-    },
-    sellerRespondedAt: {
-      type: Date,
-      default: null,
-    },
-    sellerResponse: {
-      type: String,
-      default: null,
-    },
-    sellerResponseStatus: {
-      type: String,
-      enum: ["Pending", "Responded", "Timeout"],
-      default: "Pending",
-    },
-    sellerProposedResolution: {
-      type: String,
-      enum: ["None", "FullRefund", "PartialRefund", "Replace", "Reject", null],
-      default: null,
-    },
-    sellerProposedRefundAmount: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
 
-    // Evidence System (NEW)
+    // Evidence System
     buyerEvidence: {
-      type: [ComplaintEvidenceSchema],
-      default: [],
-    },
-    sellerEvidence: {
       type: [ComplaintEvidenceSchema],
       default: [],
     },
@@ -367,24 +317,15 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
       default: null,
     },
 
-    // Escalation Tracking (NEW)
+    // Escalation Tracking
     escalationLevel: {
       type: String,
       enum: [
-        "Level1_BuyerSeller",
         "Level2_Moderator",
         "Level3_SeniorMod",
         "Level4_Admin",
       ],
-      default: "Level1_BuyerSeller",
-    },
-    escalationReason: {
-      type: String,
-      default: null,
-    },
-    autoEscalatedAt: {
-      type: Date,
-      default: null,
+      default: "Level2_Moderator",
     },
 
     // Appeal Mechanism (NEW)
@@ -488,15 +429,6 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
       type: Date,
       default: null,
     },
-    escalatedAt: {
-      type: Date,
-      default: null,
-    },
-    escalatedByUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
   },
   {
     timestamps: true,
@@ -517,7 +449,6 @@ SupportTicketSchema.index({ assignedToUserId: 1 });
 SupportTicketSchema.index({
   status: 1,
   escalationLevel: 1,
-  sellerResponseDeadline: 1,
 });
 
 // Moderator assignment index
@@ -537,13 +468,6 @@ SupportTicketSchema.index({ orderValue: -1, status: 1 });
 
 // Category reporting index
 SupportTicketSchema.index({ category: 1, subcategory: 1, createdAt: -1 });
-
-// Seller response deadline index (for scheduler)
-SupportTicketSchema.index({
-  sellerResponseStatus: 1,
-  sellerResponseDeadline: 1,
-  status: 1,
-});
 
 // Calculated priority queue index
 SupportTicketSchema.index({ status: 1, calculatedPriority: -1, createdAt: 1 });

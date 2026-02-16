@@ -77,14 +77,6 @@ export const addEvidenceSchema = z.object({
   description: z.string().max(500, "Mô tả không được quá 500 ký tự").optional(),
 });
 
-// Reject seller response (escalate)
-export const rejectSellerResponseSchema = z.object({
-  reason: z
-    .string()
-    .min(10, "Lý do phải có ít nhất 10 ký tự")
-    .max(1000, "Lý do không được quá 1000 ký tự"),
-});
-
 // File appeal
 export const fileAppealSchema = z.object({
   reason: z
@@ -95,30 +87,6 @@ export const fileAppealSchema = z.object({
     .array(evidenceSchema)
     .max(5, "Tối đa 5 bằng chứng bổ sung")
     .optional(),
-});
-
-// ===== Seller Schemas =====
-
-// Seller response
-export const sellerResponseSchema = z.object({
-  response: z
-    .string()
-    .min(20, "Phản hồi phải có ít nhất 20 ký tự")
-    .max(2000, "Phản hồi không được quá 2000 ký tự"),
-  evidence: z
-    .array(evidenceSchema)
-    .max(10, "Tối đa 10 bằng chứng")
-    .optional(),
-});
-
-// Propose resolution
-export const proposeResolutionSchema = z.object({
-  proposedResolution: z.enum(["FullRefund", "PartialRefund", "Replace"]),
-  refundAmount: z
-    .number()
-    .min(0, "Số tiền hoàn phải >= 0")
-    .optional(),
-  message: z.string().max(1000, "Tin nhắn không được quá 1000 ký tự").optional(),
 });
 
 // ===== Moderator Schemas =====
@@ -207,7 +175,6 @@ export const getComplaintsQuerySchema = z.object({
   priority: z.enum(["Low", "Medium", "High", "Urgent"]).optional(),
   escalationLevel: z
     .enum([
-      "Level1_BuyerSeller",
       "Level2_Moderator",
       "Level3_SeniorMod",
       "Level4_Admin",
@@ -248,10 +215,7 @@ export const getModeratorStatsQuerySchema = z.object({
 // Export types
 export type CreateComplaintInput = z.infer<typeof createComplaintSchema>;
 export type AddEvidenceInput = z.infer<typeof addEvidenceSchema>;
-export type RejectSellerResponseInput = z.infer<typeof rejectSellerResponseSchema>;
 export type FileAppealInput = z.infer<typeof fileAppealSchema>;
-export type SellerResponseInput = z.infer<typeof sellerResponseSchema>;
-export type ProposeResolutionInput = z.infer<typeof proposeResolutionSchema>;
 export type AddInternalNoteInput = z.infer<typeof addInternalNoteSchema>;
 export type RequestInfoInput = z.infer<typeof requestInfoSchema>;
 export type MakeDecisionInput = z.infer<typeof makeDecisionSchema>;

@@ -1755,7 +1755,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [Level1_BuyerSeller, Level2_Moderator, Level3_SeniorMod, Level4_Admin]
+            enum: [Level2_Moderator, Level3_SeniorMod, Level4_Admin]
         - name: assignedToUserId
           in: query
           schema:
@@ -3401,51 +3401,25 @@ components:
         status:
           type: string
           enum:
-            - Open
-            - WaitingSeller
-            - SellerResponded
-            - BuyerReviewing
-            - ModeratorQueue
             - ModeratorAssigned
-            - ModeratorReviewing
+            - InReview
             - NeedMoreInfo
             - DecisionMade
-            - AppealWindow
+            - Appealable
             - AppealFiled
-            - AppealReviewing
+            - AppealReview
             - Resolved
-            - ResolvedByAgreement
             - Closed
         priority:
           type: string
           enum: [Low, Medium, High, Urgent]
         escalationLevel:
           type: string
-          enum: [Level1_BuyerSeller, Level2_Moderator, Level3_SeniorMod, Level4_Admin]
-        escalationReason:
-          type: string
-          nullable: true
+          enum: [Level2_Moderator, Level3_SeniorMod, Level4_Admin]
         buyerEvidence:
           type: array
           items:
             $ref: '#/components/schemas/ComplaintEvidence'
-        sellerEvidence:
-          type: array
-          items:
-            $ref: '#/components/schemas/ComplaintEvidence'
-        sellerResponse:
-          type: string
-          nullable: true
-        sellerResponseDeadline:
-          type: string
-          format: date-time
-        sellerRespondedAt:
-          type: string
-          format: date-time
-          nullable: true
-        sellerResponseStatus:
-          type: string
-          enum: [Pending, Responded, Timeout]
         assignedToUserId:
           oneOf:
             - type: string
@@ -3641,59 +3615,6 @@ components:
           type: string
           maxLength: 500
           example: Ảnh chụp màn hình lỗi đăng nhập
-
-    SellerResponseRequest:
-      type: object
-      required:
-        - response
-      properties:
-        response:
-          type: string
-          minLength: 20
-          maxLength: 2000
-          example: Xin lỗi về sự bất tiện. Tôi đã kiểm tra và gửi lại thông tin đăng nhập mới...
-        evidence:
-          type: array
-          maxItems: 10
-          items:
-            type: object
-            properties:
-              type:
-                $ref: '#/components/schemas/EvidenceType'
-              url:
-                type: string
-                format: uri
-              description:
-                type: string
-                maxLength: 500
-
-    ProposeResolutionRequest:
-      type: object
-      required:
-        - proposedResolution
-      properties:
-        proposedResolution:
-          type: string
-          enum: [FullRefund, PartialRefund, Replace]
-        refundAmount:
-          type: number
-          minimum: 0
-          description: Bắt buộc nếu proposedResolution là PartialRefund
-        message:
-          type: string
-          maxLength: 1000
-          example: Tôi đề xuất hoàn tiền một phần 50% giá trị đơn hàng
-
-    RejectResponseRequest:
-      type: object
-      required:
-        - reason
-      properties:
-        reason:
-          type: string
-          minLength: 10
-          maxLength: 1000
-          example: Phản hồi của người bán không giải quyết được vấn đề, tài khoản vẫn không hoạt động
 
     AddInternalNoteRequest:
       type: object
