@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 
 interface ProductCardProps {
@@ -40,6 +41,7 @@ export function ProductCard({
     return (
       <Link
         href={`/products/${id}`}
+        prefetch={true}
         className={`group relative block overflow-visible rounded-2xl ${className}`}
       >
         <div className="">
@@ -47,10 +49,12 @@ export function ProductCard({
             <div className={`w-full bg-gradient-to-br ${gradient} p-3`}>
               <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-white/5 flex items-center justify-center">
                 {hasImage && !imageError ? (
-                  <img
+                  <Image
                     src={image}
                     alt={name}
-                    className="h-full w-full object-contain"
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 768px) 100vw, 300px"
                     onError={() => setImageError(true)}
                   />
                 ) : (
@@ -69,10 +73,12 @@ export function ProductCard({
             <div className={`w-full bg-gradient-to-br ${gradient} p-3`}>
               <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-white/5 flex items-center justify-center">
                 {hasImage && !imageError ? (
-                  <img
+                  <Image
                     src={image}
                     alt={name}
-                    className="h-full w-full object-contain"
+                    fill
+                    className="object-contain"
+                    sizes="420px"
                     onError={() => setImageError(true)}
                   />
                 ) : (
@@ -111,6 +117,7 @@ export function ProductCard({
   return (
     <Link
       href={`/products/${id}`}
+      prefetch={true}
       className={`group relative flex flex-col h-full backdrop-blur-md bg-white/90 border border-white/20 rounded-lg overflow-hidden hover:shadow-lg hover:border-violet-300 transition-all duration-200 ${className}`}
     >
       {/* Image - Improved display with better height and full image support */}
@@ -119,10 +126,12 @@ export function ProductCard({
       >
         {/* Product Image - Always render when image URL exists */}
         {hasImage && !imageError && (
-          <img
+          <Image
             src={image}
             alt={name}
-            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 relative z-20"
+            fill
+            className="object-contain group-hover:scale-105 transition-transform duration-300 z-20"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
             onError={() => {
               // Fallback to gradient if image fails to load
               setImageError(true);
