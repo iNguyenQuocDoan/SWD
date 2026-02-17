@@ -84,31 +84,31 @@ app.get("/health", (_req, res) => {
 if (!isServerless) {
   const swaggerUi = require("swagger-ui-express");
   const YAML = require("yamljs");
-  const swaggerFilePath = path.join(__dirname, "..", "swagger.yml");
-  try {
+const swaggerFilePath = path.join(__dirname, "..", "swagger.yml");
+try {
     const swaggerDocument = YAML.load(swaggerFilePath);
-    console.log("Swagger document loaded successfully");
+  console.log("Swagger document loaded successfully");
 
-    const swaggerOptions = {
-      customCss: ".swagger-ui .topbar { display: none }",
-      customSiteTitle: "Marketplace API Documentation",
+  const swaggerOptions = {
+    customCss: ".swagger-ui .topbar { display: none }",
+    customSiteTitle: "Marketplace API Documentation",
       persistAuthorization: true,
-      filter: true,
-      validatorUrl: null,
-      supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
-      docExpansion: "list" as const,
-    };
+    filter: true,
+    validatorUrl: null,
+    supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
+    docExpansion: "list" as const,
+  };
 
-    app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
-    app.get("/swagger/", (_req, res) => {
-      res.redirect("/swagger");
-    });
-  } catch (err) {
-    console.warn("Could not load swagger file:", err);
-  }
+  app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
+  app.get("/swagger/", (_req, res) => {
+    res.redirect("/swagger");
+  });
+} catch (err) {
+  console.warn("Could not load swagger file:", err);
+}
 
   // Static files (uploads) - only for local development
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 }
 
 // API Routes
@@ -137,10 +137,10 @@ if (!isServerless) {
     // Start disbursement scheduler (auto-release escrow after 72h)
     schedulerService.startDisbursementScheduler();
 
-    const PORT = env.port;
+const PORT = env.port;
     httpServer.listen(PORT, () => {
-      console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
-      console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
+  console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
+  console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
       console.log(`WebSocket server ready`);
     });
 

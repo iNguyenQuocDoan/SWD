@@ -65,7 +65,7 @@ class ApiClient {
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-
+        
         if (config.data instanceof FormData && config.headers) {
           delete (config.headers as any)["Content-Type"];
           delete (config.headers as any)["content-type"];

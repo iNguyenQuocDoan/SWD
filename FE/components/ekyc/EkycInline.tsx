@@ -1,20 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ekycService, type EkycDocumentType, type EkycSessionResponse } from "@/lib/services/ekyc.service";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, UploadCloud, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  UploadCloud,
+  Loader2,
+  RotateCcw,
+  ShieldCheck,
+  Camera,
+  X,
+} from "lucide-react";
 
 const buildClientSession = () => {
   const ua = typeof navigator !== "undefined" ? navigator.userAgent : "web";
@@ -46,6 +48,7 @@ type DocMeta = { id: EkycDocumentType; title: string; subtitle: string };
 const DOCS: DocMeta[] = [
   { id: "front", title: "Bước 1: CCCD/CMND mặt trước", subtitle: "Chụp rõ, không lóa." },
   { id: "back", title: "Bước 2: CCCD/CMND mặt sau", subtitle: "Chụp rõ, không lóa." },
+  { id: "selfie", title: "Bước 3: Ảnh chân dung (Selfie)", subtitle: "Chụp rõ mặt, đủ ánh sáng." },
 ];
 
 const statusBadge = (status?: string) => {
@@ -64,6 +67,12 @@ export function EkycInline({ onVerified }: Props) {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Camera states for selfie
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraStarting, setCameraStarting] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
   // hidden fields required by VNPT
   const [token] = useState<string>(() => uuid());
   const [clientSession] = useState<string>(() => buildClientSession());
@@ -76,8 +85,8 @@ export function EkycInline({ onVerified }: Props) {
   });
 
   const allUploaded = useMemo(() => {
-    return docs.front.uploaded && docs.back.uploaded;
-  }, [docs.back.uploaded, docs.front.uploaded]);
+    return docs.front.uploaded && docs.back.uploaded && docs.selfie.uploaded;
+  }, [docs.back.uploaded, docs.front.uploaded, docs.selfie.uploaded]);
 
   const loadSession = async () => {
     setLoading(true);
@@ -90,6 +99,7 @@ export function EkycInline({ onVerified }: Props) {
           ...prev,
           front: { ...prev.front, uploaded: !!data.hashes?.frontHash },
           back: { ...prev.back, uploaded: !!data.hashes?.backHash },
+          selfie: { ...prev.selfie, uploaded: !!data.hashes?.selfieHash },
         }));
       }
 
@@ -103,6 +113,50 @@ export function EkycInline({ onVerified }: Props) {
     }
   };
 
+  const stopCamera = () => {
+    const el = videoRef.current;
+    const stream = el?.srcObject as MediaStream | null;
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+    }
+    if (el) {
+      el.srcObject = null;
+    }
+    setShowCamera(false);
+  };
+
+  const startCamera = async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setError("Trình duyệt không hỗ trợ camera.");
+      return;
+    }
+
+    setError(null);
+    setCameraStarting(true);
+    setShowCamera(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (e) {
+      setError("Không thể truy cập camera. Vui lòng cấp quyền và thử lại.");
+      setShowCamera(false);
+    } finally {
+      setCameraStarting(false);
+    }
+  };
+
   useEffect(() => {
     void loadSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,11 +164,13 @@ export function EkycInline({ onVerified }: Props) {
 
   useEffect(() => {
     return () => {
+      stopCamera();
       Object.values(docs).forEach((d) => {
         if (d.previewUrl) URL.revokeObjectURL(d.previewUrl);
       });
     };
-  }, [docs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onPick = (type: EkycDocumentType, file: File | null) => {
     if (!file) return;
@@ -140,6 +196,39 @@ export function EkycInline({ onVerified }: Props) {
     });
   };
 
+  const captureSelfie = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    if (!video.videoWidth || !video.videoHeight) {
+      setError("Camera chưa sẵn sàng. Vui lòng thử lại.");
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          setError("Không thể chụp ảnh. Vui lòng thử lại.");
+          return;
+        }
+        const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
+        onPick("selfie", file);
+        stopCamera();
+      },
+      "image/jpeg",
+      0.9
+    );
+  };
+
   const upload = async (type: EkycDocumentType) => {
     const file = docs[type].file;
     if (!file) return;
@@ -151,7 +240,7 @@ export function EkycInline({ onVerified }: Props) {
     setError(null);
 
     try {
-      await ekycService.upload(type as any, file);
+      await ekycService.upload(type, file);
       setDocs((prev) => ({
         ...prev,
         [type]: { ...prev[type], uploading: false, uploaded: true },
@@ -173,10 +262,21 @@ export function EkycInline({ onVerified }: Props) {
     setError(null);
 
     try {
-      await ekycService.process({ client_session: clientSession, token, type: docType });
+      const result = await ekycService.process({ client_session: clientSession, token, type: docType });
+      if (result.status === "RETRY_REQUIRED") {
+        setError(`Xác minh không thành công: ${result.reasons.join(", ")}`);
+      }
       await loadSession();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Xử lý thất bại");
+    } catch (e: any) {
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e?.message === "string"
+            ? e.message
+            : typeof e?.response?.data?.message === "string"
+              ? e.response.data.message
+              : "Xử lý thất bại";
+      setError(msg);
     } finally {
       setProcessing(false);
     }
@@ -190,6 +290,7 @@ export function EkycInline({ onVerified }: Props) {
         ...prev,
         front: { file: null, previewUrl: null, uploading: false, uploaded: false },
         back: { file: null, previewUrl: null, uploading: false, uploaded: false },
+        selfie: { file: null, previewUrl: null, uploading: false, uploaded: false },
       }));
       await loadSession();
     } catch (e) {
@@ -216,7 +317,7 @@ export function EkycInline({ onVerified }: Props) {
             ? "Đang tải trạng thái..."
             : session?.status === "VERIFIED"
               ? "Bạn đã xác minh thành công."
-              : "Vui lòng tải lên mặt trước & mặt sau, sau đó bấm Xác minh."}
+              : "Vui lòng tải lên mặt trước, mặt sau và selfie, sau đó bấm Xác minh."}
         </div>
       </CardHeader>
 
@@ -238,6 +339,8 @@ export function EkycInline({ onVerified }: Props) {
         <div className="grid gap-3">
           {DOCS.map((m) => {
             const state = docs[m.id];
+            const isSelfie = m.id === "selfie";
+
             return (
               <Card key={m.id} className="p-3">
                 <div className="flex items-center justify-between gap-3">
@@ -270,7 +373,21 @@ export function EkycInline({ onVerified }: Props) {
 
                 {!state.uploaded ? (
                   <div className="mt-3 grid gap-3 md:grid-cols-[1fr_180px] md:items-start">
-                    <Input type="file" accept="image/*" onChange={(e) => onPick(m.id, e.target.files?.[0] ?? null)} />
+                    <div className="space-y-2">
+                      {isSelfie ? (
+                        <div className="flex gap-2">
+                          <Button type="button" variant="outline" onClick={startCamera} className="flex-1">
+                            <Camera className="h-4 w-4 mr-2" />
+                            Mở camera
+                          </Button>
+                          <Input type="file" accept="image/*" onChange={(e) => onPick(m.id, e.target.files?.[0] ?? null)} className="flex-1" />
+                        </div>
+                      ) : (
+                        <Input type="file" accept="image/*" onChange={(e) => onPick(m.id, e.target.files?.[0] ?? null)} />
+                      )}
+                      {state.error ? <div className="text-xs text-red-600">{state.error}</div> : null}
+                    </div>
+
                     {state.previewUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={state.previewUrl} alt={`${m.id} preview`} className="h-24 w-full rounded border object-cover" />
@@ -279,13 +396,42 @@ export function EkycInline({ onVerified }: Props) {
                         Preview
                       </div>
                     )}
-                    {state.error ? <div className="text-xs text-red-600">{state.error}</div> : null}
                   </div>
                 ) : null}
               </Card>
             );
           })}
         </div>
+
+        {showCamera ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+            <Card className="w-full max-w-xl overflow-hidden">
+              <CardHeader className="py-3 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">Chụp ảnh Selfie</CardTitle>
+                <Button type="button" variant="ghost" size="icon" onClick={stopCamera}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="relative bg-black aspect-video">
+                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                  <canvas ref={canvasRef} className="hidden" />
+                  {cameraStarting ? (
+                    <div className="absolute inset-0 flex items-center justify-center text-white text-sm">
+                      Đang mở camera...
+                    </div>
+                  ) : null}
+                </div>
+                <div className="p-4 flex justify-center">
+                  <Button type="button" onClick={captureSelfie} disabled={cameraStarting}>
+                    <Camera className="h-4 w-4 mr-2" />
+                    Chụp ảnh
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
 
         <Separator />
 

@@ -7,6 +7,7 @@ import { normalizeOcr } from "@/utils/ekyc-mappers";
 
 export class EkycProcessController {
   process = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ success: false, message: "Unauthorized" });
@@ -27,6 +28,14 @@ export class EkycProcessController {
       return;
     }
 
+      if (!session.selfieHash) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required hash (selfie). Please upload selfie image first.",
+        });
+        return;
+      }
+
     const client_session = (req.body?.client_session ?? "") as string;
     const token = (req.body?.token ?? "") as string;
     const type = req.body?.type as any;
@@ -41,28 +50,68 @@ export class EkycProcessController {
       return;
     }
 
-    // OCR front/back
-    const [ocrFrontRaw, ocrBackRaw] = await Promise.all([
+      const [ocrFrontRaw, ocrBackRaw, cardLivenessRaw, faceLivenessRaw, faceCompareRaw] =
+        await Promise.all([
       ocrService.ocrFront({ img_front: session.frontHash, client_session, token, type }),
       ocrService.ocrBack({ img_back: session.backHash, client_session, token, type }),
-    ]);
-
-    // Card liveness (document) - theo docs mục 3 yêu cầu img + client_session (và thường có token ở một số bản docs)
-    // Để an toàn với spec, truyền kèm token nếu VNPT chấp nhận.
-    const cardLivenessRaw = await faceService.cardLiveness({
+          faceService.cardLiveness({
       img: session.frontHash,
       client_session,
       // @ts-expect-error - token optional depending on VNPT spec version
       token,
-    });
+          }),
+          faceService.faceLiveness({ img: session.selfieHash, client_session, token }),
+          faceService.faceCompare({
+            img_front: session.frontHash,
+            img_face: session.selfieHash,
+            client_session,
+            token,
+          }),
+        ]);
 
     const ocrNormalized = normalizeOcr({ ocrFrontRaw, ocrBackRaw });
 
     const cardLiveness = String((cardLivenessRaw as any)?.object?.liveness ?? "").toLowerCase();
     const cardOk = cardLiveness === "success";
 
-    const status = cardOk ? "VERIFIED" : "RETRY_REQUIRED";
-    const reasons = cardOk ? [] : ["CARD_LIVENESS_FAILED"];
+      const faceLiveness = String((faceLivenessRaw as any)?.object?.liveness ?? "").toLowerCase();
+      const faceOk = faceLiveness === "success";
+
+      const probRaw =
+        (faceCompareRaw as any)?.object?.prob ??
+        (faceCompareRaw as any)?.object?.similarity ??
+        (faceCompareRaw as any)?.object?.match_prob ??
+        null;
+      const thresholdRaw =
+        (faceCompareRaw as any)?.object?.threshold ??
+        (faceCompareRaw as any)?.object?.match_threshold ??
+        null;
+
+      const faceMatchProb = typeof probRaw === "number" ? probRaw : probRaw != null ? Number(probRaw) : null;
+      const faceMatchThreshold =
+        typeof thresholdRaw === "number" ? thresholdRaw : thresholdRaw != null ? Number(thresholdRaw) : null;
+
+      // Cải tiến logic compareOk: 
+      // Nếu có prob và threshold, so sánh trực tiếp.
+      // Nếu threshold null nhưng prob cao (thường VNPT trả 0-1 hoặc 0-100), mặc định pass nếu > 80 (hoặc 0.8)
+      let compareOk = false;
+      if (faceMatchProb != null) {
+        if (faceMatchThreshold != null) {
+          compareOk = faceMatchProb >= faceMatchThreshold;
+        } else {
+          // Fallback khi threshold null: giả định ngưỡng an toàn là 80%
+          compareOk = faceMatchProb >= 80 || faceMatchProb >= 0.8; 
+        }
+      } else {
+        compareOk = String((faceCompareRaw as any)?.object?.msg ?? "").toLowerCase() === "success";
+      }
+
+      const status = cardOk && faceOk && compareOk ? "VERIFIED" : "RETRY_REQUIRED";
+
+      const reasons: string[] = [];
+      if (!cardOk) reasons.push("CARD_LIVENESS_FAILED");
+      if (!faceOk) reasons.push("FACE_LIVENESS_FAILED");
+      if (!compareOk) reasons.push("FACE_COMPARE_FAILED");
 
     await (session as any).updateOne({
       $set: {
@@ -72,10 +121,10 @@ export class EkycProcessController {
         ocrFrontRaw,
         ocrBackRaw,
         cardLivenessRaw,
-        faceLivenessRaw: null,
-        faceCompareRaw: null,
-        faceMatchProb: null,
-        faceMatchThreshold: null,
+          faceLivenessRaw,
+          faceCompareRaw,
+          faceMatchProb,
+          faceMatchThreshold,
       },
     });
 
@@ -85,8 +134,18 @@ export class EkycProcessController {
         status,
         reasons,
         ocr: ocrNormalized,
+          faceMatch: {
+            prob: faceMatchProb,
+            threshold: faceMatchThreshold,
+          },
       },
     });
+    } catch (err: any) {
+      res.status(502).json({
+        success: false,
+        message: err?.message ?? "eKYC processing failed",
+      });
+    }
   };
 }
 

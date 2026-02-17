@@ -46,12 +46,9 @@ export type EkycProcessResponse = {
     address: string | null;
   };
   faceMatch: {
-    msg: string;
     prob: number | null;
-    thresholdRatio: number;
-    thresholdPercent: number;
+    threshold: number | null;
   };
-  raw: unknown;
 };
 
 export const ekycService = {
@@ -75,7 +72,7 @@ export const ekycService = {
   async process(payload: EkycProcessRequest) {
     const response = await apiClient.post<EkycProcessResponse>("/ekyc/process", payload);
     if (response.success && response.data) return response.data;
-    throw new Error(response.message || "Process eKYC failed");
+    throw new Error(response.message || "Xác minh eKYC thất bại");
   },
 
   async resetSession() {
