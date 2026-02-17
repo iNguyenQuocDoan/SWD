@@ -632,7 +632,7 @@ export default function SellerHome() {
                         <div className="flex-1 flex items-start gap-4">
                           <div className="relative h-16 w-16 rounded-xl border bg-muted/30 overflow-hidden flex items-center justify-center flex-shrink-0">
                             {product.thumbnailUrl ? (
-                              <Image src={product.thumbnailUrl} alt={product.title} fill className="object-cover" sizes="64px" />
+                              <Image src={product.thumbnailUrl} alt={product.title} fill className="object-cover" sizes="64px" unoptimized={product.thumbnailUrl?.startsWith("data:")} />
                             ) : (
                               <Package className="h-6 w-6 text-muted-foreground" />
                             )}
@@ -705,7 +705,7 @@ export default function SellerHome() {
                               <div className="flex items-center gap-3">
                                 <div className="relative h-10 w-10 rounded-lg border bg-muted/30 overflow-hidden flex items-center justify-center shrink-0">
                                   {product.thumbnailUrl ? (
-                                    <Image src={product.thumbnailUrl} alt={product.title} fill className="object-cover" sizes="40px" />
+                                    <Image src={product.thumbnailUrl} alt={product.title} fill className="object-cover" sizes="40px" unoptimized={product.thumbnailUrl?.startsWith("data:")} />
                                   ) : (
                                     <Package className="h-4 w-4 text-muted-foreground" />
                                   )}
@@ -815,6 +815,7 @@ export default function SellerHome() {
                                         fill
                                         className="object-cover"
                                         sizes="64px"
+                                        unoptimized={img?.startsWith("data:")}
                                       />
                                     </div>
                                   ))}
@@ -874,6 +875,7 @@ export default function SellerHome() {
                       fill
                       className="object-contain"
                       sizes="(max-width: 768px) 100vw, 500px"
+                      unoptimized={selectedProduct.thumbnailUrl?.startsWith("data:")}
                     />
                   </div>
                 )}

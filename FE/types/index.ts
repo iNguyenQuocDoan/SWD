@@ -268,6 +268,139 @@ export interface SupportTicket {
   updatedAt: Date;
 }
 
+// ===== Complaint System Types =====
+export type ComplaintCategory =
+  | "ProductQuality"    // Chất lượng sản phẩm
+  | "NotAsDescribed"    // Không đúng mô tả
+  | "AccountNotWorking" // Tài khoản không hoạt động
+  | "DeliveryIssue"     // Vấn đề giao hàng
+  | "Fraud"             // Lừa đảo
+  | "Other";            // Khác
+
+export type ComplaintSubcategory =
+  | "WrongCredentials"    // Thông tin đăng nhập sai
+  | "AlreadyUsed"         // Đã được sử dụng
+  | "ExpiredEarly"        // Hết hạn sớm
+  | "CannotActivate"      // Không thể kích hoạt
+  | "WrongProduct"        // Sản phẩm sai
+  | "MissingFeatures"     // Thiếu tính năng
+  | "Other";              // Khác
+
+export type ComplaintStatus =
+  | "InQueue"             // Trong hàng đợi moderator
+  | "Assigned"            // Đã giao cho moderator
+  | "InReview"            // Moderator đang xem xét
+  | "NeedMoreInfo"        // Cần thêm thông tin
+  | "Resolved"            // Đã giải quyết
+  | "Appealable"          // Có thể kháng cáo (72h window)
+  | "Closed"              // Đã đóng
+  | "AppealInReview";     // Kháng cáo đang xem xét
+
+export type ComplaintResolution =
+  | "None"
+  | "FullRefund"
+  | "PartialRefund"
+  | "Replace"
+  | "Reject";
+
+export type AppealDecision = "Upheld" | "Overturned";
+
+export interface ComplaintEvidence {
+  type: "Screenshot" | "Video" | "Document" | "ChatLog" | "Other";
+  url: string;
+  description?: string;
+  uploadedAt: Date;
+}
+
+export interface ComplaintDecision {
+  resolution: ComplaintResolution;
+  refundAmount?: number;
+  reason: string;
+  decidedBy: string;
+  decidedAt: Date;
+}
+
+export interface AppealInfo {
+  appealedAt: Date;
+  appealReason: string;
+  appealEvidence?: ComplaintEvidence[];
+  appealDecision?: AppealDecision;
+  appealResolvedBy?: string;
+  appealResolvedAt?: Date;
+  appealNote?: string;
+}
+
+export interface Complaint {
+  _id: string;
+  ticketCode: string;
+  customerUserId: string | { _id: string; fullName: string; email: string };
+  orderItemId: string | OrderItem;
+  shopId: string | { _id: string; shopName: string };
+  sellerUserId: string | { _id: string; fullName: string };
+  title: string;
+  content: string;
+  type: "Complaint";
+  category: ComplaintCategory;
+  subcategory?: ComplaintSubcategory;
+  status: ComplaintStatus;
+  resolutionType: ComplaintResolution;
+  buyerEvidence: ComplaintEvidence[];
+  orderSnapshot?: {
+    productTitle: string;
+    productThumbnail?: string;
+    quantity: number;
+    unitPrice: number;
+    totalAmount: number;
+    orderedAt: Date;
+  };
+  escalationLevel: "Level2_Moderator" | "Level3_SeniorMod" | "Level4_Admin";
+  assignedToUserId?: string | { _id: string; fullName: string };
+  decision?: ComplaintDecision;
+  isAppeal: boolean;
+  originalTicketId?: string;
+  appealInfo?: AppealInfo;
+  appealDeadline?: Date;
+  orderValue: number;
+  slaBreached: boolean;
+  firstResponseAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ComplaintQueueItem {
+  _id: string;
+  ticketId: string | Complaint;
+  assignedModeratorId?: string | { _id: string; fullName: string };
+  queuePriority: number;
+  status: "InQueue" | "Assigned" | "InProgress" | "Completed";
+  addedToQueueAt: Date;
+  pickedUpAt?: Date;
+  orderValue: number;
+  buyerTrustLevel: number;
+  ticketAge: number;
+  isHighValue: boolean;
+  isEscalated: boolean;
+}
+
+export interface ComplaintTimeline {
+  _id: string;
+  ticketId: string;
+  eventType: string;
+  actorUserId?: { _id: string; fullName: string; email: string };
+  actorRole: "BUYER" | "MODERATOR" | "ADMIN" | "SYSTEM";
+  description: string;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+}
+
+export interface ComplaintQueueStats {
+  totalInQueue: number;
+  highPriority: number;
+  normalPriority: number;
+  avgWaitTimeMinutes: number;
+  oldestTicketHours: number;
+}
+
 // Reviews - Match với reviews collection
 export interface Review {
   id: string; // _id from reviews collection

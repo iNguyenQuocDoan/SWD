@@ -5,6 +5,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { productService, ProductResponse, ProductFilter } from "@/lib/services/product.service";
 
+// Debug logger - only logs in development
+const DEBUG = process.env.NODE_ENV === "development";
+const log = (hook: string, action: string, data?: unknown) => {
+  if (DEBUG) {
+    console.log(`[${hook}] ${action}`, data ?? "");
+  }
+};
+
 export interface UseProductsOptions {
   initialFilter?: ProductFilter;
   autoFetch?: boolean;
@@ -65,40 +73,21 @@ export function useFeaturedProducts(limit: number = 6) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log("[useFeaturedProducts] Hook initialized with limit:", limit);
+    log("useFeaturedProducts", "init", { limit });
     const fetchFeatured = async () => {
       try {
         setLoading(true);
         setError(null);
-        console.log("[useFeaturedProducts] Fetching featured products with limit:", limit);
         const response = await productService.getFeaturedProducts(limit);
-        console.log("[useFeaturedProducts] API response:", {
-          success: response.success,
-          hasData: !!response.data,
-          dataLength: Array.isArray(response.data) ? response.data.length : "N/A",
-          data: response.data,
-        });
         if (response.success && response.data) {
-          console.log("[useFeaturedProducts] Setting products:", {
-            count: response.data.length,
-            firstProduct: response.data[0] ? {
-              id: response.data[0]._id || response.data[0].id,
-              title: response.data[0].title,
-            } : null,
-          });
           setProducts(response.data);
-          console.log("[useFeaturedProducts] Products set successfully:", response.data.length);
+          log("useFeaturedProducts", "success", { count: response.data.length });
         } else {
-          console.warn("[useFeaturedProducts] No data in response:", {
-            success: response.success,
-            hasData: !!response.data,
-            response: response,
-          });
           setProducts([]);
         }
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : "Failed to load products";
-        console.error("[useFeaturedProducts] Error:", errorMessage, err);
+        log("useFeaturedProducts", "error", errorMessage);
         setError(errorMessage);
         setProducts([]);
       } finally {
@@ -118,40 +107,21 @@ export function useTopProducts(limit: number = 5) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log("[useTopProducts] Hook initialized with limit:", limit);
+    log("useTopProducts", "init", { limit });
     const fetchTop = async () => {
       try {
         setLoading(true);
         setError(null);
-        console.log("[useTopProducts] Fetching top products with limit:", limit);
         const response = await productService.getTopProducts(limit);
-        console.log("[useTopProducts] API response:", {
-          success: response.success,
-          hasData: !!response.data,
-          dataLength: Array.isArray(response.data) ? response.data.length : "N/A",
-          data: response.data,
-        });
         if (response.success && response.data) {
-          console.log("[useTopProducts] Setting products:", {
-            count: response.data.length,
-            firstProduct: response.data[0] ? {
-              id: response.data[0]._id || response.data[0].id,
-              title: response.data[0].title,
-            } : null,
-          });
           setProducts(response.data);
-          console.log("[useTopProducts] Products set successfully:", response.data.length);
+          log("useTopProducts", "success", { count: response.data.length });
         } else {
-          console.warn("[useTopProducts] No data in response:", {
-            success: response.success,
-            hasData: !!response.data,
-            response: response,
-          });
           setProducts([]);
         }
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : "Failed to load products";
-        console.error("[useTopProducts] Error:", errorMessage, err);
+        log("useTopProducts", "error", errorMessage);
         setError(errorMessage);
         setProducts([]);
       } finally {

@@ -52,14 +52,13 @@ export class EkycProcessController {
 
       const [ocrFrontRaw, ocrBackRaw, cardLivenessRaw, faceLivenessRaw, faceCompareRaw] =
         await Promise.all([
-      ocrService.ocrFront({ img_front: session.frontHash, client_session, token, type }),
-      ocrService.ocrBack({ img_back: session.backHash, client_session, token, type }),
+          ocrService.ocrFront({ img_front: session.frontHash, client_session, token, type }),
+          ocrService.ocrBack({ img_back: session.backHash, client_session, token, type }),
           faceService.cardLiveness({
-      img: session.frontHash,
-      client_session,
-      // @ts-expect-error - token optional depending on VNPT spec version
-      token,
-          }),
+            img: session.frontHash,
+            client_session,
+            token,
+          } as Parameters<typeof faceService.cardLiveness>[0]),
           faceService.faceLiveness({ img: session.selfieHash, client_session, token }),
           faceService.faceCompare({
             img_front: session.frontHash,

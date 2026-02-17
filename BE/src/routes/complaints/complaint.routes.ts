@@ -11,7 +11,7 @@ const router = Router();
 // All routes require authentication
 router.use(authenticate);
 
-// ===== Static routes first (before parameterized routes) =====
+// ===== Admin Routes (must be before parameterized routes) =====
 
 // Admin: Manually trigger disbursement processing
 router.post(
@@ -40,6 +40,35 @@ router.get(
   })
 );
 
+// ===== Moderator Queue Routes =====
+
+// Get complaint queue (moderator)
+router.get(
+  "/queue",
+  checkPermission(PERMISSIONS.COMPLAINT_QUEUE_VIEW),
+  wrapRequestHandler(complaintController.getQueue)
+);
+
+// Get queue statistics (moderator)
+router.get(
+  "/queue/stats",
+  checkPermission(PERMISSIONS.COMPLAINT_QUEUE_VIEW),
+  wrapRequestHandler(complaintController.getQueueStats)
+);
+
+// NOTE: Queue picking removed - complaints are auto-assigned to single moderator
+
+// ===== Moderator Workload Routes =====
+
+// Get moderator workload (admin/moderator)
+router.get(
+  "/moderator/workload",
+  checkPermission(PERMISSIONS.COMPLAINT_STATS_VIEW),
+  wrapRequestHandler(complaintController.getModeratorWorkload)
+);
+
+// ===== Customer Routes =====
+
 // Get my complaints (customer)
 router.get(
   "/me",
@@ -54,7 +83,7 @@ router.get(
   wrapRequestHandler(complaintController.checkCanFileComplaint)
 );
 
-// ===== Root routes =====
+// ===== Root Routes =====
 
 // Create complaint (customer)
 router.post(
@@ -66,31 +95,79 @@ router.post(
 // Get all complaints (admin/moderator)
 router.get(
   "/",
-  checkPermission(PERMISSIONS.REFUND_VIEW_ALL),
+  checkPermission(PERMISSIONS.TICKET_VIEW_ALL),
   wrapRequestHandler(complaintController.getAllComplaints)
 );
 
-// ===== Parameterized routes last =====
+// ===== Parameterized Routes =====
 
-// Get complaint by ID (customer can view own, admin/mod can view all)
+// Get complaint by ID
 router.get(
   "/:id",
   checkPermission(PERMISSIONS.TICKET_VIEW),
   wrapRequestHandler(complaintController.getComplaintById)
 );
 
-// Resolve complaint (admin/moderator)
-router.put(
-  "/:id/resolve",
-  checkPermission(PERMISSIONS.REFUND_APPROVE),
-  wrapRequestHandler(complaintController.resolveComplaint)
+// Get complaint timeline
+router.get(
+  "/:id/timeline",
+  checkPermission(PERMISSIONS.TICKET_VIEW),
+  wrapRequestHandler(complaintController.getComplaintTimeline)
 );
 
-// Update ticket status (admin/moderator)
-router.put(
-  "/:id/status",
-  checkPermission(PERMISSIONS.REFUND_APPROVE),
-  wrapRequestHandler(complaintController.updateTicketStatus)
+// ===== Buyer Actions =====
+
+// Add evidence to complaint (buyer)
+router.post(
+  "/:id/evidence",
+  checkPermission(PERMISSIONS.TICKET_UPDATE),
+  wrapRequestHandler(complaintController.addEvidence)
+);
+
+// File an appeal (buyer)
+router.post(
+  "/:id/appeal",
+  checkPermission(PERMISSIONS.COMPLAINT_APPEAL),
+  wrapRequestHandler(complaintController.fileAppeal)
+);
+
+// ===== Moderator Actions =====
+
+// Assign complaint to moderator
+router.post(
+  "/:id/assign",
+  checkPermission(PERMISSIONS.COMPLAINT_ASSIGN),
+  wrapRequestHandler(complaintController.assignToModerator)
+);
+
+// Add internal note (moderator)
+router.post(
+  "/:id/internal-note",
+  checkPermission(PERMISSIONS.COMPLAINT_INTERNAL_NOTE),
+  wrapRequestHandler(complaintController.addInternalNote)
+);
+
+// Request more information (moderator)
+router.post(
+  "/:id/request-info",
+  checkPermission(PERMISSIONS.COMPLAINT_REQUEST_INFO),
+  wrapRequestHandler(complaintController.requestMoreInfo)
+);
+
+// Make decision on complaint (moderator)
+router.post(
+  "/:id/decision",
+  checkPermission(PERMISSIONS.COMPLAINT_DECISION),
+  wrapRequestHandler(complaintController.makeDecision)
+);
+
+// ===== Admin Actions =====
+
+// Resolve appeal (admin/senior mod)
+router.post(
+  "/:id/appeal-decision",
+  checkPermission(PERMISSIONS.COMPLAINT_APPEAL_REVIEW),
+  wrapRequestHandler(complaintController.resolveAppeal)
 );
 
 export default router;

@@ -61,6 +61,11 @@ const nextConfig: NextConfig = {
       "@radix-ui/react-icons",
       "date-fns",
       "framer-motion",
+      "socket.io-client",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-select",
+      "@radix-ui/react-tabs",
     ],
   },
 

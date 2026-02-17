@@ -44,9 +44,19 @@ export type { IReport } from "./reviews/report.model";
 export { default as SupportTicket } from "./support/support-ticket.model";
 export type { ISupportTicket } from "./support/support-ticket.model";
 export { default as Conversation } from "./support/conversation.model";
-export type { IConversation } from "./support/conversation.model";
+export type { IConversation, IConversationUnreadCount } from "./support/conversation.model";
 export { default as Message } from "./support/message.model";
-export type { IMessage } from "./support/message.model";
+export type { IMessage, IMessageAttachment } from "./support/message.model";
+
+// Complaint models
+export { default as ComplaintTimeline } from "./complaints/complaint-timeline.model";
+export type { IComplaintTimeline } from "./complaints/complaint-timeline.model";
+export { default as ComplaintQueue } from "./complaints/complaint-queue.model";
+export type { IComplaintQueue } from "./complaints/complaint-queue.model";
+export { default as ModeratorStats } from "./complaints/moderator-stats.model";
+export type { IModeratorStats } from "./complaints/moderator-stats.model";
+export { default as DecisionTemplate } from "./complaints/decision-template.model";
+export type { IDecisionTemplate } from "./complaints/decision-template.model";
 
 // eKYC models
 export { default as KycSession } from "./ekyc/kyc-session.model";
