@@ -13,19 +13,8 @@ const log = (action: string, data?: unknown) => {
     console.log(`[ChatService] ${action}`, data ?? "");
   }
 };
-const logError = (action: string, error: any) => {
-  // Silent logs for auth errors (401) to avoid console noise when not logged in
-  if (error?.status === 401 || error?.response?.status === 401) {
-    return;
-  }
-  
-  const errorMessage = error?.message || error?.response?.data?.message || "Unknown error";
-  const status = error?.status || error?.response?.status || "";
-  
-  console.error(`[ChatService] ERROR ${action}${status ? ` (${status})` : ""}:`, errorMessage);
-  if (DEBUG && error) {
-    console.dir(error);
-  }
+const logError = (action: string, error: unknown) => {
+  console.error(`[ChatService] ERROR ${action}:`, error);
 };
 
 // ==================== Types ====================

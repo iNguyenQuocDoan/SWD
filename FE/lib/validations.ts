@@ -172,38 +172,20 @@ export const createComplaintSchema = z.object({
   category: z.enum([
     "ProductQuality",
     "NotAsDescribed",
-    "MissingWrongItems",
-    "DeliveryIssues",
     "AccountNotWorking",
-    "SellerNotResponding",
-    "RefundDispute",
+    "DeliveryIssue",
+    "Fraud",
+    "Other",
   ], { message: VALIDATION_MESSAGES.COMPLAINT.CATEGORY_REQUIRED }),
   subcategory: z.enum([
-    "ItemDefective",
-    "ItemDamaged",
-    "DifferentFromPhoto",
-    "DifferentSpecifications",
-    "MissingItems",
-    "WrongItems",
-    "NeverDelivered",
-    "PartialDelivery",
-    "CredentialsInvalid",
-    "AccountExpired",
-    "AccountAlreadyUsed",
-    "NoResponse48h",
-    "RefuseRefund",
-    "PartialRefundDispute",
+    "WrongCredentials",
+    "AlreadyUsed",
+    "ExpiredEarly",
+    "CannotActivate",
+    "WrongProduct",
+    "MissingFeatures",
+    "Other",
   ]).optional(),
-  evidence: z
-    .array(
-      z.object({
-        type: z.enum(["Image", "Video", "Screenshot", "Document"]),
-        url: z.string().url("URL không hợp lệ"),
-        description: z.string().max(500).optional(),
-      })
-    )
-    .max(10, "Tối đa 10 bằng chứng")
-    .optional(),
 });
 
 export const fileAppealSchema = z.object({
