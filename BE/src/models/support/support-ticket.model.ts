@@ -437,7 +437,7 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
 
 // Indexes
 // Basic indexes
-SupportTicketSchema.index({ ticketCode: 1 }); // Auto-created by unique, but explicit for clarity
+// SupportTicketSchema.index({ ticketCode: 1 }); // auto-created by `unique: true` on ticketCode
 SupportTicketSchema.index({ customerUserId: 1 });
 SupportTicketSchema.index({ orderItemId: 1 });
 SupportTicketSchema.index({ status: 1 });

@@ -159,7 +159,7 @@ export class ConversationService extends BaseService<IConversation> {
         .populate("customerUserId", "fullName avatar email")
         .populate("sellerUserId", "fullName avatar email")
         .populate("staffUserId", "fullName avatar email")
-        .populate("shopId", "name logo")
+        .populate("shopId", "shopName logo")
         .populate("ticketId", "ticketCode title status priority")
         .sort({ lastMessageAt: -1, createdAt: -1 })
         .skip(skip)
@@ -188,7 +188,7 @@ export class ConversationService extends BaseService<IConversation> {
       .populate("customerUserId", "fullName avatar email")
       .populate("sellerUserId", "fullName avatar email")
       .populate("staffUserId", "fullName avatar email")
-      .populate("shopId", "name logo")
+      .populate("shopId", "shopName logo")
       .populate("orderItemId")
       .populate("ticketId");
 

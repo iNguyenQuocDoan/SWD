@@ -1,6 +1,10 @@
 import { Server as HttpServer } from "http";
 import { Server, Socket } from "socket.io";
+import jwt from "jsonwebtoken";
+import cookie from "cookie";
 import { env } from "./env";
+import { User, Conversation } from "@/models";
+import { USER_STATUS } from "@/constants/roles";
 import {
   SocketReviewPayload,
   SocketReviewEventType,
@@ -13,6 +17,12 @@ import {
 
 let io: Server | null = null;
 
+type SocketAuthData = {
+  userId: string;
+  email: string;
+  roleKey: string;
+};
+
 export const initializeSocket = (httpServer: HttpServer): Server => {
   io = new Server(httpServer, {
     cors: {
@@ -23,7 +33,43 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
     transports: ["websocket", "polling"],
   });
 
+  // Socket authentication middleware (cookie-based)
+  io.use(async (socket, next) => {
+    try {
+      const rawCookie = socket.handshake.headers.cookie;
+      if (!rawCookie) {
+        return next(new Error("Authentication error: missing cookie"));
+      }
+
+      const parsed = cookie.parse(rawCookie);
+      const token = parsed.accessToken;
+      if (!token) {
+        return next(new Error("Authentication error: missing accessToken"));
+      }
+
+      const decoded = jwt.verify(token, env.jwtSecret) as { userId: string; email: string };
+
+      const user = await User.findById(decoded.userId).populate("roleId");
+      if (!user || user.isDeleted || user.status !== USER_STATUS.ACTIVE) {
+        return next(new Error("Authentication error: user not found/inactive"));
+      }
+
+      const populatedRole = user.roleId as any;
+      (socket.data as any).auth = {
+        userId: user._id.toString(),
+        email: user.email,
+        roleKey: populatedRole?.roleKey,
+      } satisfies SocketAuthData;
+
+      next();
+    } catch {
+      next(new Error("Authentication error: invalid token"));
+    }
+  });
+
   io.on("connection", (socket: Socket) => {
+    const auth = (socket.data as any).auth as SocketAuthData | undefined;
+
     // Join product room to receive product-specific review events
     socket.on("join:product", (productId: string) => {
       socket.join(`product:${productId}`);
@@ -47,8 +93,29 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
     // ===== Chat Socket Events =====
 
     // Join conversation room to receive real-time messages
-    socket.on("join:conversation", (conversationId: string) => {
-      socket.join(`conversation:${conversationId}`);
+    socket.on("join:conversation", async (conversationId: string) => {
+      if (!auth?.userId) return;
+
+      try {
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) return;
+
+        // Check if user is a participant
+        const isParticipant =
+          conversation.customerUserId.toString() === auth.userId ||
+          conversation.sellerUserId?.toString() === auth.userId ||
+          conversation.staffUserId?.toString() === auth.userId;
+
+        // Staff can join any support conversation
+        const isStaff = ["MODERATOR", "SENIOR_MOD", "ADMIN"].includes(auth.roleKey);
+        const canJoin = isParticipant || (isStaff && conversation.type === "Support");
+
+        if (canJoin) {
+          socket.join(`conversation:${conversationId}`);
+        }
+      } catch (err) {
+        // Silently ignore or log error
+      }
     });
 
     // Leave conversation room
@@ -56,19 +123,24 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
       socket.leave(`conversation:${conversationId}`);
     });
 
-    // Join user room for personal notifications
-    socket.on("join:user", (userId: string) => {
-      socket.join(`user:${userId}`);
+    // Join user room for personal notifications (use authenticated userId)
+    socket.on("join:user", () => {
+      if (!auth?.userId) return;
+      socket.join(`user:${auth.userId}`);
     });
 
     // Leave user room
-    socket.on("leave:user", (userId: string) => {
-      socket.leave(`user:${userId}`);
+    socket.on("leave:user", () => {
+      if (!auth?.userId) return;
+      socket.leave(`user:${auth.userId}`);
     });
 
-    // Join staff tickets room for ticket notifications
+    // Join staff tickets room for ticket notifications (restricted)
     socket.on("join:staff:tickets", () => {
-      socket.join("staff:tickets");
+      if (!auth?.roleKey) return;
+      if (["MODERATOR", "SENIOR_MOD", "ADMIN"].includes(auth.roleKey)) {
+        socket.join("staff:tickets");
+      }
     });
 
     // Leave staff tickets room
@@ -77,18 +149,20 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
     });
 
     // Typing indicator events
-    socket.on("typing:start", (data: { conversationId: string; userId: string; userName: string }) => {
+    socket.on("typing:start", (data: { conversationId: string; userName: string }) => {
+      if (!auth?.userId) return;
       socket.to(`conversation:${data.conversationId}`).emit("typing:start", {
         conversationId: data.conversationId,
-        userId: data.userId,
+        userId: auth.userId,
         userName: data.userName,
       });
     });
 
-    socket.on("typing:stop", (data: { conversationId: string; userId: string }) => {
+    socket.on("typing:stop", (data: { conversationId: string }) => {
+      if (!auth?.userId) return;
       socket.to(`conversation:${data.conversationId}`).emit("typing:stop", {
         conversationId: data.conversationId,
-        userId: data.userId,
+        userId: auth.userId,
       });
     });
 

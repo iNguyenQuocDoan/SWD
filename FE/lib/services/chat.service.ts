@@ -204,14 +204,22 @@ class ChatService {
       if (params?.limit) queryParams.append("limit", params.limit.toString());
 
       const url = `/support/conversations${queryParams.toString() ? `?${queryParams}` : ""}`;
-      const response = await apiClient.get<ConversationsResponse>(url);
-      log("getConversations response", {
-        success: response.success,
-        count: response.data?.conversations?.length,
-      });
+      const response = await apiClient.get<any>(url);
+      log("getConversations response raw", response);
 
       if (response.success && response.data) {
-        return response.data;
+        // Handle response where data is an array (from your screenshot)
+        if (Array.isArray(response.data)) {
+          const pagination = (response as any).pagination || {};
+          return {
+            conversations: response.data,
+            total: pagination.total || response.data.length,
+            page: pagination.page || 1,
+            totalPages: pagination.totalPages || 1,
+          };
+        }
+        // Handle existing expected format
+        return response.data as ConversationsResponse;
       }
       // Return empty response if no data
       return { conversations: [], total: 0, page: 1, totalPages: 0 };

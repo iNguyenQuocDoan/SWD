@@ -11,7 +11,7 @@ function RedirectToSellerRegister() {
   }, [router]);
 
   return null;
-      }
+}
 
 export default function BecomeSellerPage() {
   return (

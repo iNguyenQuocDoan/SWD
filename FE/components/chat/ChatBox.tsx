@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useState } from "react";
 import { X, MessageCircle, ChevronLeft } from "lucide-react";
 import { useChat, useChatStore } from "@/lib/hooks/useChat";
-import { useSocket, useChatMessages, useUserNotifications } from "@/lib/hooks/useSocket";
+import { useChatMessages, useUserNotifications } from "@/lib/hooks/useSocket";
 import { useAuthStore } from "@/lib/auth";
 import { ConversationList } from "./ConversationList";
 import { MessageList } from "./MessageList";
@@ -34,7 +34,6 @@ export function ChatBox() {
   } = useChat();
 
   const { updateConversation, setMessages } = useChatStore();
-  const { joinUserRoom, leaveUserRoom } = useSocket();
 
   const [view, setView] = useState<"list" | "chat">("list");
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
@@ -96,7 +95,6 @@ export function ChatBox() {
 
   // Subscribe to user notifications
   useUserNotifications(
-    user?.id || null,
     handleNewMessage,
     undefined,
     undefined
@@ -111,17 +109,14 @@ export function ChatBox() {
     handleTypingStop
   );
 
-  // Join user room on mount
+  // Sync view with currentConversation
   useEffect(() => {
-    if (user?.id) {
-      log("joining user room", user.id);
-      joinUserRoom(user.id);
-      return () => {
-        log("leaving user room", user.id);
-        leaveUserRoom(user.id);
-      };
+    if (currentConversation) {
+      setView("chat");
+    } else {
+      setView("list");
     }
-  }, [user?.id, joinUserRoom, leaveUserRoom]);
+  }, [currentConversation]);
 
   // Fetch conversations when chat opens
   useEffect(() => {
@@ -233,7 +228,8 @@ function getConversationTitle(
   }
 
   if (conversation.type === "Shop") {
-    return (conversation.shopId as any)?.name || "Shop";
+    const shop = conversation.shopId as any;
+    return shop?.shopName || shop?.name || "Shop";
   }
 
   if (conversation.type === "OrderItem") {

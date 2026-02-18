@@ -170,7 +170,7 @@ function getConversationTitle(
 
   if (conversation.type === "Shop") {
     const shop = conversation.shopId as any;
-    return shop?.name || "Shop";
+    return shop?.shopName || shop?.name || "Shop";
   }
 
   if (conversation.type === "OrderItem") {

@@ -72,9 +72,14 @@ export const useChatStore = create<ChatState>((set) => ({
   setCurrentConversation: (conversation) => set({ currentConversation: conversation }),
   setMessages: (messages) => set({ messages }),
   addMessage: (message) =>
-    set((state) => ({
-      messages: [...state.messages, message],
-    })),
+    set((state) => {
+      // Prevent duplicate messages by checking _id
+      const exists = state.messages.find((m) => m._id === message._id);
+      if (exists) return state;
+      return {
+        messages: [...state.messages, message],
+      };
+    }),
   removeMessage: (messageId) =>
     set((state) => ({
       messages: state.messages.filter((m) => m._id !== messageId),

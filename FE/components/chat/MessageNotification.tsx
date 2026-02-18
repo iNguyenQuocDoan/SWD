@@ -54,7 +54,7 @@ export function MessageNotification({
   );
 
   // Subscribe to user notifications
-  useUserNotifications(user?.id || null, handleNewMessage, undefined, undefined);
+  useUserNotifications(handleNewMessage, undefined, undefined);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -146,7 +146,7 @@ export function FloatingChatButton() {
   );
 
   // Subscribe to notifications
-  useUserNotifications(user?.id || null, handleNewMessage, undefined, undefined);
+  useUserNotifications(handleNewMessage, undefined, undefined);
 
   // Fetch unread count on mount
   useEffect(() => {

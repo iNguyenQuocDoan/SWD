@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { messageController } from "@/controllers/support";
 import { authenticate, checkPermission } from "@/middleware";
+import { messageLimiter } from "@/middleware/rateLimiter";
 import { wrapRequestHandler } from "@/utils/handlers";
 import { PERMISSIONS } from "@/constants/permissions";
 
@@ -13,6 +14,7 @@ router.use(authenticate);
 router.post(
   "/",
   checkPermission(PERMISSIONS.CONVERSATION_MESSAGE),
+  messageLimiter,
   wrapRequestHandler(messageController.sendMessage)
 );
 

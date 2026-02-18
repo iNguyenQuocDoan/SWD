@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { useAuthStore } from "@/lib/auth";
 
 // Debug logger
 const DEBUG = process.env.NODE_ENV === "development";
@@ -92,6 +93,7 @@ export function useSocket() {
     socketRef.current = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       autoConnect: true,
+      withCredentials: true,
     });
 
     socketRef.current.on("connect", () => {
@@ -195,19 +197,19 @@ export function useSocket() {
     }
   }, []);
 
-  // Join user room for personal notifications
-  const joinUserRoom = useCallback((userId: string) => {
+  // Join user room for personal notifications - AUTOMATICALLY use authenticated userId
+  const joinUserRoom = useCallback(() => {
     if (socketRef.current?.connected) {
-      log("joinUserRoom", userId);
-      socketRef.current.emit("join:user", userId);
+      log("joinUserRoom");
+      socketRef.current.emit("join:user");
     }
   }, []);
 
   // Leave user room
-  const leaveUserRoom = useCallback((userId: string) => {
+  const leaveUserRoom = useCallback(() => {
     if (socketRef.current?.connected) {
-      log("leaveUserRoom", userId);
-      socketRef.current.emit("leave:user", userId);
+      log("leaveUserRoom");
+      socketRef.current.emit("leave:user");
     }
   }, []);
 
@@ -500,11 +502,13 @@ export function useChatMessages(
  * Hook to subscribe to user notifications (new messages, ticket updates)
  */
 export function useUserNotifications(
-  userId: string | null,
   onNewMessage?: ChatEventHandler,
   onConversationUpdate?: ConversationEventHandler,
   onTicketUpdate?: TicketEventHandler
 ) {
+  const { user, isAuthenticated } = useAuthStore();
+  const userId = user?.id ?? null;
+
   const {
     isConnected,
     joinUserRoom,
@@ -515,10 +519,10 @@ export function useUserNotifications(
   } = useSocket();
 
   useEffect(() => {
-    if (!userId || !isConnected) return;
+    if (!isAuthenticated || !userId || !isConnected) return;
 
     log("useUserNotifications - joining user room", userId);
-    joinUserRoom(userId);
+    joinUserRoom();
 
     const unsubNewMessage = onNewMessage
       ? onChatEvent("message:new", onNewMessage)
@@ -535,7 +539,7 @@ export function useUserNotifications(
 
     return () => {
       log("useUserNotifications - leaving user room", userId);
-      leaveUserRoom(userId);
+      leaveUserRoom();
       unsubNewMessage();
       unsubConvUpdate();
       unsubTicketCreated();
@@ -543,6 +547,7 @@ export function useUserNotifications(
     };
   }, [
     userId,
+    isAuthenticated,
     isConnected,
     joinUserRoom,
     leaveUserRoom,

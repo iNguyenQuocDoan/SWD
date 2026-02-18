@@ -1,5 +1,5 @@
 import { BaseService } from "@/services/base.service";
-import { Shop, IShop, User, Role } from "@/models";
+import { Shop, IShop, User, Role, KycSession } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
 import { SHOP_STATUS } from "@/constants/shopStatus";
@@ -46,6 +46,11 @@ export class ShopService extends BaseService<IShop> {
     shopName: string,
     description?: string
   ): Promise<IShop> {
+    const kycSession = await KycSession.findOne({ userId: ownerUserId });
+    if (!kycSession || kycSession.status !== "VERIFIED") {
+      throw new AppError("Bạn cần xác thực eKYC thành công trước khi tạo shop.", 403);
+    }
+
     // Check if user already has a shop (any status)
     const existingShop = await Shop.findOne({ ownerUserId });
 

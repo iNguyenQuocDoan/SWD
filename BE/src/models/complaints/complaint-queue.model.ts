@@ -107,7 +107,6 @@ const ComplaintQueueSchema = new Schema<IComplaintQueue>(
 // Indexes
 ComplaintQueueSchema.index({ status: 1, queuePriority: -1 });
 ComplaintQueueSchema.index({ assignedModeratorId: 1, status: 1 });
-ComplaintQueueSchema.index({ ticketId: 1 }, { unique: true });
 ComplaintQueueSchema.index({ status: 1, addedToQueueAt: 1 });
 ComplaintQueueSchema.index({ isHighValue: 1, status: 1, queuePriority: -1 });
 
