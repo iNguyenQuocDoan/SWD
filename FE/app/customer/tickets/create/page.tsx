@@ -1,52 +1,40 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+
 import { createComplaintSchema, type CreateComplaintInput } from "@/lib/validations";
 import { complaintService } from "@/lib/services/complaint.service";
 import { orderService } from "@/lib/services/order.service";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+
 import { RequireAuth } from "@/components/auth/RequireAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormDescription,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import {
   AlertCircle,
   ArrowLeft,
+  Camera,
+  CheckCircle,
+  FileText,
+  Image as ImageIcon,
   Loader2,
   Package,
-  CheckCircle,
+  Plus,
+  Trash2,
+  Video,
 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
-import Link from "next/link";
 
-// Types for order items
 interface OrderItemOption {
   id: string;
   orderId: string;
@@ -58,30 +46,51 @@ interface OrderItemOption {
   createdAt: string;
 }
 
-// Category options
 const CATEGORY_OPTIONS = [
-  { value: "ProductQuality", label: "Chất lượng sản phẩm", description: "Sản phẩm không đạt chất lượng như mong đợi" },
-  { value: "NotAsDescribed", label: "Không đúng mô tả", description: "Sản phẩm khác với mô tả trên website" },
-  { value: "AccountNotWorking", label: "Tài khoản không hoạt động", description: "Không thể đăng nhập hoặc sử dụng tài khoản" },
-  { value: "DeliveryIssue", label: "Vấn đề giao hàng", description: "Không nhận được sản phẩm hoặc giao chậm" },
-  { value: "Fraud", label: "Lừa đảo", description: "Nghi ngờ bị lừa đảo" },
-  { value: "Other", label: "Khác", description: "Vấn đề khác không thuộc các loại trên" },
-];
+  { value: "ProductQuality", label: "Chất lượng sản phẩm", description: "Sản phẩm lỗi, hỏng" },
+  { value: "NotAsDescribed", label: "Không đúng mô tả", description: "Khác hình ảnh, thông số" },
+  { value: "MissingWrongItems", label: "Thiếu/Sai hàng", description: "Thiếu món hoặc sai loại" },
+  { value: "AccountNotWorking", label: "TK không hoạt động", description: "Sai pass, hết hạn" },
+  { value: "DeliveryIssues", label: "Vấn đề giao hàng", description: "Chưa nhận, giao thiếu" },
+  { value: "SellerNotResponding", label: "Shop không phản hồi", description: "Không hỗ trợ sau mua" },
+  { value: "RefundDispute", label: "Tranh chấp hoàn tiền", description: "Từ chối/Tranh chấp hoàn" },
+] as const;
 
 const SUBCATEGORY_OPTIONS: Record<string, { value: string; label: string }[]> = {
-  AccountNotWorking: [
-    { value: "WrongCredentials", label: "Thông tin đăng nhập sai" },
-    { value: "AlreadyUsed", label: "Tài khoản đã được sử dụng" },
-    { value: "ExpiredEarly", label: "Hết hạn sớm hơn cam kết" },
-    { value: "CannotActivate", label: "Không thể kích hoạt" },
-    { value: "Other", label: "Khác" },
+  ProductQuality: [
+    { value: "ItemDefective", label: "Sản phẩm bị lỗi" },
+    { value: "ItemDamaged", label: "Sản phẩm bị hư hỏng" },
   ],
   NotAsDescribed: [
-    { value: "WrongProduct", label: "Sản phẩm sai" },
-    { value: "MissingFeatures", label: "Thiếu tính năng" },
-    { value: "Other", label: "Khác" },
+    { value: "DifferentFromPhoto", label: "Khác với hình ảnh" },
+    { value: "DifferentSpecifications", label: "Khác thông số/Thiếu tính năng" },
+  ],
+  MissingWrongItems: [
+    { value: "MissingItems", label: "Thiếu sản phẩm" },
+    { value: "WrongItems", label: "Sai sản phẩm" },
+  ],
+  AccountNotWorking: [
+    { value: "CredentialsInvalid", label: "Thông tin đăng nhập sai" },
+    { value: "AccountAlreadyUsed", label: "Tài khoản đã được sử dụng" },
+    { value: "AccountExpired", label: "Tài khoản đã hết hạn" },
+  ],
+  DeliveryIssues: [
+    { value: "NeverDelivered", label: "Chưa nhận được" },
+    { value: "PartialDelivery", label: "Chỉ nhận một phần" },
+  ],
+  SellerNotResponding: [{ value: "NoResponse48h", label: "Không phản hồi sau 48h" }],
+  RefundDispute: [
+    { value: "RefuseRefund", label: "Người bán từ chối hoàn" },
+    { value: "PartialRefundDispute", label: "Tranh chấp mức hoàn" },
   ],
 };
+
+const EVIDENCE_TYPES = [
+  { value: "Image", label: "Hình ảnh", icon: ImageIcon },
+  { value: "Video", label: "Video", icon: Video },
+  { value: "Screenshot", label: "Ảnh chụp", icon: Camera },
+  { value: "Document", label: "Tài liệu", icon: FileText },
+] as const;
 
 function CreateComplaintContent() {
   const router = useRouter();
@@ -103,24 +112,26 @@ function CreateComplaintContent() {
       content: "",
       category: undefined,
       subcategory: undefined,
+      evidence: [],
     },
   });
 
-  // Fetch user's order items
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "evidence",
+  });
+
   useEffect(() => {
     const fetchOrderItems = async () => {
       setIsLoadingOrders(true);
       try {
         const result = await orderService.getMyOrders({ limit: 50 });
 
-        // Flatten order items from all orders
         const items: OrderItemOption[] = [];
         for (const order of result.orders) {
-          // Get order details to access items
           try {
             const orderDetail = await orderService.getOrderByCode(order.orderCode);
             for (const item of orderDetail.items) {
-              // Only show items that can be complained about (Delivered or Completed)
               if (["Delivered", "Completed"].includes(item.itemStatus)) {
                 items.push({
                   id: item._id,
@@ -135,13 +146,12 @@ function CreateComplaintContent() {
               }
             }
           } catch {
-            // Skip orders that can't be fetched
+            // ignore
           }
         }
 
         setOrderItems(items);
 
-        // If orderItemId is provided in URL, check if complaint can be filed
         if (orderItemIdParam) {
           try {
             const checkResult = await complaintService.checkCanFileComplaint(orderItemIdParam);
@@ -150,7 +160,7 @@ function CreateComplaintContent() {
               setCannotFileReason(checkResult.reason || "Không thể tạo khiếu nại cho sản phẩm này");
             }
           } catch {
-            setCanFileComplaint(true); // Allow by default if check fails
+            setCanFileComplaint(true);
           }
         }
       } catch (error) {
@@ -164,18 +174,12 @@ function CreateComplaintContent() {
     fetchOrderItems();
   }, [orderItemIdParam]);
 
-  // Check if complaint can be filed when order item changes
   const handleOrderItemChange = async (orderItemId: string) => {
     form.setValue("orderItemId", orderItemId);
-
     try {
       const checkResult = await complaintService.checkCanFileComplaint(orderItemId);
       setCanFileComplaint(checkResult.canFile);
-      if (!checkResult.canFile) {
-        setCannotFileReason(checkResult.reason || "Không thể tạo khiếu nại cho sản phẩm này");
-      } else {
-        setCannotFileReason("");
-      }
+      setCannotFileReason(checkResult.canFile ? "" : checkResult.reason || "Không thể tạo khiếu nại");
     } catch {
       setCanFileComplaint(true);
       setCannotFileReason("");
@@ -183,83 +187,88 @@ function CreateComplaintContent() {
   };
 
   const onSubmit = async (data: CreateComplaintInput) => {
+    if (isLoading) return;
     setIsLoading(true);
     try {
-      const complaint = await complaintService.createComplaint({
-        orderItemId: data.orderItemId,
-        title: data.title,
-        content: data.content,
-        category: data.category,
-        subcategory: data.subcategory,
-      });
+      const complaint = await complaintService.createComplaint(data);
+      toast.success("Khiếu nại đã được tạo thành công!");
+      router.replace(`/customer/complaints/${complaint._id}`);
+    } catch (error: any) {
+      if (error?.message?.includes("Đã có khiếu nại đang xử lý")) {
+        toast.info(error.message);
 
-      toast.success("Khiếu nại đã được tạo thành công! Moderator sẽ xử lý trong thời gian sớm nhất.");
-      router.push(`/customer/complaints/${complaint._id}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Không thể tạo khiếu nại";
-      toast.error(message);
+        const match = String(error.message).match(/\(Mã:\s*(TKT-[A-Z0-9-]+)\)/i);
+        const ticketCode = match?.[1];
+
+        if (ticketCode) {
+          try {
+            const myComplaints = await complaintService.getMyComplaints({ limit: 100 });
+            const found = myComplaints.tickets.find((t) => t.ticketCode === ticketCode);
+            if (found?._id) {
+              router.replace(`/customer/complaints/${found._id}`);
+              return;
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        router.replace("/customer/complaints");
+      } else {
+        toast.error(error?.message || "Không thể tạo khiếu nại");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(price);
-  };
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
 
   return (
     <RequireAuth>
-      <div className="container py-8 max-w-2xl">
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
+      <div className="container py-8 max-w-5xl">
+        <div className="flex items-center gap-4 mb-8">
+          <Button variant="ghost" size="icon" asChild className="rounded-full">
               <Link href="/customer/orders">
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Tạo khiếu nại</h1>
-              <p className="text-muted-foreground">
-                Gặp vấn đề với sản phẩm? Hãy cho chúng tôi biết để được hỗ trợ
-              </p>
+            <h1 className="text-4xl font-bold tracking-tight">Tạo khiếu nại</h1>
+            <p className="text-muted-foreground mt-1">Gửi yêu cầu giải quyết tranh chấp đơn hàng</p>
             </div>
           </div>
 
-          {/* Info Alert */}
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Quy trình khiếu nại</AlertTitle>
-            <AlertDescription>
-              Sau khi tạo khiếu nại, Moderator sẽ xem xét và đưa ra quyết định.
-              Bạn có thể kháng cáo trong vòng 72 giờ nếu không đồng ý với quyết định.
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-[minmax(180px,auto)]">
+              <div className="md:col-span-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Alert className="bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800">
+                    <AlertCircle className="h-4 w-4 text-blue-600" />
+                    <AlertTitle className="text-blue-700 dark:text-blue-400">Quy trình</AlertTitle>
+                    <AlertDescription className="text-blue-600/80 dark:text-blue-400/80">
+                      Sau khi tạo, Moderator sẽ xem xét trong 24-48h. Bạn có 72h để kháng cáo sau quyết định.
             </AlertDescription>
           </Alert>
 
-          {/* Cannot File Warning */}
           {canFileComplaint === false && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Không thể tạo khiếu nại</AlertTitle>
+                      <AlertTitle>Hạn chế</AlertTitle>
               <AlertDescription>{cannotFileReason}</AlertDescription>
             </Alert>
           )}
+                </div>
+              </div>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Order Item Selection */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
-                    Chọn sản phẩm
+              <Card className="md:col-span-5 overflow-hidden border-2 transition-all hover:border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Package className="h-5 w-5 text-primary" />
+                    Sản phẩm khiếu nại
                   </CardTitle>
-                  <CardDescription>
-                    Chọn sản phẩm bạn muốn khiếu nại
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isLoadingOrders ? (
@@ -267,35 +276,26 @@ function CreateComplaintContent() {
                       <Skeleton className="h-10 w-full" />
                       <Skeleton className="h-4 w-1/2" />
                     </div>
-                  ) : orderItems.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Không có sản phẩm nào có thể khiếu nại</p>
-                      <p className="text-sm">Bạn chỉ có thể khiếu nại các sản phẩm đã được giao</p>
-                    </div>
                   ) : (
                     <FormField
                       control={form.control}
                       name="orderItemId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Sản phẩm *</FormLabel>
-                          <Select
-                            onValueChange={handleOrderItemChange}
-                            value={field.value}
-                          >
+                          <FormLabel className="text-xs font-bold uppercase text-muted-foreground">Sản phẩm *</FormLabel>
+                          <Select onValueChange={handleOrderItemChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Chọn sản phẩm cần khiếu nại" />
+                              <SelectTrigger className="h-12">
+                                <SelectValue placeholder="Chọn sản phẩm cần hỗ trợ" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
                               {orderItems.map((item) => (
                                 <SelectItem key={item.id} value={item.id}>
-                                  <div className="flex flex-col items-start">
-                                    <span className="font-medium">{item.productTitle}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {item.orderCode} - {formatPrice(item.amount)} - {item.shopName}
+                                  <div className="flex flex-col text-left py-1">
+                                    <span className="font-semibold text-sm line-clamp-1">{item.productTitle}</span>
+                                    <span className="text-[10px] opacity-70 uppercase tracking-wider">
+                                      {item.orderCode} • {formatPrice(item.amount)} • {item.shopName}
                                     </span>
                                   </div>
                                 </SelectItem>
@@ -310,43 +310,36 @@ function CreateComplaintContent() {
                 </CardContent>
               </Card>
 
-              {/* Complaint Details */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Chi tiết khiếu nại</CardTitle>
-                  <CardDescription>
-                    Mô tả chi tiết vấn đề bạn gặp phải
-                  </CardDescription>
+              <Card className="md:col-span-7 border-2 transition-all hover:border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Phân loại vấn đề</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Category */}
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Loại khiếu nại *</FormLabel>
+                        <FormLabel className="text-xs font-bold uppercase text-muted-foreground">Loại chính *</FormLabel>
                         <Select
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            setSelectedCategory(value);
+                          onValueChange={(v) => {
+                            field.onChange(v);
+                            setSelectedCategory(v);
                             form.setValue("subcategory", undefined);
                           }}
                           value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Chọn loại khiếu nại" />
+                              <SelectValue placeholder="Chọn nhóm lỗi" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {CATEGORY_OPTIONS.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                <div className="flex flex-col items-start">
-                                  <span>{option.label}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {option.description}
-                                  </span>
+                            {CATEGORY_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                <div className="text-left">
+                                  <p className="font-medium">{opt.label}</p>
+                                  <p className="text-[10px] opacity-60">{opt.description}</p>
                                 </div>
                               </SelectItem>
                             ))}
@@ -357,27 +350,22 @@ function CreateComplaintContent() {
                     )}
                   />
 
-                  {/* Subcategory (if available) */}
-                  {selectedCategory && SUBCATEGORY_OPTIONS[selectedCategory] && (
                     <FormField
                       control={form.control}
                       name="subcategory"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Chi tiết loại khiếu nại</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
-                          >
+                        <FormLabel className="text-xs font-bold uppercase text-muted-foreground">Chi tiết *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCategory}>
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Chọn chi tiết (tùy chọn)" />
+                              <SelectValue placeholder="Chọn chi tiết" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {SUBCATEGORY_OPTIONS[selectedCategory].map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
+                            {(SUBCATEGORY_OPTIONS[selectedCategory] || []).map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -386,43 +374,41 @@ function CreateComplaintContent() {
                         </FormItem>
                       )}
                     />
-                  )}
+                </CardContent>
+              </Card>
 
-                  {/* Title */}
+              <Card className="md:col-span-8 border-2 transition-all hover:border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Chi tiết sự việc</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <FormField
                     control={form.control}
                     name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tiêu đề *</FormLabel>
+                        <FormLabel className="text-xs font-bold uppercase text-muted-foreground">Tiêu đề *</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Tóm tắt vấn đề bạn gặp phải..."
-                            {...field}
-                          />
+                          <Input placeholder="Ví dụ: Tài khoản bị đổi mật khẩu sau 2h..." {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Content */}
                   <FormField
                     control={form.control}
                     name="content"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Mô tả chi tiết *</FormLabel>
+                        <FormLabel className="text-xs font-bold uppercase text-muted-foreground">Mô tả chi tiết *</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Mô tả chi tiết vấn đề bạn gặp phải, các bước đã thử..."
-                            className="min-h-[150px]"
+                            className="min-h-[140px] resize-none"
+                            placeholder="Mô tả rõ vấn đề, thời điểm xảy ra và những gì bạn đã thử..."
                             {...field}
                           />
                         </FormControl>
-                        <FormDescription>
-                          Cung cấp càng nhiều thông tin càng giúp Moderator xử lý nhanh hơn
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -430,23 +416,111 @@ function CreateComplaintContent() {
                 </CardContent>
               </Card>
 
-              {/* Submit */}
-              <div className="flex gap-4 justify-end">
+              <Card className="md:col-span-4 border-2 border-dashed bg-muted/30 transition-all hover:bg-muted/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold uppercase text-muted-foreground flex justify-between items-center">
+                    Bằng chứng ({fields.length}/10)
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => append({ type: "Screenshot", url: "", description: "" })}
+                      disabled={fields.length >= 10}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+                  {fields.length === 0 ? (
+                    <div className="text-center py-8 opacity-40 italic text-xs">Chưa có bằng chứng nào được thêm</div>
+                  ) : (
+                    fields.map((row, index) => (
+                      <div key={row.id} className="p-3 bg-background rounded-lg border shadow-sm space-y-2 relative group">
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => remove(index)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+
+                        <div className="flex gap-2">
+                          <FormField
+                            control={form.control}
+                            name={`evidence.${index}.type`}
+                            render={({ field }) => (
+                              <FormItem className="w-[120px]">
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger className="h-8 text-[10px]">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {EVIDENCE_TYPES.map((t) => (
+                                      <SelectItem key={t.value} value={t.value} className="text-[10px]">
+                                        <div className="flex items-center gap-1">
+                                          <t.icon className="h-3 w-3" />
+                                          {t.label}
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name={`evidence.${index}.url`}
+                            render={({ field }) => (
+                              <FormItem className="flex-1">
+                                <FormControl>
+                                  <Input className="h-8 text-[10px]" placeholder="Link ảnh/video..." {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name={`evidence.${index}.description`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input className="h-7 text-[10px] bg-muted/30" placeholder="Mô tả ngắn (tuỳ chọn)" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="md:col-span-12 flex justify-end gap-4 mt-2">
+                <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading} className="rounded-xl px-8">
                   Hủy
                 </Button>
                 <Button
                   type="submit"
                   disabled={isLoading || canFileComplaint === false || orderItems.length === 0}
+                  className="rounded-xl px-10 font-bold"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Đang gửi...
+                      Đang xử lý...
                     </>
                   ) : (
                     <>
@@ -456,9 +530,9 @@ function CreateComplaintContent() {
                   )}
                 </Button>
               </div>
+              </div>
             </form>
           </Form>
-        </div>
       </div>
     </RequireAuth>
   );
@@ -466,15 +540,17 @@ function CreateComplaintContent() {
 
 export default function CreateComplaintPage() {
   return (
-    <Suspense fallback={
-      <div className="container py-8 max-w-2xl">
-        <div className="space-y-6">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-64 w-full" />
+    <Suspense
+      fallback={
+        <div className="container py-8 max-w-5xl space-y-8">
+          <Skeleton className="h-12 w-64" />
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-[600px]">
+            <Skeleton className="md:col-span-5 h-full" />
+            <Skeleton className="md:col-span-7 h-full" />
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <CreateComplaintContent />
     </Suspense>
   );

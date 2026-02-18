@@ -118,6 +118,9 @@ export function useConversations() {
   } = useChatStore();
 
   const fetchConversations = useCallback(async () => {
+    const { isAuthenticated } = useAuthStore.getState();
+    if (!isAuthenticated) return;
+
     log("fetchConversations");
     setIsLoading(true);
     setError(null);
@@ -127,6 +130,10 @@ export function useConversations() {
       setConversations(response.conversations);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to fetch conversations";
+      // Don't set error state for 401s as it's handled by interceptors
+      if (message.includes("401") || message.includes("unauthorized")) {
+        return;
+      }
       setError(message);
       log("fetchConversations error", message);
     } finally {
@@ -303,26 +310,29 @@ export function useMessages() {
 export function useUnreadCount() {
   const { unreadCount, setUnreadCount, incrementUnreadCount, decrementUnreadCount } =
     useChatStore();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
 
   const fetchUnreadCount = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated || !user) return;
     log("fetchUnreadCount");
     try {
       const count = await chatService.getUnreadCount();
       log("fetchUnreadCount response", count);
       setUnreadCount(count);
     } catch (err) {
-      console.error("Failed to fetch unread count:", err);
+      const message = err instanceof Error ? err.message : "";
+      if (!message.includes("401") && !message.includes("unauthorized")) {
+        console.error("Failed to fetch unread count:", err);
+      }
     }
-  }, [user, setUnreadCount]);
+  }, [user, isAuthenticated, setUnreadCount]);
 
   // Fetch on mount and when user changes
   useEffect(() => {
-    if (user) {
+    if (isAuthenticated && user) {
       fetchUnreadCount();
     }
-  }, [user, fetchUnreadCount]);
+  }, [isAuthenticated, user, fetchUnreadCount]);
 
   return {
     unreadCount,
@@ -410,16 +420,16 @@ export function useChat() {
   const unread = useUnreadCount();
   const chatBox = useChatBox();
   const tickets = useTickets();
+  const { user, isAuthenticated } = useAuthStore();
 
-  // Initialize on mount
+  // Initialize on mount and when auth state changes
   useEffect(() => {
-    const { user } = useAuthStore.getState();
-    if (user) {
+    if (isAuthenticated && user) {
       log("useChat - initializing for user", user.id);
       conversations.fetchConversations();
       unread.fetchUnreadCount();
     }
-  }, []);
+  }, [isAuthenticated, user]);
 
   return {
     // Conversations

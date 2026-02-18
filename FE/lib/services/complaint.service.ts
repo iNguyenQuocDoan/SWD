@@ -31,16 +31,14 @@ export interface CreateComplaintRequest {
 }
 
 export interface AddEvidenceRequest {
-  evidence: {
-    type: ComplaintEvidence["type"];
-    url: string;
-    description?: string;
-  }[];
+  type: ComplaintEvidence["type"];
+  url: string;
+  description?: string;
 }
 
 export interface FileAppealRequest {
   reason: string;
-  evidence?: {
+  additionalEvidence?: {
     type: ComplaintEvidence["type"];
     url: string;
     description?: string;
@@ -48,14 +46,21 @@ export interface FileAppealRequest {
 }
 
 export interface RequestInfoRequest {
-  targetParty: "buyer";
+  targetParty: "buyer" | "seller" | "both";
   questions: string[];
 }
 
 export interface MakeDecisionRequest {
-  resolution: ComplaintResolution;
-  reason: string;
+  resolutionType: ComplaintResolution;
+  decisionNote: string;
   refundAmount?: number;
+  templateId?: string;
+  sellerPenalty?: {
+    type: "Warning" | "TemporarySuspension" | "PermanentSuspension" | "Fine";
+    reason: string;
+    duration?: number;
+    amount?: number;
+  };
 }
 
 export interface AppealDecisionRequest {
