@@ -17,6 +17,10 @@ const createOrderSchema = z.object({
   paymentMethod: z.enum(["Wallet", "Momo", "Vnpay", "Zalopay"]).default("Wallet"),
 });
 
+const cancelOrderSchema = z.object({
+  reason: z.string().min(1, "Lý do hủy đơn là bắt buộc").max(500, "Lý do quá dài"),
+});
+
 export class OrderController {
   /**
    * Create a new order
@@ -235,6 +239,99 @@ export class OrderController {
           _id: orderItem._id,
           itemStatus: orderItem.itemStatus,
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Cancel order by seller
+   * POST /orders/:orderId/seller-cancel
+   */
+  cancelOrderBySeller = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { orderId } = req.params;
+      const orderIdStr = Array.isArray(orderId) ? orderId[0] : orderId;
+      const userId = req.user!.id;
+
+      const validatedData = cancelOrderSchema.parse(req.body);
+
+      const result = await orderService.cancelOrderBySeller(
+        orderIdStr,
+        userId,
+        validatedData.reason
+      );
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return next(new AppError(error.errors[0].message, 400));
+      }
+      next(error);
+    }
+  };
+
+  /**
+   * Cancel order by buyer
+   * POST /orders/:orderId/cancel
+   */
+  cancelOrderByBuyer = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { orderId } = req.params;
+      const orderIdStr = Array.isArray(orderId) ? orderId[0] : orderId;
+      const userId = req.user!.id;
+
+      const validatedData = cancelOrderSchema.parse(req.body);
+
+      const result = await orderService.cancelOrderByBuyer(
+        orderIdStr,
+        userId,
+        validatedData.reason
+      );
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return next(new AppError(error.errors[0].message, 400));
+      }
+      next(error);
+    }
+  };
+
+  /**
+   * Get escrow status for an order
+   * GET /orders/:orderId/escrow-status
+   */
+  getEscrowStatus = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { orderId } = req.params;
+      const orderIdStr = Array.isArray(orderId) ? orderId[0] : orderId;
+      const userId = req.user!.id;
+
+      const escrowStatus = await orderService.getEscrowStatus(orderIdStr, userId);
+
+      res.status(200).json({
+        success: true,
+        data: escrowStatus,
       });
     } catch (error) {
       next(error);

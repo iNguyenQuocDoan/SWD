@@ -14,6 +14,7 @@ import complaintRoutes from "./complaints/complaint.routes";
 import ekycRoutes from "./ekyc/ekyc.routes";
 import statsRoutes from "./stats/stats.routes";
 import supportRoutes from "./support";
+import disbursementRoutes from "./disbursement/disbursement.routes";
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use("/complaints", complaintRoutes);
 router.use("/ekyc", ekycRoutes);
 router.use("/stats", statsRoutes);
 router.use("/support", supportRoutes);
+router.use("/disbursement", disbursementRoutes);
 
 export default router;

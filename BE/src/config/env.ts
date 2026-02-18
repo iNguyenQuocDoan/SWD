@@ -27,6 +27,7 @@ interface EnvConfig {
   cloudinaryCloudName: string;
   cloudinaryApiKey: string;
   cloudinaryApiSecret: string;
+  CRON_SECRET: string;
 }
 
 const getEnvConfig = (): EnvConfig => {
@@ -85,6 +86,7 @@ const getEnvConfig = (): EnvConfig => {
     cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME!,
     cloudinaryApiKey: process.env.CLOUDINARY_API_KEY!,
     cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET!,
+    CRON_SECRET: process.env.CRON_SECRET || "default-cron-secret-change-in-production",
   };
 };
 
