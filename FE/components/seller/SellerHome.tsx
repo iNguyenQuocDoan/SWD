@@ -64,6 +64,7 @@ import {
   Loader2,
   Database,
   Reply,
+  BarChart3,
 } from "lucide-react";
 
 const formatPrice = (price: number) => {
@@ -417,6 +418,12 @@ export default function SellerHome() {
             <p className="text-muted-foreground">{shop.description || "Chưa có mô tả"}</p>
           </div>
           <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link href="/seller/reports">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Báo cáo & Thống kê
+              </Link>
+            </Button>
             <Button asChild variant="outline">
               <Link href="/seller/orders">Lịch sử bán hàng</Link>
             </Button>

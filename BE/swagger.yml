@@ -62,6 +62,28 @@ tags:
       2. **Moderator** nhận và xử lý khiếu nại
       3. **Moderator/Admin** đưa ra quyết định
       4. **Kháng cáo** có thể được nộp trong 72 giờ sau quyết định
+  - name: Admin Reports
+    description: |
+      Hệ thống báo cáo thống kê dành cho Admin.
+
+      ## Các loại báo cáo
+      - **Revenue**: Doanh thu, platform fee, xu hướng doanh thu
+      - **Orders**: Đơn hàng theo trạng thái, phương thức thanh toán
+      - **Complaints**: Khiếu nại, SLA compliance, hiệu suất moderator
+      - **Dashboard**: Tổng quan hệ thống
+
+      ## Query Parameters
+      - `startDate`: Ngày bắt đầu (ISO 8601)
+      - `endDate`: Ngày kết thúc (ISO 8601)
+      - `granularity`: day | week | month
+  - name: Seller Reports
+    description: |
+      Hệ thống báo cáo thống kê dành cho Seller.
+
+      ## Các loại báo cáo
+      - **Dashboard**: Tổng quan shop
+      - **Revenue**: Doanh thu shop, net revenue sau platform fee
+      - **Orders**: Đơn hàng của shop theo trạng thái
 
 paths:
   /health:
@@ -2598,6 +2620,459 @@ paths:
         '404':
           description: Khiếu nại không tồn tại
 
+  # ==================== ADMIN REPORTS ====================
+
+  /api/reports/dashboard:
+    get:
+      summary: Admin Dashboard
+      description: Tổng quan hệ thống - revenue, orders, complaints, escrow
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDashboardResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Requires ANALYTICS_VIEW permission
+
+  /api/reports/revenue/overview:
+    get:
+      summary: Revenue Overview
+      description: Tổng quan doanh thu - total revenue, platform fee, seller payouts, escrow
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Revenue overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevenueOverviewResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/revenue/platform-fees:
+    get:
+      summary: Platform Fee Report
+      description: Chi tiết platform fee (5%) theo ngày/tuần/tháng
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+        - $ref: '#/components/parameters/granularity'
+      responses:
+        '200':
+          description: Platform fee breakdown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformFeeResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/revenue/trends:
+    get:
+      summary: Revenue Trends
+      description: Xu hướng doanh thu theo thời gian
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+        - $ref: '#/components/parameters/granularity'
+      responses:
+        '200':
+          description: Revenue trends
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevenueTrendResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/orders/overview:
+    get:
+      summary: Order Overview
+      description: Tổng quan đơn hàng
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Order overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderOverviewResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/orders/by-status:
+    get:
+      summary: Orders by Status
+      description: Phân bổ đơn hàng theo trạng thái
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Orders by status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderStatusResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/orders/trends:
+    get:
+      summary: Order Trends
+      description: Xu hướng đơn hàng theo thời gian
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+        - $ref: '#/components/parameters/granularity'
+      responses:
+        '200':
+          description: Order trends
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderTrendResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/orders/payment-methods:
+    get:
+      summary: Payment Method Distribution
+      description: Phân bổ phương thức thanh toán
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Payment method distribution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethodResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/complaints/overview:
+    get:
+      summary: Complaint Overview
+      description: Tổng quan khiếu nại - total, open, resolved, by status, by category
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Complaint overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplaintOverviewResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/complaints/trends:
+    get:
+      summary: Complaint Trends
+      description: Xu hướng khiếu nại theo thời gian
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+        - $ref: '#/components/parameters/granularity'
+      responses:
+        '200':
+          description: Complaint trends
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplaintTrendResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/complaints/resolution:
+    get:
+      summary: Resolution Statistics
+      description: Thống kê giải quyết - refund types, avg resolution time, by category
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Resolution statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolutionStatsResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/complaints/sla:
+    get:
+      summary: SLA Compliance
+      description: SLA compliance metrics - first response, resolution time
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: SLA compliance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SLAComplianceResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/complaints/moderator-performance:
+    get:
+      summary: Moderator Performance
+      description: Hiệu suất từng moderator - tickets handled, resolution rate, SLA compliance
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Moderator performance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeratorPerformanceResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  # ==================== SELLER REPORTS ====================
+
+  /api/seller/reports/dashboard:
+    get:
+      summary: Seller Dashboard
+      description: Tổng quan shop - revenue, orders, rating
+      tags:
+        - Seller Reports
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Seller dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerDashboardResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Requires SALES_REPORT_VIEW permission
+        '404':
+          description: Shop not found
+
+  /api/seller/reports/revenue/overview:
+    get:
+      summary: Seller Revenue Overview
+      description: Doanh thu shop - sales, platform fee, net revenue, escrow
+      tags:
+        - Seller Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Seller revenue overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerRevenueResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Shop not found
+
+  /api/seller/reports/revenue/trends:
+    get:
+      summary: Seller Revenue Trends
+      description: Xu hướng doanh thu shop theo thời gian
+      tags:
+        - Seller Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+        - $ref: '#/components/parameters/granularity'
+      responses:
+        '200':
+          description: Seller revenue trends
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerRevenueTrendResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Shop not found
+
+  /api/seller/reports/orders/overview:
+    get:
+      summary: Seller Order Overview
+      description: Tổng quan đơn hàng shop
+      tags:
+        - Seller Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Seller order overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerOrderOverviewResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Shop not found
+
+  /api/seller/reports/orders/by-status:
+    get:
+      summary: Seller Orders by Status
+      description: Đơn hàng shop theo trạng thái
+      tags:
+        - Seller Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Seller orders by status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerOrderStatusResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Shop not found
+
+  /api/seller/reports/orders/trends:
+    get:
+      summary: Seller Order Trends
+      description: Xu hướng đơn hàng shop theo thời gian
+      tags:
+        - Seller Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+        - $ref: '#/components/parameters/granularity'
+      responses:
+        '200':
+          description: Seller order trends
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerOrderTrendResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Shop not found
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2605,6 +3080,32 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enter JWT token
+
+  parameters:
+    startDate:
+      name: startDate
+      in: query
+      description: Ngày bắt đầu (ISO 8601). Mặc định 30 ngày trước.
+      schema:
+        type: string
+        format: date-time
+        example: "2026-01-01T00:00:00.000Z"
+    endDate:
+      name: endDate
+      in: query
+      description: Ngày kết thúc (ISO 8601). Mặc định hôm nay.
+      schema:
+        type: string
+        format: date-time
+        example: "2026-02-19T23:59:59.999Z"
+    granularity:
+      name: granularity
+      in: query
+      description: Độ chi tiết cho trend data
+      schema:
+        type: string
+        enum: [day, week, month]
+        default: day
 
   schemas:
     UserProfile:
@@ -4460,3 +4961,663 @@ components:
               type: integer
               description: Thời gian giữ tiền (giờ)
               example: 72
+
+    # ==================== ADMIN REPORT SCHEMAS ====================
+
+    AdminDashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            snapshot:
+              type: object
+              properties:
+                timestamp:
+                  type: string
+                  format: date-time
+            revenue:
+              type: object
+              properties:
+                todayRevenue:
+                  type: number
+                  description: Doanh thu hôm nay (VND)
+                weekRevenue:
+                  type: number
+                  description: Doanh thu tuần này (VND)
+                monthRevenue:
+                  type: number
+                  description: Doanh thu tháng này (VND)
+                platformFeeToday:
+                  type: number
+                  description: Platform fee hôm nay (VND)
+            orders:
+              type: object
+              properties:
+                todayOrders:
+                  type: integer
+                  description: Số đơn hàng hôm nay
+                pendingOrders:
+                  type: integer
+                  description: Số đơn chờ thanh toán
+                disputedOrders:
+                  type: integer
+                  description: Số đơn đang tranh chấp
+            complaints:
+              type: object
+              properties:
+                openTickets:
+                  type: integer
+                  description: Số ticket đang mở
+                urgentTickets:
+                  type: integer
+                  description: Số ticket urgent
+                avgResolutionHours:
+                  type: number
+                  description: Thời gian giải quyết trung bình (giờ)
+                slaBreachedToday:
+                  type: integer
+                  description: Số SLA vi phạm hôm nay
+            escrow:
+              type: object
+              properties:
+                totalHolding:
+                  type: number
+                  description: Tổng tiền đang giữ (VND)
+                readyForDisbursement:
+                  type: integer
+                  description: Số item sẵn sàng giải ngân
+                withComplaints:
+                  type: integer
+                  description: Số item có khiếu nại
+
+    RevenueOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            totalRevenue:
+              type: number
+              description: Tổng doanh thu (VND)
+            platformFeeCollected:
+              type: number
+              description: Platform fee đã thu (VND)
+            sellerPayouts:
+              type: number
+              description: Đã trả cho seller (VND)
+            pendingInEscrow:
+              type: number
+              description: Đang giữ trong escrow (VND)
+            refundedAmount:
+              type: number
+              description: Đã hoàn tiền (VND)
+
+    PlatformFeeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            breakdown:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: object
+                  totalReleased:
+                    type: number
+                  platformFee:
+                    type: number
+                  sellerReceived:
+                    type: number
+                  transactionCount:
+                    type: integer
+            totals:
+              type: object
+              properties:
+                totalReleased:
+                  type: number
+                platformFee:
+                  type: number
+                transactionCount:
+                  type: integer
+
+    RevenueTrendResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            granularity:
+              type: string
+              enum: [day, week, month]
+            data:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: object
+                  totalRevenue:
+                    type: number
+                  totalFees:
+                    type: number
+                  orderCount:
+                    type: integer
+                  averageOrderValue:
+                    type: number
+            summary:
+              type: object
+              properties:
+                totalRevenue:
+                  type: number
+                totalOrders:
+                  type: integer
+                avgOrderValue:
+                  type: number
+
+    OrderOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            totalOrders:
+              type: integer
+            totalAmount:
+              type: number
+            averageOrderValue:
+              type: number
+
+    OrderStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            byStatus:
+              type: array
+              items:
+                $ref: '#/components/schemas/StatusBreakdown'
+            total:
+              type: integer
+
+    OrderTrendResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            granularity:
+              type: string
+            data:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: object
+                  orderCount:
+                    type: integer
+                  totalAmount:
+                    type: number
+                  averageOrderValue:
+                    type: number
+
+    PaymentMethodResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            distribution:
+              type: array
+              items:
+                type: object
+                properties:
+                  provider:
+                    type: string
+                    enum: [Wallet, Momo, Vnpay, Zalopay, Unknown]
+                  count:
+                    type: integer
+                  totalAmount:
+                    type: number
+                  percentage:
+                    type: number
+            total:
+              type: integer
+
+    ComplaintOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            totalComplaints:
+              type: integer
+            openComplaints:
+              type: integer
+            resolvedComplaints:
+              type: integer
+            avgResolutionTimeMinutes:
+              type: number
+            byStatus:
+              type: array
+              items:
+                $ref: '#/components/schemas/StatusBreakdown'
+            byCategory:
+              type: array
+              items:
+                type: object
+                properties:
+                  category:
+                    type: string
+                  count:
+                    type: integer
+                  percentage:
+                    type: number
+
+    ComplaintTrendResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            granularity:
+              type: string
+            data:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: object
+                  newComplaints:
+                    type: integer
+                  resolvedComplaints:
+                    type: integer
+
+    ResolutionStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            resolutionBreakdown:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [None, FullRefund, PartialRefund, Replace, Reject]
+                  count:
+                    type: integer
+                  totalRefundAmount:
+                    type: number
+            resolutionTime:
+              type: object
+              properties:
+                avgMinutes:
+                  type: number
+                minMinutes:
+                  type: number
+                maxMinutes:
+                  type: number
+            categoryBreakdown:
+              type: array
+              items:
+                type: object
+                properties:
+                  category:
+                    type: string
+                  count:
+                    type: integer
+
+    SLAComplianceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            slaTargets:
+              type: object
+              properties:
+                firstResponseHours:
+                  type: integer
+                  example: 4
+                resolutionHours:
+                  type: integer
+                  example: 48
+            metrics:
+              type: object
+              properties:
+                totalTickets:
+                  type: integer
+                slaBreachedCount:
+                  type: integer
+                slaComplianceRate:
+                  type: number
+                  description: Tỷ lệ tuân thủ SLA (%)
+                avgFirstResponseHours:
+                  type: number
+                avgResolutionHours:
+                  type: number
+                firstResponseSLARate:
+                  type: number
+                resolutionSLARate:
+                  type: number
+
+    ModeratorPerformanceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            moderators:
+              type: array
+              items:
+                type: object
+                properties:
+                  moderatorId:
+                    type: string
+                  moderatorName:
+                    type: string
+                  moderatorEmail:
+                    type: string
+                  totalAssigned:
+                    type: integer
+                  totalResolved:
+                    type: integer
+                  totalEscalated:
+                    type: integer
+                  resolutionRate:
+                    type: number
+                  avgResolutionTimeMinutes:
+                    type: number
+                  avgFirstResponseTimeMinutes:
+                    type: number
+                  fullRefunds:
+                    type: integer
+                  partialRefunds:
+                    type: integer
+                  rejections:
+                    type: integer
+                  slaBreaches:
+                    type: integer
+                  slaComplianceRate:
+                    type: number
+                  appealOverturnRate:
+                    type: number
+                  avgSatisfactionScore:
+                    type: number
+            summary:
+              type: object
+              properties:
+                totalModerators:
+                  type: integer
+                totalTicketsAssigned:
+                  type: integer
+                totalTicketsResolved:
+                  type: integer
+                avgResolutionRate:
+                  type: number
+
+    # ==================== SELLER REPORT SCHEMAS ====================
+
+    SellerDashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            snapshot:
+              type: object
+              properties:
+                timestamp:
+                  type: string
+                  format: date-time
+            shopId:
+              type: string
+            shopName:
+              type: string
+            revenue:
+              type: object
+              properties:
+                todayRevenue:
+                  type: number
+                weekRevenue:
+                  type: number
+                monthRevenue:
+                  type: number
+                pendingPayout:
+                  type: number
+                  description: Số tiền chờ giải ngân (VND)
+                totalReceived:
+                  type: number
+                  description: Tổng tiền đã nhận (VND)
+            orders:
+              type: object
+              properties:
+                todayOrders:
+                  type: integer
+                pendingDelivery:
+                  type: integer
+                completed:
+                  type: integer
+            rating:
+              type: object
+              properties:
+                average:
+                  type: number
+                totalReviews:
+                  type: integer
+
+    SellerRevenueResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            shopId:
+              type: string
+            totalSales:
+              type: number
+              description: Tổng doanh số (VND)
+            platformFee:
+              type: number
+              description: Phí nền tảng 5% (VND)
+            netRevenue:
+              type: number
+              description: Doanh thu ròng (VND)
+            pendingInEscrow:
+              type: number
+              description: Đang giữ trong escrow (VND)
+            released:
+              type: number
+              description: Đã giải ngân (VND)
+            refunded:
+              type: number
+              description: Đã hoàn (VND)
+
+    SellerRevenueTrendResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            granularity:
+              type: string
+            shopId:
+              type: string
+            data:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: object
+                  sales:
+                    type: number
+                  platformFee:
+                    type: number
+                  netRevenue:
+                    type: number
+                  orderCount:
+                    type: integer
+
+    SellerOrderOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            shopId:
+              type: string
+            totalOrders:
+              type: integer
+            totalAmount:
+              type: number
+            averageOrderValue:
+              type: number
+            byStatus:
+              type: array
+              items:
+                $ref: '#/components/schemas/StatusBreakdown'
+
+    SellerOrderStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            shopId:
+              type: string
+            byStatus:
+              type: array
+              items:
+                $ref: '#/components/schemas/StatusBreakdown'
+            total:
+              type: integer
+
+    SellerOrderTrendResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            granularity:
+              type: string
+            shopId:
+              type: string
+            data:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: object
+                  orderCount:
+                    type: integer
+                  totalAmount:
+                    type: number
+                  averageOrderValue:
+                    type: number
+
+    # ==================== COMMON REPORT SCHEMAS ====================
+
+    DatePeriod:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+
+    StatusBreakdown:
+      type: object
+      properties:
+        status:
+          type: string
+        count:
+          type: integer
+        totalAmount:
+          type: number
+        percentage:
+          type: number
