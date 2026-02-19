@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { format, isToday, isYesterday } from "date-fns";
 import { vi } from "date-fns/locale";
-import { FileText, Image as ImageIcon, Check, CheckCheck } from "lucide-react";
+import { FileText, Check, CheckCheck } from "lucide-react";
 import { Message } from "@/lib/services/chat.service";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,12 @@ interface MessageListProps {
   currentUserId?: string;
   typingUser?: string | null;
 }
+
+const getSenderId = (message: Message): string | undefined => {
+  const s: any = (message as any).senderUserId;
+  if (!s) return undefined;
+  return typeof s === "string" ? s : s?._id?.toString();
+};
 
 export function MessageList({
   messages = [],
@@ -49,10 +55,7 @@ export function MessageList({
   const groupedMessages = groupMessagesByDate(messages);
 
   return (
-    <div
-      ref={scrollRef}
-      className="overflow-y-auto h-full p-4 space-y-4"
-    >
+    <div ref={scrollRef} className="overflow-y-auto h-full p-4 space-y-4">
       {Object.entries(groupedMessages).map(([date, dateMessages]) => (
         <div key={date}>
           {/* Date separator */}
@@ -70,8 +73,8 @@ export function MessageList({
               <MessageBubble
                 key={message._id}
                 message={message}
-                isOwn={message.senderUserId === currentUserId}
-                showAvatar={shouldShowAvatar(dateMessages, index)}
+                isOwn={!!currentUserId && getSenderId(message) === currentUserId}
+                showAvatar={shouldShowAvatar(dateMessages, index, currentUserId)}
               />
             ))}
           </div>
@@ -152,9 +155,7 @@ function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps) {
 
         {/* Text body */}
         {message.body && (
-          <p className="text-sm whitespace-pre-wrap break-words">
-            {message.body}
-          </p>
+          <p className="text-sm whitespace-pre-wrap break-words">{message.body}</p>
         )}
 
         {/* Attachments */}
@@ -181,13 +182,7 @@ function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps) {
           >
             {time}
           </span>
-          {isOwn && (
-            isRead ? (
-              <CheckCheck className="w-3 h-3 text-white/70" />
-            ) : (
-              <Check className="w-3 h-3 text-white/70" />
-            )
-          )}
+          {isOwn && (isRead ? <CheckCheck className="w-3 h-3 text-white/70" /> : <Check className="w-3 h-3 text-white/70" />)}
         </div>
       </div>
     </div>
@@ -204,12 +199,8 @@ function AttachmentPreview({ attachment, isOwn }: AttachmentPreviewProps) {
 
   if (isImage) {
     return (
-      <a
-        href={attachment.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block"
-      >
+      <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={attachment.url}
           alt={attachment.fileName || "Image"}
@@ -238,9 +229,7 @@ function AttachmentPreview({ attachment, isOwn }: AttachmentPreviewProps) {
 }
 
 // Helper: Group messages by date
-function groupMessagesByDate(
-  messages: Message[]
-): Record<string, Message[]> {
+function groupMessagesByDate(messages: Message[]): Record<string, Message[]> {
   const groups: Record<string, Message[]> = {};
 
   messages.forEach((message) => {
@@ -265,9 +254,15 @@ function groupMessagesByDate(
 }
 
 // Helper: Check if avatar should be shown (first message of a sequence from same sender)
-function shouldShowAvatar(messages: Message[], index: number): boolean {
+function shouldShowAvatar(messages: Message[], index: number, currentUserId?: string): boolean {
   if (index === 0) return true;
-  return messages[index].senderUserId !== messages[index - 1].senderUserId;
+  const currSender = getSenderId(messages[index]);
+  const prevSender = getSenderId(messages[index - 1]);
+
+  // Don't show avatar for your own messages
+  if (currentUserId && currSender === currentUserId) return false;
+
+  return currSender !== prevSender;
 }
 
 export default MessageList;

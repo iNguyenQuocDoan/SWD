@@ -107,6 +107,11 @@ export class ConversationService extends BaseService<IConversation> {
       }
     }
 
+    // Block self-chat: a user cannot chat with their own shop
+    if (finalSellerUserId && finalSellerUserId === customerUserId) {
+      throw new AppError("You cannot chat with your own shop", 400);
+    }
+
     // Create conversation
     const conversation = await Conversation.create({
       type,

@@ -340,16 +340,25 @@ class ChatService {
       if (params?.before) queryParams.append("before", params.before);
 
       const url = `/support/messages/${conversationId}${queryParams.toString() ? `?${queryParams}` : ""}`;
-      const response = await apiClient.get<MessagesResponse>(url);
-      log("getMessages response", {
-        success: response.success,
-        count: response.data?.messages?.length,
-        hasMore: response.data?.hasMore,
-      });
+      const response = await apiClient.get<any>(url);
+      log("getMessages response raw", response);
 
-      if (response.success && response.data) {
-        return response.data;
+      if (response.success) {
+        // BE hiện trả: { success: true, data: Message[], hasMore, total }
+        if (Array.isArray(response.data)) {
+          return {
+            messages: response.data,
+            total: typeof response.total === "number" ? response.total : response.data.length,
+            hasMore: !!response.hasMore,
+          };
+        }
+
+        // Fallback nếu BE trả theo format cũ: { data: { messages, total, hasMore } }
+        if (response.data?.messages && Array.isArray(response.data.messages)) {
+          return response.data as MessagesResponse;
+        }
       }
+
       return { messages: [], total: 0, hasMore: false };
     } catch (error) {
       logError("getMessages", error);

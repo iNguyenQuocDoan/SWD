@@ -20,15 +20,18 @@ const log = (action: string, data?: unknown) => {
 
 interface ChatWithShopButtonProps {
   shopId: string;
+  sellerUserId?: string; // ID của chủ shop để chặn tự chat
   shopName?: string;
   variant?: "default" | "outline" | "ghost" | "secondary";
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
   showLabel?: boolean;
+  disabled?: boolean;
 }
 
 export function ChatWithShopButton({
   shopId,
+  sellerUserId,
   shopName,
   variant = "outline",
   size = "default",
@@ -42,8 +45,15 @@ export function ChatWithShopButton({
 
   const [isLoading, setIsLoading] = useState(false);
 
+  const isOwnShop = user?.id === sellerUserId;
+
   const handleClick = useCallback(async () => {
-    log("clicked", { shopId, shopName, isAuthenticated });
+    log("clicked", { shopId, shopName, isAuthenticated, sellerUserId });
+
+    if (isOwnShop) {
+      toast.error("Bạn không thể chat với shop của chính mình");
+      return;
+    }
 
     // Redirect to login if not authenticated
     if (!isAuthenticated || !user) {

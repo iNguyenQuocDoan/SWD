@@ -97,6 +97,11 @@ export default function PublicShopPage() {
     );
   }
 
+  // Get ownerId safely from populated shop data
+  const ownerId = typeof (shop as any).ownerUserId === 'string' 
+    ? (shop as any).ownerUserId 
+    : (shop as any).ownerUserId?._id || (shop as any).ownerId;
+
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Header */}
@@ -114,6 +119,7 @@ export default function PublicShopPage() {
           <ChatWithShopButton
             shopId={shop._id}
             shopName={shop.shopName}
+            sellerUserId={ownerId}
             variant="outline"
           />
           <Button asChild variant="outline">
@@ -240,4 +246,3 @@ export default function PublicShopPage() {
     </div>
   );
 }
-
