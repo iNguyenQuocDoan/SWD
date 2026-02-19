@@ -15,6 +15,8 @@ import ekycRoutes from "./ekyc/ekyc.routes";
 import statsRoutes from "./stats/stats.routes";
 import supportRoutes from "./support";
 import disbursementRoutes from "./disbursement/disbursement.routes";
+import reportRoutes from "./reports/report.routes";
+import sellerReportRoutes from "./reports/seller-report.routes";
 
 const router = Router();
 
@@ -34,5 +36,7 @@ router.use("/ekyc", ekycRoutes);
 router.use("/stats", statsRoutes);
 router.use("/support", supportRoutes);
 router.use("/disbursement", disbursementRoutes);
+router.use("/reports", reportRoutes);
+router.use("/seller/reports", sellerReportRoutes);
 
 export default router;
