@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -21,49 +22,50 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  AlertCircle,
-  Plus,
-  Eye,
-  Package,
-  RefreshCw,
   FileText,
+  AlertTriangle,
   Clock,
   CheckCircle,
-  Scale,
+  Eye,
+  RefreshCw,
+  ArrowLeft,
+  Search,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { complaintService } from "@/lib/services/complaint.service";
-import { RequireAuth } from "@/components/auth/RequireAuth";
-import type { Complaint } from "@/types";
+import type { Complaint } from "@/lib/services/complaint.service";
 
-// Status badge config
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  InQueue: { label: "Trong hàng đợi", variant: "secondary" },
-  Assigned: { label: "Đã tiếp nhận", variant: "default" },
-  InReview: { label: "Đang xem xét", variant: "default" },
-  NeedMoreInfo: { label: "Cần thêm thông tin", variant: "outline" },
-  Resolved: { label: "Đã giải quyết", variant: "outline" },
-  Appealable: { label: "Có thể kháng cáo", variant: "outline" },
-  Closed: { label: "Đã đóng", variant: "secondary" },
-  AppealInReview: { label: "Kháng cáo đang xem xét", variant: "destructive" },
+// Status config matched with Swagger
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
+  ModeratorAssigned: { label: "Đang xử lý", variant: "default", color: "text-blue-600" },
+  InReview: { label: "Đang xem xét", variant: "default", color: "text-blue-600" },
+  NeedMoreInfo: { label: "Cần bổ sung thông tin", variant: "outline", color: "text-orange-600" },
+  DecisionMade: { label: "Đã có quyết định", variant: "secondary", color: "text-green-600" },
+  Appealable: { label: "Chờ kháng cáo", variant: "outline", color: "text-purple-600" },
+  AppealFiled: { label: "Đang kháng cáo", variant: "destructive", color: "text-red-600" },
+  AppealReview: { label: "Đang xem xét kháng cáo", variant: "destructive", color: "text-red-600" },
+  Resolved: { label: "Đã giải quyết", variant: "outline", color: "text-green-600" },
+  Closed: { label: "Đã đóng", variant: "secondary", color: "text-gray-600" },
 };
 
 const categoryLabels: Record<string, string> = {
   ProductQuality: "Chất lượng SP",
   NotAsDescribed: "Không đúng mô tả",
-  AccountNotWorking: "TK không hoạt động",
-  DeliveryIssue: "Vấn đề giao hàng",
-  Fraud: "Lừa đảo",
-  Other: "Khác",
+  MissingWrongItems: "Thiếu/Sai hàng",
+  DeliveryIssues: "Giao hàng",
+  AccountNotWorking: "Lỗi tài khoản",
+  SellerNotResponding: "Seller không phản hồi",
+  RefundDispute: "Tranh chấp hoàn tiền",
 };
 
 export default function CustomerComplaintsPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("history");
   const [isLoading, setIsLoading] = useState(true);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Fetch complaints
   const fetchComplaints = async () => {
     setIsLoading(true);
     try {
@@ -71,11 +73,10 @@ export default function CustomerComplaintsPage() {
         status: statusFilter !== "all" ? statusFilter : undefined,
         limit: 50,
       });
-
       setComplaints(result.tickets);
     } catch (error) {
       console.error("Failed to fetch complaints:", error);
-      toast.error("Không thể tải danh sách khiếu nại");
+      toast.error("Không thể tải lịch sử khiếu nại");
     } finally {
       setIsLoading(false);
     }
@@ -93,232 +94,169 @@ export default function CustomerComplaintsPage() {
   };
 
   const formatDate = (date: Date | string) => {
-    return new Date(date).toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  // Count by status
-  const statusCounts = {
-    active: complaints.filter((c) =>
-      ["InQueue", "Assigned", "InReview", "NeedMoreInfo"].includes(c.status)
-    ).length,
-    appealable: complaints.filter((c) => c.status === "Appealable").length,
-    closed: complaints.filter((c) => ["Resolved", "Closed"].includes(c.status)).length,
+    return new Date(date).toLocaleDateString("vi-VN");
   };
 
   return (
-    <RequireAuth>
-      <div className="container py-8 max-w-4xl space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Khiếu nại của tôi</h1>
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/customer/orders">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              Trung tâm Khiếu nại
+            </h1>
             <p className="text-muted-foreground">
-              Theo dõi và quản lý các khiếu nại của bạn
+              Quản lý và theo dõi các yêu cầu hỗ trợ, khiếu nại đơn hàng
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={fetchComplaints}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Làm mới
-            </Button>
-            <Button size="sm" asChild>
-              <Link href="/customer/tickets/create">
-                <Plus className="mr-2 h-4 w-4" />
-                Tạo khiếu nại
-              </Link>
-            </Button>
-          </div>
         </div>
-
-        {/* Stats */}
-        <div className="grid gap-4 grid-cols-3">
-          <Card className="py-4">
-            <CardContent className="px-4 pt-4 pb-4 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{statusCounts.active}</p>
-                <p className="text-xs text-muted-foreground">Đang xử lý</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4">
-            <CardContent className="px-4 pt-4 pb-4 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                <Scale className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{statusCounts.appealable}</p>
-                <p className="text-xs text-muted-foreground">Có thể kháng cáo</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4">
-            <CardContent className="px-4 pt-4 pb-4 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{statusCounts.closed}</p>
-                <p className="text-xs text-muted-foreground">Đã xử lý</p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={fetchComplaints}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Làm mới
+          </Button>
+          <Button size="sm" asChild>
+            <Link href="/customer/orders">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Tạo khiếu nại mới
+            </Link>
+          </Button>
         </div>
-
-        {/* Filter */}
-        <Card className="py-4">
-          <CardContent className="px-4 pt-4 pb-4">
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">Lọc theo trạng thái:</span>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả</SelectItem>
-                  <SelectItem value="InQueue">Trong hàng đợi</SelectItem>
-                  <SelectItem value="InReview">Đang xem xét</SelectItem>
-                  <SelectItem value="NeedMoreInfo">Cần thêm thông tin</SelectItem>
-                  <SelectItem value="Appealable">Có thể kháng cáo</SelectItem>
-                  <SelectItem value="Resolved">Đã giải quyết</SelectItem>
-                  <SelectItem value="Closed">Đã đóng</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Complaints List */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Danh sách khiếu nại
-            </CardTitle>
-            <CardDescription>
-              {complaints.length} khiếu nại
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-24 w-full" />
-                ))}
-              </div>
-            ) : complaints.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Chưa có khiếu nại nào</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Bạn chưa tạo khiếu nại nào. Nếu gặp vấn đề với sản phẩm, hãy tạo khiếu nại.
-                </p>
-                <Button asChild>
-                  <Link href="/customer/tickets/create">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Tạo khiếu nại
-                  </Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {complaints.map((complaint) => {
-                  const status = statusConfig[complaint.status] || {
-                    label: complaint.status,
-                    variant: "outline" as const,
-                  };
-
-                  return (
-                    <div
-                      key={complaint._id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/customer/complaints/${complaint._id}`)}
-                    >
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">
-                            {complaint.ticketCode}
-                          </span>
-                          <Badge variant={status.variant}>
-                            {status.label}
-                          </Badge>
-                          {complaint.status === "Appealable" && (
-                            <Badge variant="destructive" className="text-xs">
-                              <Scale className="h-3 w-3 mr-1" />
-                              Cần kháng cáo
-                            </Badge>
-                          )}
-                        </div>
-
-                        <p className="font-medium truncate">{complaint.title}</p>
-
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                          <span className="bg-muted px-2 py-0.5 rounded">
-                            {categoryLabels[complaint.category] || complaint.category}
-                          </span>
-                          <span>
-                            Giá trị: {formatPrice(complaint.orderValue)}
-                          </span>
-                          <span>
-                            {formatDate(complaint.createdAt)}
-                          </span>
-                        </div>
-
-                        {complaint.orderSnapshot && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            Sản phẩm: {complaint.orderSnapshot.productTitle}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/customer/complaints/${complaint._id}`);
-                          }}
-                        >
-                          <Eye className="mr-1.5 h-3.5 w-3.5" />
-                          Chi tiết
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Info Alert */}
-        <Card className="border-blue-200 bg-blue-50/50">
-          <CardContent className="px-4 py-4 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-blue-900">Quy trình xử lý khiếu nại</p>
-              <ul className="mt-2 space-y-1 text-blue-800">
-                <li>1. Tạo khiếu nại với đầy đủ thông tin và bằng chứng</li>
-                <li>2. Moderator sẽ xem xét và đưa ra quyết định</li>
-                <li>3. Nếu không đồng ý, bạn có thể kháng cáo trong 72 giờ</li>
-                <li>4. Admin sẽ xem xét lại kháng cáo và đưa ra quyết định cuối cùng</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
       </div>
-    </RequireAuth>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full sm:w-[400px] grid-cols-2">
+          <TabsTrigger value="history">Lịch sử khiếu nại</TabsTrigger>
+          <TabsTrigger value="guides" disabled>Hướng dẫn xử lý</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="history" className="space-y-6">
+          {/* Filters */}
+          <Card className="border-none shadow-sm bg-muted/30">
+            <CardContent className="p-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Trạng thái:</span>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[200px] bg-background">
+                      <SelectValue placeholder="Tất cả trạng thái" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                      <SelectItem value="ModeratorAssigned">Đang xử lý</SelectItem>
+                      <SelectItem value="NeedMoreInfo">Cần bổ sung thông tin</SelectItem>
+                      <SelectItem value="DecisionMade">Đã có quyết định</SelectItem>
+                      <SelectItem value="AppealFiled">Đang kháng cáo</SelectItem>
+                      <SelectItem value="Resolved">Đã giải quyết</SelectItem>
+                      <SelectItem value="Closed">Đã đóng</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* List */}
+          <div className="grid gap-4">
+            {isLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-3 flex-1">
+                        <Skeleton className="h-5 w-1/4" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                      </div>
+                      <Skeleton className="h-8 w-24 rounded-full" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : complaints.length === 0 ? (
+              <Card className="border-dashed border-2 bg-muted/10">
+                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <Search className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Chưa có khiếu nại nào</h3>
+                  <p className="text-muted-foreground max-w-sm mt-2">
+                    Lịch sử khiếu nại của bạn sẽ xuất hiện tại đây sau khi bạn gửi yêu cầu hỗ trợ cho đơn hàng.
+                  </p>
+                  <Button variant="outline" className="mt-6" asChild>
+                    <Link href="/customer/orders">Đến danh sách đơn hàng</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              complaints.map((item) => {
+                const status = statusConfig[item.status] || { label: item.status, variant: "outline", color: "" };
+                return (
+                  <Card key={item._id} className="group hover:border-primary/50 transition-all duration-200 shadow-sm overflow-hidden">
+                    <CardContent className="p-0">
+                      <div className="flex flex-col md:flex-row">
+                        {/* Status sidebar indicator */}
+                        <div className={`w-1 md:w-1.5 ${status.color.replace('text-', 'bg-') || 'bg-muted'}`} />
+                        
+                        <div className="p-6 flex-1 flex flex-col md:flex-row gap-6">
+                          <div className="flex-1 space-y-4">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono font-bold text-primary">
+                                {item.ticketCode}
+                              </span>
+                              <Badge variant={status.variant as any} className={`${status.color} border-current/20 font-medium`}>
+                                {status.label}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs bg-muted/50">
+                                {categoryLabels[item.category] || item.category}
+                              </Badge>
+                            </div>
+
+                            <div>
+                              <h3 className="text-lg font-semibold line-clamp-1 group-hover:text-primary transition-colors">
+                                {item.title}
+                              </h3>
+                              <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                                {item.content}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1.5">
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>Gửi ngày: {formatDate(item.createdAt)}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                <span>Giá trị đơn: {formatPrice(item.orderValue)}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end md:self-center">
+                            <Button variant="outline" className="shadow-sm" asChild>
+                              <Link href={`/customer/complaints/${item._id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Xem chi tiết
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

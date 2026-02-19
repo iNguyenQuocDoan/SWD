@@ -32,6 +32,7 @@ import {
   ShoppingBag,
   ChevronDown,
   Sparkles,
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -223,6 +224,12 @@ export function Header() {
                     <Link href="/customer/orders" className="flex items-center">
                       <Package className="mr-2 h-4 w-4" />
                       <span>Lịch sử đơn hàng</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/customer/complaints" className="flex items-center">
+                      <FileText className="mr-2 h-4 w-4" />
+                      <span>Lịch sử khiếu nại</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

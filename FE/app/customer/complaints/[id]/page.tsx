@@ -26,42 +26,50 @@ import {
 } from "@/components/ui/dialog";
 import {
   ArrowLeft,
-  Package,
   Clock,
   AlertTriangle,
-  AlertCircle,
-  CheckCircle,
+  MessageSquare,
   FileText,
   Loader2,
   Gavel,
-  Scale,
   Image as ImageIcon,
+  Plus,
+  Send,
 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { complaintService } from "@/lib/services/complaint.service";
-import { RequireAuth } from "@/components/auth/RequireAuth";
-import type { Complaint, ComplaintTimeline } from "@/types";
+import { useAuthStore } from "@/lib/auth";
+import type { Complaint, ComplaintTimeline, EvidenceType } from "@/lib/services/complaint.service";
 
-// Status config
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; color: string; description: string }> = {
-  InQueue: { label: "Trong hàng đợi", variant: "secondary", color: "text-gray-600", description: "Khiếu nại đang chờ moderator xử lý" },
-  Assigned: { label: "Đã tiếp nhận", variant: "default", color: "text-blue-600", description: "Moderator đã tiếp nhận khiếu nại" },
-  InReview: { label: "Đang xem xét", variant: "default", color: "text-blue-600", description: "Moderator đang xem xét khiếu nại" },
-  NeedMoreInfo: { label: "Cần thêm thông tin", variant: "outline", color: "text-orange-600", description: "Vui lòng cung cấp thêm thông tin" },
-  Resolved: { label: "Đã giải quyết", variant: "outline", color: "text-green-600", description: "Khiếu nại đã được giải quyết" },
-  Appealable: { label: "Có thể kháng cáo", variant: "outline", color: "text-purple-600", description: "Bạn có thể kháng cáo trong 72 giờ" },
-  Closed: { label: "Đã đóng", variant: "secondary", color: "text-gray-600", description: "Khiếu nại đã kết thúc" },
-  AppealInReview: { label: "Đang xem xét kháng cáo", variant: "destructive", color: "text-red-600", description: "Kháng cáo đang được xem xét" },
+// Status config matched with Swagger
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
+  ModeratorAssigned: { label: "Đang xử lý", variant: "default", color: "text-blue-600" },
+  InReview: { label: "Đang xem xét", variant: "default", color: "text-blue-600" },
+  NeedMoreInfo: { label: "Cần bổ sung thông tin", variant: "outline", color: "text-orange-600" },
+  DecisionMade: { label: "Đã có quyết định", variant: "secondary", color: "text-green-600" },
+  Appealable: { label: "Chờ kháng cáo", variant: "outline", color: "text-purple-600" },
+  AppealFiled: { label: "Đang kháng cáo", variant: "destructive", color: "text-red-600" },
+  AppealReview: { label: "Đang xem xét kháng cáo", variant: "destructive", color: "text-red-600" },
+  Resolved: { label: "Đã giải quyết", variant: "outline", color: "text-green-600" },
+  Closed: { label: "Đã đóng", variant: "secondary", color: "text-gray-600" },
 };
 
 const categoryLabels: Record<string, string> = {
   ProductQuality: "Chất lượng sản phẩm",
   NotAsDescribed: "Không đúng mô tả",
+  MissingWrongItems: "Thiếu/Sai hàng",
+  DeliveryIssues: "Vấn đề giao hàng",
   AccountNotWorking: "Tài khoản không hoạt động",
-  DeliveryIssue: "Vấn đề giao hàng",
-  Fraud: "Lừa đảo",
-  Other: "Khác",
+  SellerNotResponding: "Người bán không phản hồi",
+  RefundDispute: "Tranh chấp hoàn tiền",
 };
 
 const resolutionLabels: Record<string, string> = {
@@ -79,17 +87,24 @@ export default function CustomerComplaintDetailPage({
 }>) {
   const router = useRouter();
   const { id: complaintId } = use(params);
+  const { user } = useAuthStore();
 
   const [isLoading, setIsLoading] = useState(true);
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [timeline, setTimeline] = useState<ComplaintTimeline[]>([]);
 
-  // Appeal dialog state
+  // Evidence state
+  const [isEvidenceDialogOpen, setIsEvidenceDialogOpen] = useState(false);
+  const [isSubmittingEvidence, setIsSubmittingEvidence] = useState(false);
+  const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [evidenceType, setEvidenceType] = useState<EvidenceType>("Screenshot");
+  const [evidenceDesc, setEvidenceDesc] = useState("");
+
+  // Appeal state
   const [isAppealDialogOpen, setIsAppealDialogOpen] = useState(false);
   const [isSubmittingAppeal, setIsSubmittingAppeal] = useState(false);
   const [appealReason, setAppealReason] = useState("");
 
-  // Fetch complaint data
   const fetchComplaint = async () => {
     setIsLoading(true);
     try {
@@ -112,24 +127,50 @@ export default function CustomerComplaintDetailPage({
     fetchComplaint();
   }, [complaintId]);
 
-  // File appeal
+  const handleAddEvidence = async () => {
+    if (!evidenceUrl.trim()) {
+      toast.error("Vui lòng nhập URL bằng chứng");
+      return;
+    }
+
+    setIsSubmittingEvidence(true);
+    try {
+      await complaintService.addEvidence(complaintId, {
+        evidence: [{
+          type: evidenceType,
+          url: evidenceUrl,
+          description: evidenceDesc
+        }]
+      });
+      toast.success("Đã thêm bằng chứng thành công");
+      setIsEvidenceDialogOpen(false);
+      setEvidenceUrl("");
+      setEvidenceDesc("");
+      fetchComplaint();
+    } catch (error) {
+      toast.error("Không thể thêm bằng chứng");
+    } finally {
+      setIsSubmittingEvidence(false);
+    }
+  };
+
   const handleFileAppeal = async () => {
-    if (!appealReason.trim() || appealReason.length < 20) {
-      toast.error("Lý do kháng cáo phải có ít nhất 20 ký tự");
+    if (!appealReason.trim()) {
+      toast.error("Vui lòng nhập lý do kháng cáo");
       return;
     }
 
     setIsSubmittingAppeal(true);
     try {
       await complaintService.fileAppeal(complaintId, {
-        reason: appealReason,
+        reason: appealReason
       });
       toast.success("Đã nộp kháng cáo thành công");
       setIsAppealDialogOpen(false);
+      setAppealReason("");
       fetchComplaint();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Không thể nộp kháng cáo";
-      toast.error(message);
+      toast.error("Không thể nộp kháng cáo");
     } finally {
       setIsSubmittingAppeal(false);
     }
@@ -146,415 +187,305 @@ export default function CustomerComplaintDetailPage({
     return new Date(date).toLocaleString("vi-VN");
   };
 
-  // Check if appeal is still possible
-  const canAppeal = complaint?.status === "Appealable" && complaint?.appealDeadline
-    && new Date(complaint.appealDeadline) > new Date();
-
   if (isLoading) {
     return (
-      <RequireAuth>
-        <div className="container py-8 max-w-4xl">
-          <div className="space-y-6">
-            <Skeleton className="h-10 w-64" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-64 w-full" />
+      <div className="container mx-auto px-4 py-8">
+        <div className="space-y-6">
+          <Skeleton className="h-10 w-64" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+            <Skeleton className="h-96 w-full" />
           </div>
         </div>
-      </RequireAuth>
+      </div>
     );
   }
 
   if (!complaint) {
     return (
-      <RequireAuth>
-        <div className="container py-8 max-w-4xl">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12 px-4 text-center">
-              <AlertTriangle className="h-16 w-16 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Không tìm thấy khiếu nại</h3>
-              <p className="text-sm text-muted-foreground max-w-sm mb-4">
-                Khiếu nại này không tồn tại hoặc bạn không có quyền xem.
-              </p>
-              <Button onClick={() => router.push("/customer/complaints")} variant="default">
-                Quay lại danh sách
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </RequireAuth>
+      <div className="container mx-auto px-4 py-16 text-center">
+        <AlertTriangle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+        <h2 className="text-2xl font-bold">Không tìm thấy khiếu nại</h2>
+        <Button className="mt-6" asChild>
+          <Link href="/customer/complaints">Quay lại danh sách</Link>
+        </Button>
+      </div>
     );
   }
 
-  const status = statusConfig[complaint.status] || { label: complaint.status, variant: "outline" as const, color: "text-gray-600", description: "" };
+  const status = statusConfig[complaint.status] || { label: complaint.status, variant: "outline" as const, color: "" };
+  const isOwner = typeof complaint.customerUserId === 'object' ? complaint.customerUserId._id === user?.id : complaint.customerUserId === user?.id;
+  const canAddEvidence = isOwner && ["ModeratorAssigned", "InReview", "NeedMoreInfo"].includes(complaint.status);
+  const canAppeal = isOwner && complaint.status === "Appealable";
 
   return (
-    <RequireAuth>
-      <div className="container py-8 max-w-4xl space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/customer/complaints">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </Button>
-            <div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-bold">
-                  {complaint.ticketCode}
-                </h1>
-                <Badge variant={status.variant} className={status.color}>
-                  {status.label}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Tạo lúc: {formatDate(complaint.createdAt)}
-              </p>
+    <div className="container mx-auto px-4 py-8 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/customer/complaints">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl sm:text-3xl font-bold">{complaint.ticketCode}</h1>
+              <Badge variant={status.variant} className={status.color}>
+                {status.label}
+              </Badge>
             </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gửi ngày: {formatDate(complaint.createdAt)}
+            </p>
           </div>
+        </div>
+
+        <div className="flex gap-2">
+          {canAddEvidence && (
+            <Dialog open={isEvidenceDialogOpen} onOpenChange={setIsEvidenceDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Thêm bằng chứng
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Bổ sung bằng chứng</DialogTitle>
+                  <DialogDescription>Cung cấp thêm hình ảnh hoặc tài liệu để hỗ trợ giải quyết khiếu nại.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">URL Hình ảnh/Tài liệu</label>
+                    <Input 
+                      value={evidenceUrl} 
+                      onChange={(e) => setEvidenceUrl(e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Loại bằng chứng</label>
+                    <Select value={evidenceType} onValueChange={(v: any) => setEvidenceType(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Screenshot">Ảnh màn hình</SelectItem>
+                        <SelectItem value="Image">Hình ảnh</SelectItem>
+                        <SelectItem value="Video">Video</SelectItem>
+                        <SelectItem value="Document">Tài liệu</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Mô tả ngắn</label>
+                    <Textarea 
+                      value={evidenceDesc} 
+                      onChange={(e) => setEvidenceDesc(e.target.value)}
+                      placeholder="Mô tả nội dung bằng chứng này..."
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsEvidenceDialogOpen(false)}>Hủy</Button>
+                  <Button onClick={handleAddEvidence} disabled={isSubmittingEvidence}>
+                    {isSubmittingEvidence ? <Loader2 className="h-4 w-4 animate-spin" /> : "Xác nhận"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
 
           {canAppeal && (
             <Dialog open={isAppealDialogOpen} onOpenChange={setIsAppealDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="destructive">
-                  <Scale className="mr-2 h-4 w-4" />
+                <Button className="bg-purple-600 hover:bg-purple-700">
+                  <Send className="mr-2 h-4 w-4" />
                   Kháng cáo
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Nộp kháng cáo</DialogTitle>
-                  <DialogDescription>
-                    Bạn có thể kháng cáo quyết định trong vòng 72 giờ.
-                    Kháng cáo sẽ được Admin xem xét lại.
-                  </DialogDescription>
+                  <DialogTitle>Nộp đơn kháng cáo</DialogTitle>
+                  <DialogDescription>Bạn có 72 giờ để kháng cáo nếu không đồng ý với quyết định của Moderator.</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Lưu ý</AlertTitle>
-                    <AlertDescription>
-                      Hạn kháng cáo: {formatDate(complaint.appealDeadline!)}
-                    </AlertDescription>
-                  </Alert>
-                  <div>
-                    <Textarea
-                      value={appealReason}
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Lý do kháng cáo *</label>
+                    <Textarea 
+                      value={appealReason} 
                       onChange={(e) => setAppealReason(e.target.value)}
-                      placeholder="Nhập lý do bạn muốn kháng cáo quyết định này (ít nhất 20 ký tự)..."
+                      placeholder="Trình bày lý do bạn không đồng ý với quyết định..."
                       rows={5}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {appealReason.length}/20 ký tự tối thiểu
-                    </p>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsAppealDialogOpen(false)}>
-                    Hủy
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={handleFileAppeal}
-                    disabled={isSubmittingAppeal || appealReason.length < 20}
-                  >
-                    {isSubmittingAppeal ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Đang gửi...
-                      </>
-                    ) : (
-                      "Nộp kháng cáo"
-                    )}
+                  <Button variant="outline" onClick={() => setIsAppealDialogOpen(false)}>Hủy</Button>
+                  <Button onClick={handleFileAppeal} disabled={isSubmittingAppeal}>
+                    {isSubmittingAppeal ? <Loader2 className="h-4 w-4 animate-spin" /> : "Gửi kháng cáo"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
           )}
         </div>
+      </div>
 
-        {/* Status Alert */}
-        <Alert variant={complaint.status === "NeedMoreInfo" ? "destructive" : "default"}>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Trạng thái: {status.label}</AlertTitle>
-          <AlertDescription>{status.description}</AlertDescription>
-        </Alert>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Detail Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Chi tiết khiếu nại
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold">{complaint.title}</h2>
+                <Badge variant="outline" className="mt-2">
+                  {categoryLabels[complaint.category] || complaint.category}
+                </Badge>
+              </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Complaint Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Chi tiết khiếu nại
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="font-semibold text-lg">{complaint.title}</h3>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <Badge variant="outline">
-                      {categoryLabels[complaint.category] || complaint.category}
-                    </Badge>
-                    {complaint.subcategory && (
-                      <Badge variant="secondary">{complaint.subcategory}</Badge>
-                    )}
-                  </div>
-                </div>
+              <div>
+                <h4 className="font-medium text-sm text-muted-foreground uppercase mb-2">Nội dung yêu cầu</h4>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{complaint.content}</p>
+              </div>
 
-                <Separator />
-
-                <div>
-                  <h4 className="font-medium mb-2">Nội dung</h4>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {complaint.content}
-                  </p>
-                </div>
-
-                {/* Evidence */}
-                {complaint.buyerEvidence && complaint.buyerEvidence.length > 0 && (
-                  <>
-                    <Separator />
-                    <div>
-                      <h4 className="font-medium mb-2 flex items-center gap-2">
-                        <ImageIcon className="h-4 w-4" />
-                        Bằng chứng đã gửi ({complaint.buyerEvidence.length})
-                      </h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {complaint.buyerEvidence.map((evidence, idx) => (
-                          <a
-                            key={idx}
-                            href={evidence.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block border rounded-lg p-2 hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="text-xs font-medium">{evidence.type}</div>
-                            {evidence.description && (
-                              <div className="text-xs text-muted-foreground truncate">
-                                {evidence.description}
-                              </div>
-                            )}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Decision Info */}
-            {complaint.decision && (
-              <Card className={complaint.decision.resolution === "Reject" ? "border-red-200" : "border-green-200"}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Gavel className="h-5 w-5" />
-                    Quyết định của Moderator
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    {complaint.decision.resolution === "Reject" ? (
-                      <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                        <AlertTriangle className="h-6 w-6 text-red-600" />
-                      </div>
-                    ) : (
-                      <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                        <CheckCircle className="h-6 w-6 text-green-600" />
-                      </div>
-                    )}
-                    <div>
-                      <h4 className="font-semibold text-lg">
-                        {resolutionLabels[complaint.decision.resolution]}
-                      </h4>
-                      {complaint.decision.refundAmount && (
-                        <p className="text-sm text-muted-foreground">
-                          Số tiền hoàn: {formatPrice(complaint.decision.refundAmount)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <h4 className="font-medium mb-2">Lý do</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {complaint.decision.reason}
-                    </p>
-                  </div>
-
-                  <div className="text-xs text-muted-foreground">
-                    Quyết định lúc: {formatDate(complaint.decision.decidedAt)}
-                  </div>
-
-                  {canAppeal && (
-                    <Alert>
-                      <Scale className="h-4 w-4" />
-                      <AlertTitle>Bạn có thể kháng cáo</AlertTitle>
-                      <AlertDescription>
-                        Nếu không đồng ý với quyết định, bạn có thể nộp kháng cáo
-                        trước {formatDate(complaint.appealDeadline!)}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Appeal Info */}
-            {complaint.appealInfo && (
-              <Card className="border-purple-200">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Scale className="h-5 w-5" />
-                    Thông tin kháng cáo
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Lý do kháng cáo</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {complaint.appealInfo.appealReason}
-                    </p>
-                  </div>
-
-                  <div className="text-xs text-muted-foreground">
-                    Nộp lúc: {formatDate(complaint.appealInfo.appealedAt)}
-                  </div>
-
-                  {complaint.appealInfo.appealDecision && (
-                    <>
-                      <Separator />
-                      <div className="bg-muted/50 p-4 rounded-lg">
-                        <h4 className="font-medium mb-2">Kết quả kháng cáo</h4>
-                        <Badge
-                          variant={complaint.appealInfo.appealDecision === "Upheld" ? "default" : "destructive"}
-                        >
-                          {complaint.appealInfo.appealDecision === "Upheld"
-                            ? "Giữ nguyên quyết định"
-                            : "Đảo ngược quyết định"}
-                        </Badge>
-                        {complaint.appealInfo.appealNote && (
-                          <p className="text-sm text-muted-foreground mt-2">
-                            {complaint.appealInfo.appealNote}
-                          </p>
-                        )}
-                        <div className="text-xs text-muted-foreground mt-2">
-                          Xử lý lúc: {formatDate(complaint.appealInfo.appealResolvedAt!)}
+              {/* Evidence list */}
+              {complaint.buyerEvidence && complaint.buyerEvidence.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    Bằng chứng đã cung cấp ({complaint.buyerEvidence.length})
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {complaint.buyerEvidence.map((ev, idx) => (
+                      <a 
+                        key={idx} 
+                        href={ev.url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="group relative aspect-video border rounded-lg overflow-hidden bg-muted hover:border-primary transition-all"
+                      >
+                        <div className="absolute inset-0 flex items-center justify-center text-xs font-medium bg-background/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                          Xem ảnh
                         </div>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Order Snapshot */}
-            {complaint.orderSnapshot && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
-                    Thông tin sản phẩm
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-start gap-4">
-                    {complaint.orderSnapshot.productThumbnail && (
-                      <img
-                        src={complaint.orderSnapshot.productThumbnail}
-                        alt={complaint.orderSnapshot.productTitle}
-                        className="w-20 h-20 object-cover rounded-lg"
-                      />
-                    )}
-                    <div className="flex-1 space-y-2">
-                      <h4 className="font-medium">{complaint.orderSnapshot.productTitle}</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Số lượng:</span>{" "}
-                          {complaint.orderSnapshot.quantity}
+                        <div className="p-2 text-[10px] text-muted-foreground bg-muted truncate mt-auto">
+                          {ev.type}
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Đơn giá:</span>{" "}
-                          {formatPrice(complaint.orderSnapshot.unitPrice)}
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Tổng tiền:</span>{" "}
-                          <span className="font-medium">{formatPrice(complaint.orderSnapshot.totalAmount)}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Ngày đặt:</span>{" "}
-                          {formatDate(complaint.orderSnapshot.orderedAt)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Timeline */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  Tiến trình xử lý
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {timeline.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Chưa có hoạt động nào
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {timeline.map((event, idx) => (
-                      <div key={event._id} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className="h-2 w-2 rounded-full bg-primary" />
-                          {idx < timeline.length - 1 && (
-                            <div className="w-0.5 h-full bg-border" />
-                          )}
-                        </div>
-                        <div className="flex-1 pb-4">
-                          <p className="text-sm">{event.description}</p>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(event.createdAt)}
-                          </span>
-                        </div>
-                      </div>
+                      </a>
                     ))}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </div>
+              )}
 
-            {/* Help Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Cần hỗ trợ?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Nếu bạn có thắc mắc về khiếu nại, vui lòng liên hệ hỗ trợ.
-                </p>
-                <Button variant="outline" className="w-full" asChild>
-                  <Link href="/customer/tickets/create">
-                    Liên hệ hỗ trợ
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+              {/* Decision Section */}
+              {complaint.decidedAt && (
+                <div className="bg-muted/30 border rounded-xl p-5 space-y-4">
+                  <div className="flex items-center gap-2 text-green-600 font-bold">
+                    <Gavel className="h-5 w-5" />
+                    QUYẾT ĐỊNH TỪ HỆ THỐNG
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <span className="text-muted-foreground">Kết quả:</span>
+                      <p className="font-bold text-lg">
+                        {resolutionLabels[complaint.resolutionType] || complaint.resolutionType}
+                      </p>
+                    </div>
+                    {complaint.refundAmount && (
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground">Số tiền hoàn:</span>
+                        <p className="font-bold text-lg text-primary">{formatPrice(complaint.refundAmount)}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="pt-2 border-t">
+                    <span className="text-muted-foreground text-xs uppercase font-medium">Lý do giải quyết:</span>
+                    <p className="mt-1 text-sm">{complaint.decisionNote}</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Thông tin chung</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-muted-foreground">Trạng thái:</span>
+                <Badge variant={status.variant}>{status.label}</Badge>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-muted-foreground">Giá trị đơn:</span>
+                <span className="font-medium">{formatPrice(complaint.orderValue)}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-muted-foreground">Shop:</span>
+                <span className="font-medium truncate max-w-[150px]">
+                  {typeof complaint.shopId === 'object' ? complaint.shopId.name : 'N/A'}
+                </span>
+              </div>
+              {complaint.appealDeadline && (
+                <div className="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                  <p className="text-purple-700 text-xs font-bold uppercase mb-1 flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> Hạn chót kháng cáo
+                  </p>
+                  <p className="text-purple-900 font-medium">{formatDate(complaint.appealDeadline)}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Lịch sử hoạt động
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="px-6 py-4 space-y-6">
+                {timeline.length === 0 ? (
+                  <p className="text-center text-muted-foreground text-sm py-4">Chưa có hoạt động</p>
+                ) : (
+                  timeline.map((event, idx) => (
+                    <div key={event._id} className="relative flex gap-4">
+                      {idx !== timeline.length - 1 && (
+                        <div className="absolute left-[11px] top-6 w-0.5 h-[calc(100%+12px)] bg-muted" />
+                      )}
+                      <div className="mt-1.5 h-6 w-6 rounded-full border-2 border-primary bg-background z-10 flex items-center justify-center">
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium leading-none">{event.description}</p>
+                        <div className="flex items-center gap-2">
+                           <span className="text-[10px] uppercase font-bold text-muted-foreground">{event.actorRole}</span>
+                           <span className="text-[10px] text-muted-foreground">•</span>
+                           <span className="text-[10px] text-muted-foreground">{formatDate(event.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </RequireAuth>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createComplaintSchema, type CreateComplaintInput } from "@/lib/validations";
@@ -38,9 +38,13 @@ import {
 import {
   AlertCircle,
   ArrowLeft,
+  CheckCircle,
   Loader2,
   Package,
-  CheckCircle,
+  Plus,
+  Trash2,
+  Image as ImageIcon,
+  FileText,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
@@ -58,30 +62,81 @@ interface OrderItemOption {
   createdAt: string;
 }
 
-// Category options
+// Category options (match Swagger)
 const CATEGORY_OPTIONS = [
-  { value: "ProductQuality", label: "Chất lượng sản phẩm", description: "Sản phẩm không đạt chất lượng như mong đợi" },
-  { value: "NotAsDescribed", label: "Không đúng mô tả", description: "Sản phẩm khác với mô tả trên website" },
-  { value: "AccountNotWorking", label: "Tài khoản không hoạt động", description: "Không thể đăng nhập hoặc sử dụng tài khoản" },
-  { value: "DeliveryIssue", label: "Vấn đề giao hàng", description: "Không nhận được sản phẩm hoặc giao chậm" },
-  { value: "Fraud", label: "Lừa đảo", description: "Nghi ngờ bị lừa đảo" },
-  { value: "Other", label: "Khác", description: "Vấn đề khác không thuộc các loại trên" },
-];
+  {
+    value: "ProductQuality",
+    label: "Chất lượng sản phẩm",
+    description: "Sản phẩm bị lỗi/hỏng hoặc chất lượng không như mong đợi",
+  },
+  {
+    value: "NotAsDescribed",
+    label: "Không đúng mô tả",
+    description: "Sản phẩm khác mô tả hoặc khác hình ảnh/ thông số",
+  },
+  {
+    value: "MissingWrongItems",
+    label: "Thiếu/Sai hàng",
+    description: "Thiếu sản phẩm, hoặc nhận sai sản phẩm",
+  },
+  {
+    value: "DeliveryIssues",
+    label: "Vấn đề giao hàng",
+    description: "Không nhận được sản phẩm hoặc giao không đầy đủ",
+  },
+  {
+    value: "AccountNotWorking",
+    label: "Tài khoản không hoạt động",
+    description: "Không thể đăng nhập, tài khoản hết hạn/đã dùng",
+  },
+  {
+    value: "SellerNotResponding",
+    label: "Người bán không phản hồi",
+    description: "Người bán không phản hồi trong thời gian dài",
+  },
+  {
+    value: "RefundDispute",
+    label: "Tranh chấp hoàn tiền",
+    description: "Tranh chấp về việc hoàn tiền/hoàn một phần",
+  },
+] as const;
 
+// Subcategory options (match Swagger)
 const SUBCATEGORY_OPTIONS: Record<string, { value: string; label: string }[]> = {
-  AccountNotWorking: [
-    { value: "WrongCredentials", label: "Thông tin đăng nhập sai" },
-    { value: "AlreadyUsed", label: "Tài khoản đã được sử dụng" },
-    { value: "ExpiredEarly", label: "Hết hạn sớm hơn cam kết" },
-    { value: "CannotActivate", label: "Không thể kích hoạt" },
-    { value: "Other", label: "Khác" },
+  ProductQuality: [
+    { value: "ItemDefective", label: "Sản phẩm bị lỗi" },
+    { value: "ItemDamaged", label: "Sản phẩm bị hỏng" },
   ],
   NotAsDescribed: [
-    { value: "WrongProduct", label: "Sản phẩm sai" },
-    { value: "MissingFeatures", label: "Thiếu tính năng" },
-    { value: "Other", label: "Khác" },
+    { value: "DifferentFromPhoto", label: "Khác hình ảnh" },
+    { value: "DifferentSpecifications", label: "Khác thông số" },
+  ],
+  MissingWrongItems: [
+    { value: "MissingItems", label: "Thiếu sản phẩm" },
+    { value: "WrongItems", label: "Sai sản phẩm" },
+  ],
+  DeliveryIssues: [
+    { value: "NeverDelivered", label: "Chưa nhận được" },
+    { value: "PartialDelivery", label: "Giao một phần" },
+  ],
+  AccountNotWorking: [
+    { value: "CredentialsInvalid", label: "Thông tin đăng nhập sai" },
+    { value: "AccountExpired", label: "Tài khoản hết hạn" },
+    { value: "AccountAlreadyUsed", label: "Tài khoản đã được sử dụng" },
+  ],
+  SellerNotResponding: [{ value: "NoResponse48h", label: "Không phản hồi > 48h" }],
+  RefundDispute: [
+    { value: "RefuseRefund", label: "Từ chối hoàn tiền" },
+    { value: "PartialRefundDispute", label: "Tranh chấp hoàn một phần" },
   ],
 };
+
+const EVIDENCE_TYPE_OPTIONS = [
+  { value: "Screenshot", label: "Ảnh màn hình" },
+  { value: "Image", label: "Hình ảnh" },
+  { value: "Video", label: "Video" },
+  { value: "Document", label: "Tài liệu" },
+] as const;
 
 function CreateComplaintContent() {
   const router = useRouter();
@@ -101,9 +156,19 @@ function CreateComplaintContent() {
       orderItemId: orderItemIdParam || "",
       title: "",
       content: "",
-      category: undefined,
-      subcategory: undefined,
+      category: "" as any, // keep controlled
+      subcategory: "" as any, // keep controlled
+      evidence: [],
     },
+  });
+
+  const {
+    fields: evidenceFields,
+    append: appendEvidence,
+    remove: removeEvidence,
+  } = useFieldArray({
+    control: form.control,
+    name: "evidence",
   });
 
   // Fetch user's order items
@@ -116,11 +181,10 @@ function CreateComplaintContent() {
         // Flatten order items from all orders
         const items: OrderItemOption[] = [];
         for (const order of result.orders) {
-          // Get order details to access items
           try {
             const orderDetail = await orderService.getOrderByCode(order.orderCode);
             for (const item of orderDetail.items) {
-              // Only show items that can be complained about (Delivered or Completed)
+              // Items in escrow flow that can be complained (Delivered or Completed)
               if (["Delivered", "Completed"].includes(item.itemStatus)) {
                 items.push({
                   id: item._id,
@@ -150,7 +214,7 @@ function CreateComplaintContent() {
               setCannotFileReason(checkResult.reason || "Không thể tạo khiếu nại cho sản phẩm này");
             }
           } catch {
-            setCanFileComplaint(true); // Allow by default if check fails
+            setCanFileComplaint(true);
           }
         }
       } catch (error) {
@@ -185,15 +249,21 @@ function CreateComplaintContent() {
   const onSubmit = async (data: CreateComplaintInput) => {
     setIsLoading(true);
     try {
-      const complaint = await complaintService.createComplaint({
+      // Normalize values for swagger
+      const payload = {
         orderItemId: data.orderItemId,
         title: data.title,
         content: data.content,
         category: data.category,
-        subcategory: data.subcategory,
-      });
+        subcategory: data.subcategory ? data.subcategory : undefined,
+        evidence: data.evidence?.length ? data.evidence : undefined,
+      };
 
-      toast.success("Khiếu nại đã được tạo thành công! Moderator sẽ xử lý trong thời gian sớm nhất.");
+      const complaint = await complaintService.createComplaint(payload as any);
+
+      toast.success(
+        "Khiếu nại đã được tạo thành công! Moderator sẽ xử lý trong thời gian sớm nhất."
+      );
       router.push(`/customer/complaints/${complaint._id}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Không thể tạo khiếu nại";
@@ -257,9 +327,7 @@ function CreateComplaintContent() {
                     <Package className="h-5 w-5" />
                     Chọn sản phẩm
                   </CardTitle>
-                  <CardDescription>
-                    Chọn sản phẩm bạn muốn khiếu nại
-                  </CardDescription>
+                  <CardDescription>Chọn sản phẩm bạn muốn khiếu nại</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isLoadingOrders ? (
@@ -280,10 +348,7 @@ function CreateComplaintContent() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Sản phẩm *</FormLabel>
-                          <Select
-                            onValueChange={handleOrderItemChange}
-                            value={field.value}
-                          >
+                          <Select onValueChange={handleOrderItemChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Chọn sản phẩm cần khiếu nại" />
@@ -313,10 +378,11 @@ function CreateComplaintContent() {
               {/* Complaint Details */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Chi tiết khiếu nại</CardTitle>
-                  <CardDescription>
-                    Mô tả chi tiết vấn đề bạn gặp phải
-                  </CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Chi tiết khiếu nại
+                  </CardTitle>
+                  <CardDescription>Mô tả chi tiết vấn đề bạn gặp phải</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Category */}
@@ -330,9 +396,9 @@ function CreateComplaintContent() {
                           onValueChange={(value) => {
                             field.onChange(value);
                             setSelectedCategory(value);
-                            form.setValue("subcategory", undefined);
+                            form.setValue("subcategory", "" as any);
                           }}
-                          value={field.value}
+                          value={(field.value as any) || ""}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -357,7 +423,7 @@ function CreateComplaintContent() {
                     )}
                   />
 
-                  {/* Subcategory (if available) */}
+                  {/* Subcategory */}
                   {selectedCategory && SUBCATEGORY_OPTIONS[selectedCategory] && (
                     <FormField
                       control={form.control}
@@ -365,16 +431,14 @@ function CreateComplaintContent() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Chi tiết loại khiếu nại</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
-                          >
+                          <Select onValueChange={field.onChange} value={(field.value as any) || ""}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Chọn chi tiết (tùy chọn)" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
+                              <SelectItem value="__none__">Không chọn</SelectItem>
                               {SUBCATEGORY_OPTIONS[selectedCategory].map((option) => (
                                 <SelectItem key={option.value} value={option.value}>
                                   {option.label}
@@ -396,10 +460,7 @@ function CreateComplaintContent() {
                       <FormItem>
                         <FormLabel>Tiêu đề *</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Tóm tắt vấn đề bạn gặp phải..."
-                            {...field}
-                          />
+                          <Input placeholder="Tóm tắt vấn đề bạn gặp phải..." {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -430,13 +491,121 @@ function CreateComplaintContent() {
                 </CardContent>
               </Card>
 
+              {/* Evidence */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5" />
+                    Bằng chứng (tối đa 10)
+                  </CardTitle>
+                  <CardDescription>
+                    Dán URL ảnh/video/tài liệu (VD: Cloudinary). Bạn có thể thêm nhiều bằng chứng.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {evidenceFields.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      Chưa có bằng chứng nào.
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-4">
+                    {evidenceFields.map((ev, index) => (
+                      <div key={ev.id} className="rounded-lg border p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-sm font-medium">Bằng chứng #{index + 1}</div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeEvidence(index)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Xóa
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <FormField
+                            control={form.control}
+                            name={`evidence.${index}.type` as const}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Loại</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value || "Screenshot"}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {EVIDENCE_TYPE_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="md:col-span-2">
+                            <FormField
+                              control={form.control}
+                              name={`evidence.${index}.url` as const}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>URL *</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="https://..." {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name={`evidence.${index}.description` as const}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Mô tả (tùy chọn)</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Mô tả ngắn về bằng chứng..." {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={evidenceFields.length >= 10}
+                    onClick={() =>
+                      appendEvidence({
+                        type: "Screenshot",
+                        url: "",
+                        description: "",
+                      } as any)
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Thêm bằng chứng
+                  </Button>
+                </CardContent>
+              </Card>
+
               {/* Submit */}
               <div className="flex gap-4 justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
+                <Button type="button" variant="outline" onClick={() => router.back()}>
                   Hủy
                 </Button>
                 <Button
@@ -466,15 +635,17 @@ function CreateComplaintContent() {
 
 export default function CreateComplaintPage() {
   return (
-    <Suspense fallback={
-      <div className="container py-8 max-w-2xl">
-        <div className="space-y-6">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-64 w-full" />
+    <Suspense
+      fallback={
+        <div className="container py-8 max-w-2xl">
+          <div className="space-y-6">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <CreateComplaintContent />
     </Suspense>
   );

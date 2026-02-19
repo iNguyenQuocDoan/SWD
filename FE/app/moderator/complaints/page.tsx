@@ -26,17 +26,15 @@ import {
   Clock,
   CheckCircle,
   Eye,
-  PlayCircle,
   RefreshCw,
   Inbox,
-  TrendingUp,
   Users,
   Timer,
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { complaintService } from "@/lib/services/complaint.service";
-import type { ComplaintQueueItem, ComplaintQueueStats, Complaint } from "@/types";
+import type { ComplaintQueueItem, ComplaintQueueStats, Complaint } from "@/lib/services/complaint.service";
 
 // Status badge config
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -59,11 +57,9 @@ export default function ModeratorComplaintsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("queue");
   const [isLoading, setIsLoading] = useState(true);
-  const [isPickingNext, setIsPickingNext] = useState(false);
   const [queueItems, setQueueItems] = useState<ComplaintQueueItem[]>([]);
   const [stats, setStats] = useState<ComplaintQueueStats | null>(null);
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("InQueue");
+  const [statusFilter, setStatusFilter] = useState<string>("Assigned");
 
   // Fetch queue data
   const fetchQueue = async () => {
@@ -71,8 +67,7 @@ export default function ModeratorComplaintsPage() {
     try {
       const [queueResult, statsResult] = await Promise.all([
         complaintService.getQueue({
-          status: statusFilter !== "all" ? statusFilter : undefined,
-          priority: priorityFilter !== "all" ? (priorityFilter as "high" | "normal") : undefined,
+          status: statusFilter !== "all" ? (statusFilter as any) : undefined,
           limit: 50,
         }),
         complaintService.getQueueStats(),
@@ -90,30 +85,7 @@ export default function ModeratorComplaintsPage() {
 
   useEffect(() => {
     fetchQueue();
-  }, [statusFilter, priorityFilter]);
-
-  // Pick next complaint from queue
-  const handlePickNext = async () => {
-    setIsPickingNext(true);
-    try {
-      const queueItem = await complaintService.pickFromQueue();
-
-      if (queueItem) {
-        toast.success("Đã nhận khiếu nại mới");
-        const ticketId = typeof queueItem.ticketId === "string"
-          ? queueItem.ticketId
-          : (queueItem.ticketId as Complaint)._id;
-        router.push(`/moderator/complaints/${ticketId}`);
-      } else {
-        toast.info("Không có khiếu nại nào trong hàng đợi");
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Không thể nhận khiếu nại";
-      toast.error(message);
-    } finally {
-      setIsPickingNext(false);
-    }
-  };
+  }, [statusFilter]);
 
   // View complaint details
   const handleViewComplaint = (queueItem: ComplaintQueueItem) => {
@@ -160,19 +132,6 @@ export default function ModeratorComplaintsPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Làm mới
           </Button>
-          <Button size="sm" onClick={handlePickNext} disabled={isPickingNext}>
-            {isPickingNext ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Đang nhận...
-              </>
-            ) : (
-              <>
-                <PlayCircle className="mr-2 h-4 w-4" />
-                Nhận tiếp theo
-              </>
-            )}
-          </Button>
         </div>
       </div>
 
@@ -192,7 +151,7 @@ export default function ModeratorComplaintsPage() {
                   {stats?.totalInQueue || 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1.5">
-                  Cần xử lý
+                  Chờ gán
                 </p>
               </>
             )}
@@ -201,7 +160,7 @@ export default function ModeratorComplaintsPage() {
 
         <Card className="py-4">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
-            <CardTitle className="text-sm font-medium">Ưu tiên cao</CardTitle>
+            <CardTitle className="text-sm font-medium">Giá trị cao</CardTitle>
             <AlertTriangle className="h-5 w-5 text-red-500" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
@@ -210,10 +169,10 @@ export default function ModeratorComplaintsPage() {
             ) : (
               <>
                 <div className="text-2xl font-bold text-red-600">
-                  {stats?.highPriority || 0}
+                  {stats?.highValueCount || 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1.5">
-                  Cần xử lý gấp
+                  Cần ưu tiên
                 </p>
               </>
             )}
@@ -243,19 +202,19 @@ export default function ModeratorComplaintsPage() {
 
         <Card className="py-4">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
-            <CardTitle className="text-sm font-medium">Ticket cũ nhất</CardTitle>
-            <Clock className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Hoàn thành hôm nay</CardTitle>
+            <CheckCircle className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
             {isLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
               <>
-                <div className="text-2xl font-bold">
-                  {stats?.oldestTicketHours ? `${Math.round(stats.oldestTicketHours)}h` : "N/A"}
+                <div className="text-2xl font-bold text-green-600">
+                  {stats?.totalCompletedToday || 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1.5">
-                  Trong hàng đợi
+                  Đã xử lý
                 </p>
               </>
             )}
@@ -267,10 +226,10 @@ export default function ModeratorComplaintsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 h-9">
           <TabsTrigger value="queue" className="text-xs sm:text-sm">
-            Hàng đợi
+            Tất cả khiếu nại
           </TabsTrigger>
           <TabsTrigger value="my-assigned" className="text-xs sm:text-sm">
-            Đang xử lý
+            Đang xử lý (Của tôi)
           </TabsTrigger>
         </TabsList>
 
@@ -291,22 +250,9 @@ export default function ModeratorComplaintsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tất cả</SelectItem>
-                      <SelectItem value="InQueue">Trong hàng đợi</SelectItem>
-                      <SelectItem value="Assigned">Đã giao</SelectItem>
+                      <SelectItem value="Assigned">Đã gán</SelectItem>
                       <SelectItem value="InProgress">Đang xử lý</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Ưu tiên:</span>
-                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tất cả</SelectItem>
-                      <SelectItem value="high">Cao</SelectItem>
-                      <SelectItem value="normal">Bình thường</SelectItem>
+                      <SelectItem value="Completed">Hoàn thành</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -435,21 +381,8 @@ export default function ModeratorComplaintsPage() {
                   <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Chưa có khiếu nại</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Nhấn &quot;Nhận tiếp theo&quot; để bắt đầu xử lý
+                    Tự động gán bởi hệ thống
                   </p>
-                  <Button onClick={handlePickNext} disabled={isPickingNext}>
-                    {isPickingNext ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Đang nhận...
-                      </>
-                    ) : (
-                      <>
-                        <PlayCircle className="mr-2 h-4 w-4" />
-                        Nhận khiếu nại
-                      </>
-                    )}
-                  </Button>
                 </div>
               )}
             </CardContent>
