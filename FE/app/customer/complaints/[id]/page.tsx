@@ -36,6 +36,14 @@ import {
   Plus,
   Send,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { complaintService } from "@/lib/services/complaint.service";
 import { useAuthStore } from "@/lib/auth";

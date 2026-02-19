@@ -169,23 +169,52 @@ export const createComplaintSchema = z.object({
     .min(5, VALIDATION_MESSAGES.COMPLAINT.TITLE_MIN_LENGTH)
     .max(200, VALIDATION_MESSAGES.COMPLAINT.TITLE_MAX_LENGTH),
   content: z.string().min(20, VALIDATION_MESSAGES.COMPLAINT.CONTENT_MIN_LENGTH),
-  category: z.enum([
-    "ProductQuality",
-    "NotAsDescribed",
-    "AccountNotWorking",
-    "DeliveryIssue",
-    "Fraud",
-    "Other",
-  ], { message: VALIDATION_MESSAGES.COMPLAINT.CATEGORY_REQUIRED }),
-  subcategory: z.enum([
-    "WrongCredentials",
-    "AlreadyUsed",
-    "ExpiredEarly",
-    "CannotActivate",
-    "WrongProduct",
-    "MissingFeatures",
-    "Other",
-  ]).optional(),
+
+  // Match swagger.yml (components/schemas/ComplaintCategory)
+  category: z.enum(
+    [
+      "ProductQuality",
+      "NotAsDescribed",
+      "MissingWrongItems",
+      "DeliveryIssues",
+      "AccountNotWorking",
+      "SellerNotResponding",
+      "RefundDispute",
+    ],
+    { message: VALIDATION_MESSAGES.COMPLAINT.CATEGORY_REQUIRED }
+  ),
+
+  // Match swagger.yml (components/schemas/ComplaintSubcategory)
+  subcategory: z
+    .enum([
+      "ItemDefective",
+      "ItemDamaged",
+      "DifferentFromPhoto",
+      "DifferentSpecifications",
+      "MissingItems",
+      "WrongItems",
+      "NeverDelivered",
+      "PartialDelivery",
+      "CredentialsInvalid",
+      "AccountExpired",
+      "AccountAlreadyUsed",
+      "NoResponse48h",
+      "RefuseRefund",
+      "PartialRefundDispute",
+    ])
+    .optional(),
+
+  // Match swagger.yml evidence array (maxItems: 10)
+  evidence: z
+    .array(
+      z.object({
+        type: z.enum(["Image", "Video", "Screenshot", "Document"]),
+        url: z.string().url(),
+        description: z.string().max(500).optional(),
+      })
+    )
+    .max(10)
+    .optional(),
 });
 
 export const fileAppealSchema = z.object({
