@@ -16,6 +16,11 @@ import {
 } from "@/validators/complaints/complaint.schema";
 import { ComplaintTimeline } from "@/models";
 
+// Helper to safely get string from params
+const getParamString = (param: string | string[]): string => {
+  return Array.isArray(param) ? param[0] : param;
+};
+
 export class ComplaintController {
   // ===== Buyer Endpoints =====
 
@@ -62,7 +67,7 @@ export class ComplaintController {
         throw new AppError("Unauthorized", 401);
       }
 
-      const { id } = req.params;
+      const id = getParamString(req.params.id);
       const input = addEvidenceSchema.parse(req.body);
 
       const ticket = await complaintService.addEvidence(id, userId, input);
@@ -92,7 +97,7 @@ export class ComplaintController {
         throw new AppError("Unauthorized", 401);
       }
 
-      const { id } = req.params;
+      const id = getParamString(req.params.id);
       const input = fileAppealSchema.parse(req.body);
 
       const appealTicket = await complaintService.fileAppeal(id, userId, input);
@@ -273,7 +278,7 @@ export class ComplaintController {
         throw new AppError("Unauthorized", 401);
       }
 
-      const { id } = req.params;
+      const id = getParamString(req.params.id);
       const { moderatorId } = req.body;
 
       // If no moderatorId provided, assign to self
@@ -306,7 +311,7 @@ export class ComplaintController {
         throw new AppError("Unauthorized", 401);
       }
 
-      const { id } = req.params;
+      const id = getParamString(req.params.id);
       const { content } = addInternalNoteSchema.parse(req.body);
 
       const ticket = await complaintService.addInternalNote(id, userId, content);
@@ -336,7 +341,7 @@ export class ComplaintController {
         throw new AppError("Unauthorized", 401);
       }
 
-      const { id } = req.params;
+      const id = getParamString(req.params.id);
       const { targetParty, questions } = requestInfoSchema.parse(req.body);
 
       const ticket = await complaintService.requestMoreInfo(
@@ -371,7 +376,7 @@ export class ComplaintController {
         throw new AppError("Unauthorized", 401);
       }
 
-      const { id } = req.params;
+      const id = getParamString(req.params.id);
       const input = makeDecisionSchema.parse(req.body);
 
       const ticket = await complaintService.makeDecision(id, userId, input);
@@ -424,7 +429,7 @@ export class ComplaintController {
         throw new AppError("Unauthorized", 401);
       }
 
-      const { id } = req.params;
+      const id = getParamString(req.params.id);
       const input = appealDecisionSchema.parse(req.body);
 
       const ticket = await complaintService.resolveAppeal(id, userId, input);
@@ -452,7 +457,7 @@ export class ComplaintController {
   ): Promise<void> => {
     try {
       const userId = req.user?.id;
-      const { id } = req.params;
+      const id = getParamString(req.params.id);
 
       const ticket = await complaintService.getComplaintById(id, userId);
 
@@ -479,7 +484,7 @@ export class ComplaintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getParamString(req.params.id);
 
       const timeline = await ComplaintTimeline.find({ ticketId: id })
         .populate("actorUserId", "fullName email")
@@ -527,7 +532,7 @@ export class ComplaintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { orderItemId } = req.params;
+      const orderItemId = getParamString(req.params.orderItemId);
       const result = await complaintService.canFileComplaint(orderItemId);
 
       res.status(200).json({
