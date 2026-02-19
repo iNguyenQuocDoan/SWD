@@ -47,6 +47,7 @@ export function AdminHeader() {
 
   const navItems = [
     { href: "/admin", label: "Dashboard", icon: Home },
+    { href: "/admin/reports", label: "Báo cáo", icon: FileText },
     { href: "/admin/users", label: "Người dùng", icon: Users },
     { href: "/admin/sellers", label: "Duyệt Seller", icon: Store },
     { href: "/admin/disbursement", label: "Giải ngân", icon: Wallet },
