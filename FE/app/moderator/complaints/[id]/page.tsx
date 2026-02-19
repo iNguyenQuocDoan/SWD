@@ -40,37 +40,37 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
-  XCircle,
   MessageSquare,
   FileText,
   Loader2,
   Gavel,
-  RefreshCw,
   Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { complaintService } from "@/lib/services/complaint.service";
-import type { Complaint, ComplaintTimeline, ComplaintResolution } from "@/types";
+import type { Complaint, ComplaintTimeline, ComplaintResolution } from "@/lib/services/complaint.service";
 
-// Status config
+// Status config matched with Swagger
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
-  InQueue: { label: "Trong hàng đợi", variant: "secondary", color: "text-gray-600" },
-  Assigned: { label: "Đã giao", variant: "default", color: "text-blue-600" },
+  ModeratorAssigned: { label: "Đã gán Moderator", variant: "default", color: "text-blue-600" },
   InReview: { label: "Đang xem xét", variant: "default", color: "text-blue-600" },
   NeedMoreInfo: { label: "Cần thêm thông tin", variant: "outline", color: "text-orange-600" },
-  Resolved: { label: "Đã giải quyết", variant: "outline", color: "text-green-600" },
+  DecisionMade: { label: "Đã có quyết định", variant: "secondary", color: "text-green-600" },
   Appealable: { label: "Có thể kháng cáo", variant: "outline", color: "text-purple-600" },
+  AppealFiled: { label: "Đã nộp kháng cáo", variant: "destructive", color: "text-red-600" },
+  AppealReview: { label: "Đang xem xét kháng cáo", variant: "destructive", color: "text-red-600" },
+  Resolved: { label: "Đã giải quyết", variant: "outline", color: "text-green-600" },
   Closed: { label: "Đã đóng", variant: "secondary", color: "text-gray-600" },
-  AppealInReview: { label: "Kháng cáo đang xem xét", variant: "destructive", color: "text-red-600" },
 };
 
 const categoryLabels: Record<string, string> = {
   ProductQuality: "Chất lượng sản phẩm",
   NotAsDescribed: "Không đúng mô tả",
+  MissingWrongItems: "Thiếu/Sai hàng",
+  DeliveryIssues: "Vấn đề giao hàng",
   AccountNotWorking: "Tài khoản không hoạt động",
-  DeliveryIssue: "Vấn đề giao hàng",
-  Fraud: "Lừa đảo",
-  Other: "Khác",
+  SellerNotResponding: "Người bán không phản hồi",
+  RefundDispute: "Tranh chấp hoàn tiền",
 };
 
 const resolutionLabels: Record<string, string> = {
@@ -257,8 +257,8 @@ export default function ModeratorComplaintDetailPage({
   }
 
   const status = statusConfig[complaint.status] || { label: complaint.status, variant: "outline" as const, color: "text-gray-600" };
-  const canMakeDecision = ["Assigned", "InReview", "NeedMoreInfo"].includes(complaint.status);
-  const canAssign = complaint.status === "InQueue";
+  const canMakeDecision = ["ModeratorAssigned", "InReview", "NeedMoreInfo"].includes(complaint.status);
+  const canAssign = !complaint.assignedToUserId;
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
@@ -482,7 +482,7 @@ Bạn đã thử đăng nhập bao nhiêu lần?
               )}
 
               {/* Decision Info */}
-              {complaint.decision && (
+              {complaint.decidedAt && (
                 <>
                   <Separator />
                   <div className="bg-muted/50 p-4 rounded-lg">
@@ -494,22 +494,22 @@ Bạn đã thử đăng nhập bao nhiêu lần?
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Hình thức:</span>
                         <Badge variant="outline">
-                          {resolutionLabels[complaint.decision.resolution]}
+                          {resolutionLabels[complaint.resolutionType] || complaint.resolutionType}
                         </Badge>
                       </div>
-                      {complaint.decision.refundAmount && (
+                      {complaint.refundAmount && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Số tiền hoàn:</span>
-                          <span className="font-medium">{formatPrice(complaint.decision.refundAmount)}</span>
+                          <span className="font-medium">{formatPrice(complaint.refundAmount)}</span>
                         </div>
                       )}
                       <div>
                         <span className="text-muted-foreground">Lý do:</span>
-                        <p className="mt-1">{complaint.decision.reason}</p>
+                        <p className="mt-1">{complaint.decisionNote}</p>
                       </div>
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Quyết định lúc:</span>
-                        <span>{formatDate(complaint.decision.decidedAt)}</span>
+                        <span>{formatDate(complaint.decidedAt)}</span>
                       </div>
                     </div>
                   </div>
@@ -517,50 +517,6 @@ Bạn đã thử đăng nhập bao nhiêu lần?
               )}
             </CardContent>
           </Card>
-
-          {/* Order Snapshot */}
-          {complaint.orderSnapshot && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Thông tin đơn hàng
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-start gap-4">
-                  {complaint.orderSnapshot.productThumbnail && (
-                    <img
-                      src={complaint.orderSnapshot.productThumbnail}
-                      alt={complaint.orderSnapshot.productTitle}
-                      className="w-20 h-20 object-cover rounded-lg"
-                    />
-                  )}
-                  <div className="flex-1 space-y-2">
-                    <h4 className="font-medium">{complaint.orderSnapshot.productTitle}</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Số lượng:</span>{" "}
-                        {complaint.orderSnapshot.quantity}
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Đơn giá:</span>{" "}
-                        {formatPrice(complaint.orderSnapshot.unitPrice)}
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Tổng tiền:</span>{" "}
-                        <span className="font-medium">{formatPrice(complaint.orderSnapshot.totalAmount)}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Ngày đặt:</span>{" "}
-                        {formatDate(complaint.orderSnapshot.orderedAt)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Internal Notes */}
           <Card>
@@ -629,7 +585,7 @@ Bạn đã thử đăng nhập bao nhiêu lần?
                 <h4 className="text-sm font-medium text-muted-foreground mb-1">Shop</h4>
                 <p className="font-medium">
                   {typeof complaint.shopId === "object"
-                    ? complaint.shopId.shopName
+                    ? complaint.shopId.name
                     : "N/A"}
                 </p>
               </div>

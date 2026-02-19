@@ -1,30 +1,30 @@
-/**
- * Complaint Service
- * Handles complaint operations - simplified flow (Buyer -> Moderator -> Admin)
- */
+import { complaintsApi } from "../domains/complaints/complaints.api";
+import * as T from "../domains/complaints/complaints.types";
 
-import { apiClient } from "../api";
-import type {
+// Re-export types for backward compatibility where possible, 
+// but mapping to the new truth from complaints.types.ts
+export type {
   Complaint,
   ComplaintCategory,
   ComplaintSubcategory,
-  ComplaintResolution,
   ComplaintEvidence,
   ComplaintQueueItem,
-  ComplaintQueueStats,
-  ComplaintTimeline,
-  AppealDecision,
-} from "@/types";
+  QueueStats as ComplaintQueueStats,
+  ComplaintTimelineEvent as ComplaintTimeline,
+} from "../domains/complaints/complaints.types";
 
-// Request types
+export type ComplaintResolution = T.ResolutionType;
+export type AppealDecision = "Upheld" | "Overturned";
+
+// Request types - kept for backward compatibility with existing components
 export interface CreateComplaintRequest {
   orderItemId: string;
   title: string;
   content: string;
-  category: ComplaintCategory;
-  subcategory?: ComplaintSubcategory;
+  category: T.ComplaintCategory;
+  subcategory?: T.ComplaintSubcategory;
   evidence?: {
-    type: ComplaintEvidence["type"];
+    type: T.EvidenceType;
     url: string;
     description?: string;
   }[];
@@ -32,7 +32,7 @@ export interface CreateComplaintRequest {
 
 export interface AddEvidenceRequest {
   evidence: {
-    type: ComplaintEvidence["type"];
+    type: T.EvidenceType;
     url: string;
     description?: string;
   }[];
@@ -41,19 +41,19 @@ export interface AddEvidenceRequest {
 export interface FileAppealRequest {
   reason: string;
   evidence?: {
-    type: ComplaintEvidence["type"];
+    type: T.EvidenceType;
     url: string;
     description?: string;
   }[];
 }
 
 export interface RequestInfoRequest {
-  targetParty: "buyer";
+  targetParty: "buyer" | "seller" | "both";
   questions: string[];
 }
 
 export interface MakeDecisionRequest {
-  resolution: ComplaintResolution;
+  resolution: T.ResolutionType;
   reason: string;
   refundAmount?: number;
 }
@@ -72,19 +72,19 @@ export interface ComplaintFilter {
 
 export interface QueueFilter {
   status?: string;
-  priority?: "high" | "normal";
+  priority?: "high" | "normal"; // Deprecated in swagger, but kept for types
   limit?: number;
   skip?: number;
 }
 
 // Response types
 export interface ComplaintsResponse {
-  tickets: Complaint[];
+  tickets: T.Complaint[];
   total: number;
 }
 
 export interface QueueResponse {
-  items: ComplaintQueueItem[];
+  items: T.ComplaintQueueItem[];
   total: number;
 }
 
@@ -98,324 +98,214 @@ class ComplaintService {
   // ===== Buyer Endpoints =====
 
   /**
-   * Create a new complaint - goes directly to moderator queue
-   * POST /api/complaints
+   * Create a new complaint
+   * Wrapped to use complaintsApi.create
    */
-  async createComplaint(data: CreateComplaintRequest): Promise<Complaint> {
-    const response = await apiClient.post<Complaint>("/complaints", data);
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to create complaint");
+  async createComplaint(data: CreateComplaintRequest): Promise<T.Complaint> {
+    const res = await complaintsApi.create({
+      orderItemId: data.orderItemId,
+      category: data.category,
+      subcategory: data.subcategory,
+      title: data.title,
+      content: data.content,
+      evidence: data.evidence,
+    });
+    return res.data;
   }
 
   /**
    * Add evidence to complaint
-   * POST /api/complaints/:id/evidence
+   * Wrapped to use complaintsApi.addEvidence
+   * Note: Old FE passed evidence[], Swagger takes single object. 
+   * We've updated to take the first one or loop if needed.
    */
-  async addEvidence(complaintId: string, data: AddEvidenceRequest): Promise<Complaint> {
-    const response = await apiClient.post<Complaint>(
-      `/complaints/${complaintId}/evidence`,
-      data
-    );
-
-    if (response.success && response.data) {
-      return response.data;
+  async addEvidence(complaintId: string, data: AddEvidenceRequest): Promise<T.Complaint> {
+    if (!data.evidence || data.evidence.length === 0) {
+      throw new Error("No evidence provided");
     }
-
-    throw new Error(response.message || "Failed to add evidence");
+    // Taking the first one as per swagger single-object definition
+    const res = await complaintsApi.addEvidence(complaintId, data.evidence[0]);
+    return res.data;
   }
 
   /**
-   * File an appeal (within 72 hours after decision)
-   * POST /api/complaints/:id/appeal
+   * File an appeal
+   * Wrapped to use complaintsApi.fileAppeal
    */
-  async fileAppeal(complaintId: string, data: FileAppealRequest): Promise<Complaint> {
-    const response = await apiClient.post<Complaint>(
-      `/complaints/${complaintId}/appeal`,
-      data
-    );
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to file appeal");
+  async fileAppeal(complaintId: string, data: FileAppealRequest): Promise<T.Complaint> {
+    const res = await complaintsApi.fileAppeal(complaintId, {
+      reason: data.reason,
+      additionalEvidence: data.evidence,
+    });
+    return res.data;
   }
 
   /**
    * Get my complaints (customer)
-   * GET /api/complaints/me
+   * Wrapped to use complaintsApi.getMyComplaints
    */
   async getMyComplaints(filter: ComplaintFilter = {}): Promise<ComplaintsResponse> {
-    const params = new URLSearchParams();
-
-    if (filter.status) params.append("status", filter.status);
-    if (filter.limit) params.append("limit", filter.limit.toString());
-    if (filter.skip) params.append("skip", filter.skip.toString());
-
-    const queryString = params.toString();
-    const url = `/complaints/me${queryString ? `?${queryString}` : ""}`;
-
-    const response = await apiClient.get<Complaint[]>(url);
-
-    if (response.success && response.data) {
-      return {
-        tickets: response.data,
-        total: (response as unknown as { pagination?: { total: number } }).pagination?.total || response.data.length,
-      };
-    }
-
-    throw new Error(response.message || "Failed to get complaints");
+    const res = await complaintsApi.getMyComplaints({
+      status: filter.status,
+      limit: filter.limit,
+      skip: filter.skip,
+    });
+    return {
+      tickets: res.data,
+      total: res.pagination?.total || res.data.length,
+    };
   }
 
   /**
-   * Check if can file complaint for an order item
-   * GET /api/complaints/check/:orderItemId
+   * Check if can file complaint
+   * Wrapped to use complaintsApi.checkCanFile
    */
   async checkCanFileComplaint(orderItemId: string): Promise<CanFileComplaintResponse> {
-    const response = await apiClient.get<CanFileComplaintResponse>(
-      `/complaints/check/${orderItemId}`
-    );
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to check complaint eligibility");
+    const res = await complaintsApi.checkCanFile(orderItemId);
+    return {
+      canFile: res.data.canFile,
+      reason: res.data.reason || undefined,
+    };
   }
 
   // ===== Moderator Endpoints =====
 
   /**
    * Get complaint queue
-   * GET /api/complaints/queue
+   * Wrapped to use complaintsApi.getQueue
    */
   async getQueue(filter: QueueFilter = {}): Promise<QueueResponse> {
-    const params = new URLSearchParams();
-
-    if (filter.status) params.append("status", filter.status);
-    if (filter.priority) params.append("priority", filter.priority);
-    if (filter.limit) params.append("limit", filter.limit.toString());
-    if (filter.skip) params.append("skip", filter.skip.toString());
-
-    const queryString = params.toString();
-    const url = `/complaints/queue${queryString ? `?${queryString}` : ""}`;
-
-    const response = await apiClient.get<ComplaintQueueItem[]>(url);
-
-    if (response.success && response.data) {
-      return {
-        items: response.data,
-        total: (response as unknown as { pagination?: { total: number } }).pagination?.total || response.data.length,
-      };
-    }
-
-    throw new Error(response.message || "Failed to get queue");
+    const res = await complaintsApi.getQueue({
+      status: filter.status as T.ComplaintQueueStatus,
+      limit: filter.limit,
+      skip: filter.skip,
+    });
+    return {
+      items: res.data,
+      total: res.pagination?.total || res.data.length,
+    };
   }
 
   /**
    * Get queue statistics
-   * GET /api/complaints/queue/stats
+   * Wrapped to use complaintsApi.getQueueStats
    */
-  async getQueueStats(): Promise<ComplaintQueueStats> {
-    const response = await apiClient.get<ComplaintQueueStats>("/complaints/queue/stats");
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to get queue stats");
+  async getQueueStats(): Promise<T.QueueStats> {
+    const res = await complaintsApi.getQueueStats();
+    return res.data;
   }
 
   /**
-   * Pick next complaint from queue
-   * POST /api/complaints/queue/pick
+   * DEPRECATED: /api/complaints/queue/pick was removed in backend.
+   * Logic should move to auto-assignment or manual pick from list.
+   * Returning null to prevent crashes but this should be removed from UI.
    */
-  async pickFromQueue(): Promise<ComplaintQueueItem | null> {
-    const response = await apiClient.post<ComplaintQueueItem>("/complaints/queue/pick");
-
-    if (response.success) {
-      return response.data || null;
-    }
-
-    throw new Error(response.message || "Failed to pick from queue");
+  async pickFromQueue(): Promise<T.ComplaintQueueItem | null> {
+    console.warn("pickFromQueue is DEPRECATED and removed from backend. Please refactor UI.");
+    return null;
   }
 
   /**
    * Assign complaint to moderator
-   * POST /api/complaints/:id/assign
    */
   async assignToModerator(
     complaintId: string,
     moderatorId?: string
-  ): Promise<Complaint> {
-    const response = await apiClient.post<Complaint>(
-      `/complaints/${complaintId}/assign`,
-      { moderatorId }
-    );
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to assign complaint");
+  ): Promise<T.Complaint> {
+    const res = await complaintsApi.assign(complaintId, { moderatorId });
+    return res.data;
   }
 
   /**
    * Add internal note
-   * POST /api/complaints/:id/internal-note
    */
-  async addInternalNote(complaintId: string, content: string): Promise<Complaint> {
-    const response = await apiClient.post<Complaint>(
-      `/complaints/${complaintId}/internal-note`,
-      { content }
-    );
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to add internal note");
+  async addInternalNote(complaintId: string, content: string): Promise<T.Complaint> {
+    const res = await complaintsApi.addInternalNote(complaintId, { content });
+    return res.data;
   }
 
   /**
    * Request more information
-   * POST /api/complaints/:id/request-info
    */
   async requestMoreInfo(
     complaintId: string,
     data: RequestInfoRequest
-  ): Promise<Complaint> {
-    const response = await apiClient.post<Complaint>(
-      `/complaints/${complaintId}/request-info`,
-      data
-    );
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to request info");
+  ): Promise<T.Complaint> {
+    const res = await complaintsApi.requestInfo(complaintId, data);
+    return res.data;
   }
 
   /**
    * Make decision on complaint
-   * POST /api/complaints/:id/decision
    */
   async makeDecision(
     complaintId: string,
     data: MakeDecisionRequest
-  ): Promise<Complaint> {
-    const response = await apiClient.post<Complaint>(
-      `/complaints/${complaintId}/decision`,
-      data
-    );
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to make decision");
+  ): Promise<T.Complaint> {
+    const res = await complaintsApi.makeDecision(complaintId, {
+      resolutionType: data.resolution,
+      decisionNote: data.reason,
+      refundAmount: data.refundAmount,
+    });
+    return res.data;
   }
 
   /**
    * Get moderator workload
-   * GET /api/complaints/moderator/workload
    */
-  async getModeratorWorkload(): Promise<Record<string, unknown>[]> {
-    const response = await apiClient.get<Record<string, unknown>[]>(
-      "/complaints/moderator/workload"
-    );
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to get workload");
+  async getModeratorWorkload(): Promise<T.ModeratorWorkloadItem[]> {
+    const res = await complaintsApi.getModeratorWorkload();
+    return res.data;
   }
 
   // ===== Admin Endpoints =====
 
   /**
-   * Resolve appeal (Admin/Senior Mod)
-   * POST /api/complaints/:id/appeal-decision
+   * Resolve appeal
    */
   async resolveAppeal(
     complaintId: string,
     data: AppealDecisionRequest
-  ): Promise<Complaint> {
-    const response = await apiClient.post<Complaint>(
-      `/complaints/${complaintId}/appeal-decision`,
-      data
-    );
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to resolve appeal");
+  ): Promise<T.Complaint> {
+    const res = await complaintsApi.resolveAppeal(complaintId, {
+      decision: data.decision,
+      reason: data.note || "No reason provided",
+    });
+    return res.data;
   }
 
   // ===== Common Endpoints =====
 
   /**
    * Get complaint by ID
-   * GET /api/complaints/:id
    */
-  async getComplaintById(complaintId: string): Promise<Complaint> {
-    const response = await apiClient.get<Complaint>(`/complaints/${complaintId}`);
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to get complaint");
+  async getComplaintById(complaintId: string): Promise<T.Complaint> {
+    const res = await complaintsApi.getById(complaintId);
+    return res.data;
   }
 
   /**
    * Get complaint timeline
-   * GET /api/complaints/:id/timeline
    */
-  async getComplaintTimeline(complaintId: string): Promise<ComplaintTimeline[]> {
-    const response = await apiClient.get<ComplaintTimeline[]>(
-      `/complaints/${complaintId}/timeline`
-    );
-
-    if (response.success && response.data) {
-      return response.data;
-    }
-
-    throw new Error(response.message || "Failed to get timeline");
+  async getComplaintTimeline(complaintId: string): Promise<T.ComplaintTimelineEvent[]> {
+    const res = await complaintsApi.getTimeline(complaintId);
+    return res.data;
   }
 
   /**
    * Get all complaints (admin/moderator)
-   * GET /api/complaints
    */
   async getAllComplaints(filter: ComplaintFilter = {}): Promise<ComplaintsResponse> {
-    const params = new URLSearchParams();
-
-    if (filter.status) params.append("status", filter.status);
-    if (filter.category) params.append("category", filter.category);
-    if (filter.limit) params.append("limit", filter.limit.toString());
-    if (filter.skip) params.append("skip", filter.skip.toString());
-
-    const queryString = params.toString();
-    const url = `/complaints${queryString ? `?${queryString}` : ""}`;
-
-    const response = await apiClient.get<Complaint[]>(url);
-
-    if (response.success && response.data) {
-      return {
-        tickets: response.data,
-        total: (response as unknown as { pagination?: { total: number } }).pagination?.total || response.data.length,
-      };
-    }
-
-    throw new Error(response.message || "Failed to get complaints");
+    const res = await complaintsApi.getAll({
+      status: filter.status,
+      category: filter.category as T.ComplaintCategory,
+      limit: filter.limit,
+      skip: filter.skip,
+    });
+    return {
+      tickets: res.data,
+      total: res.pagination?.total || res.data.length,
+    };
   }
 }
 
