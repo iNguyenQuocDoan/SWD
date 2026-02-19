@@ -30,6 +30,7 @@ import {
   Menu,
   X,
   Home,
+  Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -48,7 +49,7 @@ export function AdminHeader() {
     { href: "/admin", label: "Dashboard", icon: Home },
     { href: "/admin/users", label: "Người dùng", icon: Users },
     { href: "/admin/sellers", label: "Duyệt Seller", icon: Store },
-    { href: "/admin/orders", label: "Đơn hàng", icon: ShoppingBag },
+    { href: "/admin/disbursement", label: "Giải ngân", icon: Wallet },
     { href: "/admin/categories", label: "Danh mục", icon: Package },
     { href: "/admin/permissions", label: "Phân quyền", icon: Shield },
     { href: "/admin/analytics", label: "Phân tích", icon: BarChart3 },

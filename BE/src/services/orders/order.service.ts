@@ -542,6 +542,444 @@ export class OrderService extends BaseService<IOrder> {
 
     return orderItem;
   }
+
+  /**
+   * Cancel an order by seller
+   * Seller can only cancel within 24h of order creation
+   * Refunds the full amount back to customer's balance
+   */
+  async cancelOrderBySeller(
+    orderId: string,
+    sellerUserId: string,
+    reason: string
+  ): Promise<{ success: boolean; message: string }> {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // Find order with items
+      const order = await Order.findById(orderId).session(session);
+      if (!order) {
+        throw new AppError("Đơn hàng không tồn tại", 404);
+      }
+
+      // Check if order is in valid status for cancellation
+      if (order.status !== "Paid") {
+        throw new AppError(
+          `Không thể hủy đơn hàng với trạng thái: ${order.status}`,
+          400
+        );
+      }
+
+      // Check 24h time limit
+      const orderCreatedAt = new Date(order.createdAt);
+      const now = new Date();
+      const hoursPassed = (now.getTime() - orderCreatedAt.getTime()) / (1000 * 60 * 60);
+
+      if (hoursPassed > 24) {
+        throw new AppError(
+          "Đã quá thời hạn hủy đơn (24 giờ sau khi đặt hàng)",
+          400
+        );
+      }
+
+      // Get order items and verify seller owns at least one item
+      const orderItems = await OrderItem.find({ orderId: order._id })
+        .populate("shopId")
+        .session(session);
+
+      // Check if seller owns any of the items
+      const sellerItems = orderItems.filter((item) => {
+        const shop = item.shopId as any;
+        return shop?.ownerUserId?.toString() === sellerUserId;
+      });
+
+      if (sellerItems.length === 0) {
+        throw new AppError("Bạn không có quyền hủy đơn hàng này", 403);
+      }
+
+      // Check for open complaints
+      const openTicket = await InventoryItem.findOne({
+        _id: { $in: orderItems.map((item) => item.inventoryItemId) },
+      }).session(session);
+
+      // Get customer wallet
+      const customerWallet = await Wallet.findOne({
+        userId: order.customerUserId,
+      }).session(session);
+
+      if (!customerWallet) {
+        throw new AppError("Không tìm thấy ví khách hàng", 500);
+      }
+
+      // Calculate total refund amount from items with holdStatus = "Holding"
+      let totalRefundAmount = 0;
+      const itemsToRefund = orderItems.filter(
+        (item) => item.holdStatus === "Holding"
+      );
+
+      for (const item of itemsToRefund) {
+        totalRefundAmount += item.holdAmount;
+      }
+
+      if (totalRefundAmount > 0) {
+        // Refund from holdBalance back to balance
+        await Wallet.findByIdAndUpdate(
+          customerWallet._id,
+          {
+            $inc: {
+              holdBalance: -totalRefundAmount,
+              balance: totalRefundAmount,
+            },
+            $set: { updatedAt: new Date() },
+          },
+          { session }
+        );
+
+        // Create refund transaction
+        await WalletTransaction.create(
+          [
+            {
+              walletId: customerWallet._id,
+              type: "Refund",
+              refType: "Order",
+              refId: order._id,
+              direction: "In",
+              amount: totalRefundAmount,
+              note: `Hoàn tiền do seller hủy đơn #${order.orderCode}. Lý do: ${reason}`,
+              createdAt: new Date(),
+            },
+          ],
+          { session }
+        );
+      }
+
+      // Update all order items
+      await OrderItem.updateMany(
+        { orderId: order._id },
+        {
+          $set: {
+            itemStatus: "Refunded",
+            holdStatus: "Refunded",
+            releaseAt: new Date(),
+          },
+        },
+        { session }
+      );
+
+      // Release inventory back to available
+      const inventoryIds = orderItems
+        .map((item) => item.inventoryItemId)
+        .filter(Boolean);
+
+      if (inventoryIds.length > 0) {
+        await InventoryItem.updateMany(
+          { _id: { $in: inventoryIds } },
+          {
+            $set: {
+              status: "Available",
+              reservedAt: null,
+              deliveredAt: null,
+            },
+          },
+          { session }
+        );
+      }
+
+      // Update order status
+      await Order.findByIdAndUpdate(
+        orderId,
+        {
+          $set: {
+            status: "Cancelled",
+            cancelledAt: new Date(),
+            cancelReason: reason,
+            cancelledBy: "Seller",
+          },
+        },
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+
+      debug.log("Order cancelled by seller", {
+        orderId,
+        sellerUserId,
+        refundAmount: totalRefundAmount,
+      });
+
+      return {
+        success: true,
+        message: `Đã hủy đơn hàng và hoàn ${totalRefundAmount.toLocaleString("vi-VN")} VND cho khách hàng`,
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel an order by buyer
+   * Buyer can cancel:
+   * - PendingPayment orders: no refund needed
+   * - Paid orders before delivery: full refund
+   */
+  async cancelOrderByBuyer(
+    orderId: string,
+    buyerUserId: string,
+    reason: string
+  ): Promise<{ success: boolean; message: string }> {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const order = await Order.findById(orderId).session(session);
+      if (!order) {
+        throw new AppError("Đơn hàng không tồn tại", 404);
+      }
+
+      // Check ownership
+      if (order.customerUserId.toString() !== buyerUserId) {
+        throw new AppError("Bạn không có quyền hủy đơn hàng này", 403);
+      }
+
+      // Check status
+      if (order.status === "Completed" || order.status === "Cancelled" || order.status === "Refunded") {
+        throw new AppError(
+          `Không thể hủy đơn hàng với trạng thái: ${order.status}`,
+          400
+        );
+      }
+
+      const orderItems = await OrderItem.find({ orderId: order._id }).session(session);
+
+      // Check if any item has been delivered (check deliveredAt)
+      const hasDeliveredItems = orderItems.some(
+        (item) => item.itemStatus === "Delivered" || item.itemStatus === "Completed"
+      );
+
+      if (hasDeliveredItems) {
+        throw new AppError(
+          "Không thể hủy đơn hàng đã có sản phẩm được giao. Vui lòng tạo khiếu nại nếu có vấn đề.",
+          400
+        );
+      }
+
+      let totalRefundAmount = 0;
+
+      // If order was paid, process refund
+      if (order.status === "Paid") {
+        const customerWallet = await Wallet.findOne({
+          userId: order.customerUserId,
+        }).session(session);
+
+        if (!customerWallet) {
+          throw new AppError("Không tìm thấy ví khách hàng", 500);
+        }
+
+        // Calculate refund from holding items
+        const holdingItems = orderItems.filter(
+          (item) => item.holdStatus === "Holding"
+        );
+
+        for (const item of holdingItems) {
+          totalRefundAmount += item.holdAmount;
+        }
+
+        if (totalRefundAmount > 0) {
+          // Refund from holdBalance to balance
+          await Wallet.findByIdAndUpdate(
+            customerWallet._id,
+            {
+              $inc: {
+                holdBalance: -totalRefundAmount,
+                balance: totalRefundAmount,
+              },
+              $set: { updatedAt: new Date() },
+            },
+            { session }
+          );
+
+          // Create refund transaction
+          await WalletTransaction.create(
+            [
+              {
+                walletId: customerWallet._id,
+                type: "Refund",
+                refType: "Order",
+                refId: order._id,
+                direction: "In",
+                amount: totalRefundAmount,
+                note: `Hoàn tiền do hủy đơn #${order.orderCode}. Lý do: ${reason}`,
+                createdAt: new Date(),
+              },
+            ],
+            { session }
+          );
+        }
+      }
+
+      // Update order items
+      await OrderItem.updateMany(
+        { orderId: order._id },
+        {
+          $set: {
+            itemStatus: "Refunded",
+            holdStatus: "Refunded",
+            releaseAt: new Date(),
+          },
+        },
+        { session }
+      );
+
+      // Release inventory
+      const inventoryIds = orderItems
+        .map((item) => item.inventoryItemId)
+        .filter(Boolean);
+
+      if (inventoryIds.length > 0) {
+        await InventoryItem.updateMany(
+          { _id: { $in: inventoryIds } },
+          {
+            $set: {
+              status: "Available",
+              reservedAt: null,
+              deliveredAt: null,
+            },
+          },
+          { session }
+        );
+      }
+
+      // Update order
+      await Order.findByIdAndUpdate(
+        orderId,
+        {
+          $set: {
+            status: "Cancelled",
+            cancelledAt: new Date(),
+            cancelReason: reason,
+            cancelledBy: "Buyer",
+          },
+        },
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+
+      debug.log("Order cancelled by buyer", {
+        orderId,
+        buyerUserId,
+        refundAmount: totalRefundAmount,
+      });
+
+      return {
+        success: true,
+        message: totalRefundAmount > 0
+          ? `Đã hủy đơn hàng và hoàn ${totalRefundAmount.toLocaleString("vi-VN")} VND`
+          : "Đã hủy đơn hàng",
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+  }
+
+  /**
+   * Get escrow status for an order
+   */
+  async getEscrowStatus(
+    orderId: string,
+    userId: string
+  ): Promise<{
+    orderId: string;
+    orderCode: string;
+    totalHoldAmount: number;
+    items: any[];
+    summary: {
+      holding: number;
+      released: number;
+      refunded: number;
+    };
+  }> {
+    const order = await Order.findById(orderId);
+    if (!order) {
+      throw new AppError("Đơn hàng không tồn tại", 404);
+    }
+
+    // Check ownership (customer or seller can view)
+    const orderItems = await OrderItem.find({ orderId })
+      .populate("productId")
+      .populate("shopId");
+
+    const isCustomer = order.customerUserId.toString() === userId;
+    const isSeller = orderItems.some((item) => {
+      const shop = item.shopId as any;
+      return shop?.ownerUserId?.toString() === userId;
+    });
+
+    if (!isCustomer && !isSeller) {
+      throw new AppError("Bạn không có quyền xem thông tin này", 403);
+    }
+
+    const ESCROW_PERIOD_HOURS = 72;
+    const COMPLAINT_WINDOW_HOURS = 72;
+
+    const items = orderItems.map((item) => {
+      const product = item.productId as any;
+      const holdAt = item.holdAt ? new Date(item.holdAt) : null;
+      const now = new Date();
+
+      let timeRemaining: number | undefined;
+      let canComplaint = false;
+      let complaintDeadline: Date | undefined;
+
+      if (holdAt && item.holdStatus === "Holding") {
+        const msRemaining = holdAt.getTime() + ESCROW_PERIOD_HOURS * 60 * 60 * 1000 - now.getTime();
+        timeRemaining = Math.max(0, Math.floor(msRemaining / 1000));
+
+        const complaintDeadlineMs = holdAt.getTime() + COMPLAINT_WINDOW_HOURS * 60 * 60 * 1000;
+        complaintDeadline = new Date(complaintDeadlineMs);
+        canComplaint = now.getTime() < complaintDeadlineMs;
+      }
+
+      return {
+        orderItemId: item._id.toString(),
+        productTitle: product?.title || "N/A",
+        holdAmount: item.holdAmount,
+        holdStatus: item.holdStatus,
+        holdAt: item.holdAt,
+        releaseAt: item.releaseAt,
+        timeRemaining,
+        canComplaint,
+        complaintDeadline,
+      };
+    });
+
+    const summary = {
+      holding: orderItems
+        .filter((item) => item.holdStatus === "Holding")
+        .reduce((sum, item) => sum + item.holdAmount, 0),
+      released: orderItems
+        .filter((item) => item.holdStatus === "Released")
+        .reduce((sum, item) => sum + item.holdAmount, 0),
+      refunded: orderItems
+        .filter((item) => item.holdStatus === "Refunded")
+        .reduce((sum, item) => sum + item.holdAmount, 0),
+    };
+
+    return {
+      orderId: order._id.toString(),
+      orderCode: order.orderCode,
+      totalHoldAmount: order.payableAmount,
+      items,
+      summary,
+    };
+  }
 }
 
 export const orderService = new OrderService();
