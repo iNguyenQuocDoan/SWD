@@ -6,6 +6,7 @@ import morgan from "morgan";
 import compression from "compression";
 import cookieParser from "cookie-parser";
 import path from "node:path";
+import mongoose from "mongoose";
 import connectDB from "@/config/database";
 import { env } from "@/config/env";
 import { initializeSocket } from "@/config/socket";
@@ -38,14 +39,6 @@ const ensureDbConnection = async () => {
     }
   }
 };
-
-// Initial connection
-ensureDbConnection().catch(console.error);
-
-// Start scheduler only on non-serverless environments
-if (!isServerless) {
-  schedulerService.startDisbursementScheduler();
-}
 
 // Middleware
 app.use(helmet());
@@ -91,31 +84,31 @@ app.get("/health", (_req, res) => {
 if (!isServerless) {
   const swaggerUi = require("swagger-ui-express");
   const YAML = require("yamljs");
-  const swaggerFilePath = path.join(__dirname, "..", "swagger.yml");
-  try {
+const swaggerFilePath = path.join(__dirname, "..", "swagger.yml");
+try {
     const swaggerDocument = YAML.load(swaggerFilePath);
-    console.log("Swagger document loaded successfully");
+  console.log("Swagger document loaded successfully");
 
-    const swaggerOptions = {
-      customCss: ".swagger-ui .topbar { display: none }",
-      customSiteTitle: "Marketplace API Documentation",
+  const swaggerOptions = {
+    customCss: ".swagger-ui .topbar { display: none }",
+    customSiteTitle: "Marketplace API Documentation",
       persistAuthorization: true,
-      filter: true,
-      validatorUrl: null,
-      supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
-      docExpansion: "list" as const,
-    };
+    filter: true,
+    validatorUrl: null,
+    supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
+    docExpansion: "list" as const,
+  };
 
-    app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
-    app.get("/swagger/", (_req, res) => {
-      res.redirect("/swagger");
-    });
-  } catch (err) {
-    console.warn("Could not load swagger file:", err);
-  }
+  app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
+  app.get("/swagger/", (_req, res) => {
+    res.redirect("/swagger");
+  });
+} catch (err) {
+  console.warn("Could not load swagger file:", err);
+}
 
   // Static files (uploads) - only for local development
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 }
 
 // API Routes
@@ -138,12 +131,43 @@ const io = initializeSocket(httpServer);
 
 // Start server only on non-serverless
 if (!isServerless) {
-  const PORT = env.port;
-  httpServer.listen(PORT, () => {
-    console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
-    console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
-    console.log(`WebSocket server ready`);
-  });
+  const startServer = async () => {
+    await ensureDbConnection();
+
+    // Start disbursement scheduler (auto-release escrow after 72h)
+    schedulerService.startDisbursementScheduler();
+
+const PORT = env.port;
+    httpServer.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} in ${env.nodeEnv} mode`);
+  console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
+      console.log(`WebSocket server ready`);
+    });
+
+    const shutdown = async (signal: string) => {
+      console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+
+      await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+
+      try {
+        await mongoose.connection.close(false);
+      } catch {
+        // ignore
+      }
+
+      process.exit(0);
+    };
+
+    process.on("SIGINT", () => {
+      void shutdown("SIGINT");
+    });
+
+    process.on("SIGTERM", () => {
+      void shutdown("SIGTERM");
+    });
+  };
+
+  void startServer();
 }
 
 export { io };

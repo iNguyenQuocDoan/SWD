@@ -11,8 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { shopService, type Shop } from "@/lib/services/shop.service";
 import { productService, type ProductResponse } from "@/lib/services/product.service";
 import { inventoryService } from "@/lib/services/inventory.service";
-import { Package, Store, Star, MessageSquare, MessageCircle } from "lucide-react";
+import { Package, Store, Star, MessageCircle } from "lucide-react";
 import { ShopReviews } from "@/components/reviews";
+import { ChatWithShopButton } from "@/components/chat";
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
@@ -96,6 +97,11 @@ export default function PublicShopPage() {
     );
   }
 
+  // Get ownerId safely from populated shop data
+  const ownerId = typeof (shop as any).ownerUserId === 'string' 
+    ? (shop as any).ownerUserId 
+    : (shop as any).ownerUserId?._id || (shop as any).ownerId;
+
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Header */}
@@ -109,9 +115,17 @@ export default function PublicShopPage() {
             {shop.description || "Shop chưa có mô tả."}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href={`/products?shopId=${shop._id}`}>Xem tất cả sản phẩm</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <ChatWithShopButton
+            shopId={shop._id}
+            shopName={shop.shopName}
+            sellerUserId={ownerId}
+            variant="outline"
+          />
+          <Button asChild variant="outline">
+            <Link href={`/products?shopId=${shop._id}`}>Xem tất cả sản phẩm</Link>
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -190,6 +204,7 @@ export default function PublicShopPage() {
                               fill
                               className="object-cover group-hover:scale-105 transition-transform"
                               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
+                              unoptimized={p.thumbnailUrl?.startsWith("data:")}
                             />
                           </div>
                         )}
@@ -231,4 +246,3 @@ export default function PublicShopPage() {
     </div>
   );
 }
-

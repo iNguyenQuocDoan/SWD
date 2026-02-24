@@ -1,11 +1,31 @@
 import { Response, NextFunction } from "express";
 import { complaintService } from "@/services/complaints/complaint.service";
+import { complaintQueueService } from "@/services/complaints/complaint-queue.service";
 import { AppError } from "@/middleware/errorHandler";
 import { AuthRequest } from "@/middleware/auth";
+import {
+  createComplaintSchema,
+  addEvidenceSchema,
+  fileAppealSchema,
+  addInternalNoteSchema,
+  requestInfoSchema,
+  makeDecisionSchema,
+  appealDecisionSchema,
+  getComplaintsQuerySchema,
+  getQueueQuerySchema,
+} from "@/validators/complaints/complaint.schema";
+import { ComplaintTimeline } from "@/models";
+
+// Helper to safely get string from params
+const getParamString = (param: string | string[]): string => {
+  return Array.isArray(param) ? param[0] : param;
+};
 
 export class ComplaintController {
+  // ===== Buyer Endpoints =====
+
   /**
-   * Create a new complaint
+   * Create a new complaint - goes directly to moderator queue
    * POST /api/complaints
    */
   createComplaint = async (
@@ -19,22 +39,73 @@ export class ComplaintController {
         throw new AppError("Unauthorized", 401);
       }
 
-      const { orderItemId, title, content } = req.body;
-
-      if (!orderItemId || !title || !content) {
-        throw new AppError("Vui lòng điền đầy đủ thông tin", 400);
-      }
-
-      const ticket = await complaintService.createComplaint(userId, {
-        orderItemId,
-        title,
-        content,
-      });
+      const input = createComplaintSchema.parse(req.body);
+      const ticket = await complaintService.createComplaint(userId, input);
 
       res.status(201).json({
         success: true,
-        message: "Tạo khiếu nại thành công",
+        message: "Tạo khiếu nại thành công. Moderator sẽ xử lý trong thời gian sớm nhất.",
         data: ticket,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Add evidence to complaint
+   * POST /api/complaints/:id/evidence
+   */
+  addEvidence = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const id = getParamString(req.params.id);
+      const input = addEvidenceSchema.parse(req.body);
+
+      const ticket = await complaintService.addEvidence(id, userId, input);
+
+      res.status(200).json({
+        success: true,
+        message: "Thêm bằng chứng thành công",
+        data: ticket,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * File an appeal
+   * POST /api/complaints/:id/appeal
+   */
+  fileAppeal = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const id = getParamString(req.params.id);
+      const input = fileAppealSchema.parse(req.body);
+
+      const appealTicket = await complaintService.fileAppeal(id, userId, input);
+
+      res.status(201).json({
+        success: true,
+        message: "Đã nộp kháng cáo thành công",
+        data: appealTicket,
       });
     } catch (error) {
       next(error);
@@ -73,6 +144,308 @@ export class ComplaintController {
     }
   };
 
+  // ===== Moderator Endpoints =====
+
+  /**
+   * Get complaint queue
+   * GET /api/complaints/queue
+   */
+  getQueue = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const query = getQueueQuerySchema.parse(req.query);
+      const { items, total } = await complaintQueueService.getQueue(query);
+
+      res.status(200).json({
+        success: true,
+        data: items,
+        pagination: { total, limit: query.limit, skip: query.skip },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get queue statistics
+   * GET /api/complaints/queue/stats
+   */
+  getQueueStats = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const stats = await complaintQueueService.getQueueStats();
+
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Pick next complaint from queue
+   * POST /api/complaints/queue/pick
+   */
+  pickFromQueue = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const queueItem = await complaintQueueService.pickNextFromQueue(userId);
+
+      if (!queueItem) {
+        res.status(200).json({
+          success: true,
+          message: "Không có khiếu nại nào trong hàng đợi",
+          data: null,
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Đã nhận khiếu nại",
+        data: queueItem,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Pick multiple complaints from queue
+   * POST /api/complaints/queue/pick-multiple
+   */
+  pickMultipleFromQueue = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const count = Math.min(Math.max(Number(req.body.count) || 5, 1), 10);
+      const queueItems = await complaintQueueService.pickMultipleFromQueue(userId, count);
+
+      if (queueItems.length === 0) {
+        res.status(200).json({
+          success: true,
+          message: "Không có khiếu nại nào trong hàng đợi",
+          data: [],
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: `Đã nhận ${queueItems.length} khiếu nại`,
+        data: queueItems,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Assign complaint to moderator
+   * POST /api/complaints/:id/assign
+   */
+  assignToModerator = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const id = getParamString(req.params.id);
+      const { moderatorId } = req.body;
+
+      // If no moderatorId provided, assign to self
+      const assigneeId = moderatorId || userId;
+
+      const ticket = await complaintService.assignToModerator(id, assigneeId);
+
+      res.status(200).json({
+        success: true,
+        message: "Đã giao khiếu nại cho moderator",
+        data: ticket,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Add internal note
+   * POST /api/complaints/:id/internal-note
+   */
+  addInternalNote = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const id = getParamString(req.params.id);
+      const { content } = addInternalNoteSchema.parse(req.body);
+
+      const ticket = await complaintService.addInternalNote(id, userId, content);
+
+      res.status(200).json({
+        success: true,
+        message: "Đã thêm ghi chú nội bộ",
+        data: ticket,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Request more information
+   * POST /api/complaints/:id/request-info
+   */
+  requestMoreInfo = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const id = getParamString(req.params.id);
+      const { targetParty, questions } = requestInfoSchema.parse(req.body);
+
+      const ticket = await complaintService.requestMoreInfo(
+        id,
+        userId,
+        targetParty,
+        questions
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Đã yêu cầu thêm thông tin",
+        data: ticket,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Make decision on complaint
+   * POST /api/complaints/:id/decision
+   */
+  makeDecision = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const id = getParamString(req.params.id);
+      const input = makeDecisionSchema.parse(req.body);
+
+      const ticket = await complaintService.makeDecision(id, userId, input);
+
+      res.status(200).json({
+        success: true,
+        message: "Đã đưa ra quyết định",
+        data: ticket,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get moderator workload
+   * GET /api/complaints/moderator/workload
+   */
+  getModeratorWorkload = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const workload = await complaintQueueService.getModeratorWorkload();
+
+      res.status(200).json({
+        success: true,
+        data: workload,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ===== Admin Endpoints =====
+
+  /**
+   * Resolve appeal (Admin/Senior Mod)
+   * POST /api/complaints/:id/appeal-decision
+   */
+  resolveAppeal = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const id = getParamString(req.params.id);
+      const input = appealDecisionSchema.parse(req.body);
+
+      const ticket = await complaintService.resolveAppeal(id, userId, input);
+
+      res.status(200).json({
+        success: true,
+        message: `Kháng cáo đã được ${input.decision === "Upheld" ? "giữ nguyên" : "đảo ngược"}`,
+        data: ticket,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ===== Common Endpoints =====
+
   /**
    * Get complaint by ID
    * GET /api/complaints/:id
@@ -84,16 +457,9 @@ export class ComplaintController {
   ): Promise<void> => {
     try {
       const userId = req.user?.id;
-      const { id } = req.params;
+      const id = getParamString(req.params.id);
 
-      // If user is admin/moderator, they can view any complaint
-      const isAdmin = req.user?.roleKey === "ADMIN" || req.user?.roleKey === "MODERATOR";
-
-      const ticketId = Array.isArray(id) ? id[0] : id;
-      const ticket = await complaintService.getComplaintById(
-        ticketId,
-        isAdmin ? undefined : userId
-      );
+      const ticket = await complaintService.getComplaintById(id, userId);
 
       if (!ticket) {
         throw new AppError("Khiếu nại không tồn tại", 404);
@@ -102,6 +468,31 @@ export class ComplaintController {
       res.status(200).json({
         success: true,
         data: ticket,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get complaint timeline
+   * GET /api/complaints/:id/timeline
+   */
+  getComplaintTimeline = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const id = getParamString(req.params.id);
+
+      const timeline = await ComplaintTimeline.find({ ticketId: id })
+        .populate("actorUserId", "fullName email")
+        .sort({ createdAt: -1 });
+
+      res.status(200).json({
+        success: true,
+        data: timeline,
       });
     } catch (error) {
       next(error);
@@ -118,91 +509,13 @@ export class ComplaintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { limit = 20, skip = 0, status } = req.query;
-
-      const { tickets, total } = await complaintService.getAllComplaints({
-        limit: Number(limit),
-        skip: Number(skip),
-        status: status as string,
-      });
+      const query = getComplaintsQuerySchema.parse(req.query);
+      const { tickets, total } = await complaintService.getAllComplaints(query);
 
       res.status(200).json({
         success: true,
         data: tickets,
-        pagination: {
-          total,
-          limit: Number(limit),
-          skip: Number(skip),
-        },
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  /**
-   * Resolve complaint (admin/moderator)
-   * PUT /api/complaints/:id/resolve
-   */
-  resolveComplaint = async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        throw new AppError("Unauthorized", 401);
-      }
-
-      const { id } = req.params;
-      const ticketId = Array.isArray(id) ? id[0] : id;
-      const { resolutionType, decisionNote, refundAmount } = req.body;
-
-      if (!resolutionType || !decisionNote) {
-        throw new AppError("Vui lòng điền đầy đủ thông tin xử lý", 400);
-      }
-
-      const ticket = await complaintService.resolveComplaint(ticketId, userId, {
-        resolutionType,
-        decisionNote,
-        refundAmount,
-      });
-
-      res.status(200).json({
-        success: true,
-        message: "Đã xử lý khiếu nại thành công",
-        data: ticket,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  /**
-   * Update ticket status (admin/moderator)
-   * PUT /api/complaints/:id/status
-   */
-  updateTicketStatus = async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const ticketId = Array.isArray(id) ? id[0] : id;
-      const { status } = req.body;
-
-      if (!status || !["InReview", "NeedMoreInfo"].includes(status)) {
-        throw new AppError("Trạng thái không hợp lệ", 400);
-      }
-
-      const ticket = await complaintService.updateTicketStatus(ticketId, status);
-
-      res.status(200).json({
-        success: true,
-        message: "Cập nhật trạng thái thành công",
-        data: ticket,
+        pagination: { total, limit: query.limit, skip: query.skip },
       });
     } catch (error) {
       next(error);
@@ -219,10 +532,8 @@ export class ComplaintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { orderItemId } = req.params;
-      const itemId = Array.isArray(orderItemId) ? orderItemId[0] : orderItemId;
-
-      const result = await complaintService.canFileComplaint(itemId);
+      const orderItemId = getParamString(req.params.orderItemId);
+      const result = await complaintService.canFileComplaint(orderItemId);
 
       res.status(200).json({
         success: true,

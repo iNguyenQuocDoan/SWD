@@ -32,9 +32,11 @@ import {
   ShoppingBag,
   ChevronDown,
   Sparkles,
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { MessageNotification } from "@/components/chat";
 
 export function Header() {
   const { user, isAuthenticated, isLoading } = useAuthStore();
@@ -142,6 +144,7 @@ export function Header() {
           {/* Right Side Actions */}
           <div className="flex items-center gap-2 shrink-0">
             <ThemeToggle />
+            {isAuthenticated && <MessageNotification />}
             {isLoading ? (
               // Skeleton while loading auth state
               <div className="h-9 w-24 bg-muted animate-pulse rounded-lg" />
@@ -221,6 +224,12 @@ export function Header() {
                     <Link href="/customer/orders" className="flex items-center">
                       <Package className="mr-2 h-4 w-4" />
                       <span>Lịch sử đơn hàng</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/customer/complaints" className="flex items-center">
+                      <FileText className="mr-2 h-4 w-4" />
+                      <span>Lịch sử khiếu nại</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

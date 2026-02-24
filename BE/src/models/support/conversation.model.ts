@@ -1,6 +1,10 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { ConversationType, ConversationStatus } from "@/types";
 
+export interface IConversationUnreadCount {
+  [userId: string]: number;
+}
+
 export interface IConversation extends Document {
   type: ConversationType;
   customerUserId: mongoose.Types.ObjectId;
@@ -11,6 +15,8 @@ export interface IConversation extends Document {
   ticketId?: mongoose.Types.ObjectId | null; // Reference to support_tickets._id
   status: ConversationStatus;
   lastMessageAt?: Date | null;
+  lastMessagePreview?: string | null; // Preview of last message (truncated)
+  unreadCount: IConversationUnreadCount; // { [userId]: count }
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +67,16 @@ const ConversationSchema = new Schema<IConversation>(
     lastMessageAt: {
       type: Date,
       default: null,
+    },
+    lastMessagePreview: {
+      type: String,
+      default: null,
+      maxlength: 100, // Truncate preview
+    },
+    unreadCount: {
+      type: Map,
+      of: Number,
+      default: {},
     },
   },
   {

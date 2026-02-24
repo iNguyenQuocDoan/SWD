@@ -213,7 +213,13 @@ export default function ModeratorDashboard() {
             <CardDescription className="text-xs">Các chức năng kiểm duyệt</CardDescription>
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
+              <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+                <Link href="/moderator/complaints">
+                  <FileText className="h-4 w-4" />
+                  <span className="text-xs">Xử lý khiếu nại</span>
+                </Link>
+              </Button>
               <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
                 <Link href="/moderator/review">
                   <Package className="h-4 w-4" />

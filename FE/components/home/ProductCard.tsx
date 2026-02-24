@@ -35,6 +35,7 @@ export function ProductCard({
     variant === "compact" ? "text-[10px] px-2 py-1 h-6" : "text-xs px-3 py-1.5 h-7";
 
   const hasImage = image && image.trim() !== "";
+  const isDataUrl = !!(hasImage && image.startsWith("data:"));
   const [imageError, setImageError] = useState(false);
 
   if (variant === "carousel") {
@@ -55,6 +56,7 @@ export function ProductCard({
                     fill
                     className="object-contain"
                     sizes="(max-width: 768px) 100vw, 300px"
+                    unoptimized={isDataUrl}
                     onError={() => setImageError(true)}
                   />
                 ) : (
@@ -79,6 +81,7 @@ export function ProductCard({
                     fill
                     className="object-contain"
                     sizes="420px"
+                    unoptimized={isDataUrl}
                     onError={() => setImageError(true)}
                   />
                 ) : (
@@ -132,6 +135,7 @@ export function ProductCard({
             fill
             className="object-contain group-hover:scale-105 transition-transform duration-300 z-20"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
+            unoptimized={isDataUrl}
             onError={() => {
               // Fallback to gradient if image fails to load
               setImageError(true);
