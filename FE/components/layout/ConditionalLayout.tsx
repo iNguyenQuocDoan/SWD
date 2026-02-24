@@ -14,16 +14,16 @@ interface ConditionalLayoutProps {
  */
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
-  
+
   // Don't show global Header/Footer for admin and moderator routes
   const isAdminRoute = pathname?.startsWith("/admin");
   const isModeratorRoute = pathname?.startsWith("/moderator");
-  
+
   if (isAdminRoute || isModeratorRoute) {
     // Admin and Moderator routes have their own layout, just render children
     return <>{children}</>;
   }
-  
+
   // For other routes, show Header and Footer
   return (
     <div className="flex min-h-screen flex-col">

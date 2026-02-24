@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils";
 
 interface CustomerStats {
   totalOrders: number;
@@ -26,7 +27,7 @@ export function CustomerMenuStats() {
           setIsLoading(false);
           return;
         }
-        
+
         // Initialize with empty data if API returns no data
         setStats({
           totalOrders: 0,
@@ -63,13 +64,6 @@ export function CustomerMenuStats() {
   }
 
   if (!stats) return null;
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(amount);
-  };
 
   // Only show if there's meaningful data
   if (stats.totalOrders === 0 && stats.walletBalance === 0 && stats.supportTickets === 0) {

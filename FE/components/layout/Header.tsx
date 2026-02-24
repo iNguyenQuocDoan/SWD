@@ -88,12 +88,16 @@ export function Header() {
               href="/"
               className="flex items-center gap-2.5 hover:opacity-90 transition-opacity"
             >
-              <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25">
-                <Store className="h-5 w-5 text-primary-foreground" />
+              <div className="flex items-center justify-center h-10 w-10 shrink-0">
+                <img
+                  src="/logo.jpg"
+                  alt="MarketPlace Logo"
+                  className="h-full w-full object-cover rounded-xl shadow-md"
+                />
               </div>
               <div className="hidden sm:block">
-                <span className="font-bold text-lg bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
-                  Sàn Tài Khoản Số
+                <span className="font-bold text-xl bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
+                  MarketPlace
                 </span>
               </div>
             </Link>
