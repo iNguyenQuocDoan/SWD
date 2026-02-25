@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Order, OrderItem, Wallet, InventoryItem, SupportTicket } from "@/models";
+import { Order, OrderItem, Wallet, WalletTransaction, InventoryItem, SupportTicket } from "@/models";
 import { walletService } from "@/services/wallets/wallet.service";
 
 const ESCROW_PERIOD_HOURS = 72; // 3 days
@@ -75,26 +75,57 @@ export class DisbursementService {
         shop.ownerUserId.toString()
       );
 
-      // Calculate amount (minus platform fee if applicable)
-      const disbursementAmount = orderItem.holdAmount;
+      // Calculate platform fee (5%) - người BÁN trả phí này
+      const platformFee = Math.round(orderItem.holdAmount * 0.05);
+      const sellerReceiveAmount = orderItem.holdAmount - platformFee;
 
-      // Release escrow to seller
-      // Note: Using direct DB operations here since we're in a session
+      // Release escrow: Customer holdBalance giảm toàn bộ holdAmount
+      // Seller chỉ nhận holdAmount - platformFee (95%)
+      // Platform Fee (5%) được giữ lại trong hệ thống
       await Wallet.findByIdAndUpdate(
         customerWallet._id,
         {
-          $inc: { holdBalance: -disbursementAmount },
+          $inc: { holdBalance: -orderItem.holdAmount },
           $set: { updatedAt: new Date() },
         },
         { session }
       );
 
+      // Seller nhận tiền sau khi trừ phí 5%
       await Wallet.findByIdAndUpdate(
         sellerWallet._id,
         {
-          $inc: { balance: disbursementAmount },
+          $inc: { balance: sellerReceiveAmount },
           $set: { updatedAt: new Date() },
         },
+        { session }
+      );
+
+      // Create WalletTransaction records for audit trail
+      const orderItemObjId = new mongoose.Types.ObjectId(orderItemId);
+      await WalletTransaction.create(
+        [
+          {
+            walletId: customerWallet._id,
+            type: "Release",
+            refType: "OrderItem",
+            refId: orderItemObjId,
+            direction: "Out",
+            amount: orderItem.holdAmount,
+            note: `Giải ngân đơn hàng #${order.orderCode} - Platform fee: ${platformFee} VND`,
+            createdAt: new Date(),
+          },
+          {
+            walletId: sellerWallet._id,
+            type: "Release",
+            refType: "OrderItem",
+            refId: orderItemObjId,
+            direction: "In",
+            amount: sellerReceiveAmount,
+            note: `Nhận tiền từ đơn hàng #${order.orderCode} (sau phí 5%)`,
+            createdAt: new Date(),
+          },
+        ],
         { session }
       );
 
@@ -152,12 +183,11 @@ export class DisbursementService {
 
       return {
         success: true,
-        message: `Disbursed ${disbursementAmount} VND to seller`,
+        message: `Disbursed ${sellerReceiveAmount} VND to seller (after ${platformFee} VND platform fee)`,
       };
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error("[Disbursement] Error:", error);
       throw error;
     }
   }
@@ -257,6 +287,23 @@ export class DisbursementService {
         { session }
       );
 
+      // Create WalletTransaction for audit trail
+      await WalletTransaction.create(
+        [
+          {
+            walletId: customerWallet._id,
+            type: "Refund",
+            refType: "OrderItem",
+            refId: new mongoose.Types.ObjectId(orderItemId),
+            direction: "In",
+            amount: refundAmount,
+            note: `Hoàn tiền từ khiếu nại đơn hàng #${order.orderCode}`,
+            createdAt: new Date(),
+          },
+        ],
+        { session }
+      );
+
       // Update order item
       await OrderItem.findByIdAndUpdate(
         orderItemId,
@@ -319,7 +366,6 @@ export class DisbursementService {
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error("[Disbursement] Refund error:", error);
       throw error;
     }
   }

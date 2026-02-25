@@ -14,6 +14,17 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Package,
   Clock,
   CheckCircle,
@@ -21,11 +32,13 @@ import {
   AlertCircle,
   Lock,
   HelpCircle,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { orderService } from "@/lib/services/order.service";
+import { WriteReviewButton } from "@/components/reviews";
 
 // Types for backend data
 type OrderStatus = "pending_payment" | "paid" | "processing" | "completed" | "refunded" | "cancelled";
@@ -57,10 +70,13 @@ interface TimelineItem {
 
 interface SubOrder {
   id: string;
+  productId: string;
+  shopId: string;
   productTitle: string;
   sellerName: string;
   amount: number;
   status: OrderStatus;
+  backendItemStatus: string; // Original status from backend for review eligibility
   paymentStatus: PaymentStatus;
   licenseKey: string;
   activatedAt?: string;
@@ -119,6 +135,7 @@ export default function CustomerOrderDetailPage({
   const { id: orderCode } = use(params);
   const [isLoading, setIsLoading] = useState(true);
   const [order, setOrder] = useState<Order | null>(null);
+  const [confirmingItemId, setConfirmingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -140,10 +157,13 @@ export default function CustomerOrderDetailPage({
 
             return {
               id: item._id,
+              productId: item.productId?._id || "",
+              shopId: item.shopId?._id || "",
               productTitle: item.productId?.title || "Sản phẩm",
               sellerName: item.shopId?.name || "Shop",
               amount: item.subtotal,
               status: mapItemStatus(item.itemStatus),
+              backendItemStatus: item.itemStatus, // Keep original for review check
               paymentStatus: mapPaymentStatus(item.holdStatus),
               licenseKey: secretValue,
               activatedAt: item.deliveredAt ? new Date(item.deliveredAt).toLocaleString("vi-VN") : undefined,
@@ -232,6 +252,21 @@ export default function CustomerOrderDetailPage({
 
   const handleReportIssue = (subOrderId: string) => {
     router.push(`/customer/tickets/create?order=${subOrderId}`);
+  };
+
+  const handleConfirmDelivery = async (orderItemId: string) => {
+    setConfirmingItemId(orderItemId);
+    try {
+      await orderService.confirmDelivery(orderItemId, true);
+      toast.success("Đã xác nhận nhận hàng thành công!");
+      // Refresh the page to get updated order data
+      window.location.reload();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể xác nhận nhận hàng";
+      toast.error(message);
+    } finally {
+      setConfirmingItemId(null);
+    }
   };
 
   if (isLoading) {
@@ -407,6 +442,53 @@ export default function CustomerOrderDetailPage({
 
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2">
+                      {/* Confirm Receipt Button - shows when Delivered */}
+                      {subOrder.backendItemStatus === "Delivered" && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="default"
+                              disabled={confirmingItemId === subOrder.id}
+                            >
+                              {confirmingItemId === subOrder.id ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Đang xử lý...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Xác nhận đã nhận
+                                </>
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Xác nhận đã nhận hàng?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Sau khi xác nhận, bạn sẽ có thể viết đánh giá cho sản phẩm này.
+                                Hành động này không thể hoàn tác.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Hủy</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleConfirmDelivery(subOrder.id)}>
+                                Xác nhận
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                      {/* Write Review Button - shows when Completed */}
+                      {subOrder.backendItemStatus === "Completed" && subOrder.productId && subOrder.shopId && (
+                        <WriteReviewButton
+                          orderItemId={subOrder.id}
+                          productId={subOrder.productId}
+                          shopId={subOrder.shopId}
+                          productTitle={subOrder.productTitle}
+                        />
+                      )}
                       <Button
                         variant="outline"
                         onClick={() => handleReportIssue(subOrder.id)}

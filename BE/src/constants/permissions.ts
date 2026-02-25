@@ -32,6 +32,9 @@ export const PERMISSIONS = {
   TICKET_VIEW: "ticket:view",
   TICKET_UPDATE: "ticket:update",
   TICKET_CLOSE: "ticket:close",
+  TICKET_VIEW_ALL: "ticket:view:all", // Staff view all tickets
+  TICKET_ASSIGN: "ticket:assign", // Assign ticket to staff
+  TICKET_ESCALATE: "ticket:escalate", // Escalate ticket priority
   REVIEW_CREATE: "review:create",
   REVIEW_UPDATE: "review:update",
   REVIEW_DELETE: "review:delete",
@@ -39,6 +42,8 @@ export const PERMISSIONS = {
   CONVERSATION_VIEW: "conversation:view",
   CONVERSATION_CREATE: "conversation:create",
   CONVERSATION_MESSAGE: "conversation:message",
+  CONVERSATION_INTERNAL_NOTE: "conversation:internal_note", // Staff internal notes
+  CONVERSATION_VIEW_ALL: "conversation:view:all", // Staff view all conversations
   REFUND_REQUEST: "refund:request",
 
   // Seller permissions
@@ -63,6 +68,7 @@ export const PERMISSIONS = {
   PAYOUT_VIEW: "payout:view",
   CONVERSATION_SELLER_VIEW: "conversation:seller:view",
   CONVERSATION_SELLER_MESSAGE: "conversation:seller:message",
+  REVIEW_REPLY: "review:reply",
 
   // Moderator permissions
   REVIEW_MODERATE: "review:moderate",
@@ -80,6 +86,30 @@ export const PERMISSIONS = {
   USER_RESTRICT: "user:restrict",
   USER_UNRESTRICT: "user:unrestrict",
   CONTENT_MODERATE: "content:moderate",
+
+  // Complaint Moderation permissions (NEW)
+  // Seller complaint permissions
+  COMPLAINT_VIEW_SHOP: "complaint:view:shop", // Seller view shop complaints
+  COMPLAINT_RESPOND: "complaint:respond", // Seller respond to complaints
+  COMPLAINT_PROPOSE_RESOLUTION: "complaint:propose", // Seller propose resolution
+
+  // Customer complaint permissions
+  COMPLAINT_ESCALATE: "complaint:escalate", // Customer escalate to moderator
+  COMPLAINT_APPEAL: "complaint:appeal", // Customer/Seller file appeal
+
+  // Moderator complaint permissions
+  COMPLAINT_QUEUE_VIEW: "complaint:queue:view", // View complaint queue
+  COMPLAINT_ASSIGN: "complaint:assign", // Assign complaints
+  COMPLAINT_DECISION: "complaint:decision", // Make decisions
+  COMPLAINT_INTERNAL_NOTE: "complaint:internal_note", // Add internal notes
+  COMPLAINT_REQUEST_INFO: "complaint:request_info", // Request more info
+
+  // Admin/Senior Mod complaint permissions
+  COMPLAINT_APPEAL_REVIEW: "complaint:appeal:review", // Review appeals
+  COMPLAINT_PENALTY_ISSUE: "complaint:penalty:issue", // Issue seller penalties
+  COMPLAINT_STATS_VIEW: "complaint:stats:view", // View moderator stats
+  COMPLAINT_CONFIG: "complaint:config", // Configure escalation rules
+  COMPLAINT_TEMPLATE_MANAGE: "complaint:template:manage", // Manage decision templates
 
   // Admin permissions
   USER_VIEW: "user:view",
@@ -308,6 +338,27 @@ export const PERMISSION_DEFINITIONS = [
     action: "close",
   },
   {
+    permissionKey: PERMISSIONS.TICKET_VIEW_ALL,
+    permissionName: "View All Tickets",
+    description: "View all support tickets (staff)",
+    resource: "ticket",
+    action: "view:all",
+  },
+  {
+    permissionKey: PERMISSIONS.TICKET_ASSIGN,
+    permissionName: "Assign Ticket",
+    description: "Assign ticket to staff member",
+    resource: "ticket",
+    action: "assign",
+  },
+  {
+    permissionKey: PERMISSIONS.TICKET_ESCALATE,
+    permissionName: "Escalate Ticket",
+    description: "Escalate ticket priority",
+    resource: "ticket",
+    action: "escalate",
+  },
+  {
     permissionKey: PERMISSIONS.REVIEW_CREATE,
     permissionName: "Create Review",
     description: "Create product review",
@@ -355,6 +406,20 @@ export const PERMISSION_DEFINITIONS = [
     description: "Send message in conversation",
     resource: "conversation",
     action: "message",
+  },
+  {
+    permissionKey: PERMISSIONS.CONVERSATION_INTERNAL_NOTE,
+    permissionName: "Add Internal Note",
+    description: "Add internal staff note to conversation",
+    resource: "conversation",
+    action: "internal_note",
+  },
+  {
+    permissionKey: PERMISSIONS.CONVERSATION_VIEW_ALL,
+    permissionName: "View All Conversations",
+    description: "View all conversations (staff)",
+    resource: "conversation",
+    action: "view:all",
   },
   {
     permissionKey: PERMISSIONS.REFUND_REQUEST,
@@ -511,6 +576,13 @@ export const PERMISSION_DEFINITIONS = [
     description: "Send message as seller",
     resource: "conversation",
     action: "seller:message",
+  },
+  {
+    permissionKey: PERMISSIONS.REVIEW_REPLY,
+    permissionName: "Reply to Review",
+    description: "Reply to customer reviews as shop owner",
+    resource: "review",
+    action: "reply",
   },
 
   // Moderator permissions
@@ -909,6 +981,113 @@ export const PERMISSION_DEFINITIONS = [
     resource: "system",
     action: "monitor",
   },
+
+  // Complaint Moderation permissions
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_VIEW_SHOP,
+    permissionName: "View Shop Complaints",
+    description: "View complaints for own shop",
+    resource: "complaint",
+    action: "view:shop",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_RESPOND,
+    permissionName: "Respond to Complaint",
+    description: "Respond to customer complaints",
+    resource: "complaint",
+    action: "respond",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_PROPOSE_RESOLUTION,
+    permissionName: "Propose Resolution",
+    description: "Propose resolution for complaints",
+    resource: "complaint",
+    action: "propose",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_ESCALATE,
+    permissionName: "Escalate Complaint",
+    description: "Escalate complaint to moderator",
+    resource: "complaint",
+    action: "escalate",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_APPEAL,
+    permissionName: "Appeal Decision",
+    description: "Appeal moderator decision",
+    resource: "complaint",
+    action: "appeal",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_QUEUE_VIEW,
+    permissionName: "View Complaint Queue",
+    description: "View complaint moderation queue",
+    resource: "complaint",
+    action: "queue:view",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_ASSIGN,
+    permissionName: "Assign Complaint",
+    description: "Assign complaints to moderators",
+    resource: "complaint",
+    action: "assign",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_DECISION,
+    permissionName: "Make Decision",
+    description: "Make decision on complaints",
+    resource: "complaint",
+    action: "decision",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_INTERNAL_NOTE,
+    permissionName: "Add Internal Note",
+    description: "Add internal notes to complaints",
+    resource: "complaint",
+    action: "internal_note",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_REQUEST_INFO,
+    permissionName: "Request Information",
+    description: "Request more information from parties",
+    resource: "complaint",
+    action: "request_info",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_APPEAL_REVIEW,
+    permissionName: "Review Appeal",
+    description: "Review and decide on appeals",
+    resource: "complaint",
+    action: "appeal:review",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_PENALTY_ISSUE,
+    permissionName: "Issue Penalty",
+    description: "Issue penalties to sellers",
+    resource: "complaint",
+    action: "penalty:issue",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_STATS_VIEW,
+    permissionName: "View Complaint Stats",
+    description: "View moderator statistics",
+    resource: "complaint",
+    action: "stats:view",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_CONFIG,
+    permissionName: "Configure Complaints",
+    description: "Configure complaint escalation rules",
+    resource: "complaint",
+    action: "config",
+  },
+  {
+    permissionKey: PERMISSIONS.COMPLAINT_TEMPLATE_MANAGE,
+    permissionName: "Manage Templates",
+    description: "Manage decision templates",
+    resource: "complaint",
+    action: "template:manage",
+  },
 ] as const;
 
 /**
@@ -958,6 +1137,9 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.CONVERSATION_MESSAGE,
     // Refund
     PERMISSIONS.REFUND_REQUEST,
+    // Complaint (Customer)
+    PERMISSIONS.COMPLAINT_ESCALATE,
+    PERMISSIONS.COMPLAINT_APPEAL,
     // Public
     PERMISSIONS.PRODUCT_VIEW,
     PERMISSIONS.PRODUCT_SEARCH,
@@ -1020,6 +1202,13 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.PAYOUT_VIEW,
     PERMISSIONS.CONVERSATION_SELLER_VIEW,
     PERMISSIONS.CONVERSATION_SELLER_MESSAGE,
+    PERMISSIONS.REVIEW_REPLY,
+
+    // Complaint (Seller)
+    PERMISSIONS.COMPLAINT_VIEW_SHOP,
+    PERMISSIONS.COMPLAINT_RESPOND,
+    PERMISSIONS.COMPLAINT_PROPOSE_RESOLUTION,
+    PERMISSIONS.COMPLAINT_APPEAL,
 
     // Public
     PERMISSIONS.PRODUCT_VIEW,
@@ -1031,6 +1220,17 @@ export const ROLE_PERMISSIONS = {
   ],
 
   MODERATOR: [
+    // Support ticket handling
+    PERMISSIONS.TICKET_VIEW,
+    PERMISSIONS.TICKET_VIEW_ALL,
+    PERMISSIONS.TICKET_ASSIGN,
+    PERMISSIONS.TICKET_ESCALATE,
+    PERMISSIONS.TICKET_UPDATE,
+    PERMISSIONS.TICKET_CLOSE,
+    // Conversation handling
+    PERMISSIONS.CONVERSATION_VIEW_ALL,
+    PERMISSIONS.CONVERSATION_MESSAGE,
+    PERMISSIONS.CONVERSATION_INTERNAL_NOTE,
     // Product moderation
     // Review moderation
     PERMISSIONS.REVIEW_MODERATE,
@@ -1057,6 +1257,14 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.USER_UNRESTRICT,
     // General
     PERMISSIONS.CONTENT_MODERATE,
+    // Complaint Moderation
+    PERMISSIONS.COMPLAINT_QUEUE_VIEW,
+    PERMISSIONS.COMPLAINT_ASSIGN,
+    PERMISSIONS.COMPLAINT_DECISION,
+    PERMISSIONS.COMPLAINT_INTERNAL_NOTE,
+    PERMISSIONS.COMPLAINT_REQUEST_INFO,
+    PERMISSIONS.COMPLAINT_PENALTY_ISSUE,
+    PERMISSIONS.COMPLAINT_STATS_VIEW,
     // Public
     PERMISSIONS.PRODUCT_VIEW,
     PERMISSIONS.PRODUCT_SEARCH,

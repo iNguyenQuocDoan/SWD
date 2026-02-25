@@ -120,9 +120,9 @@ export default function AdminDashboard() {
           <Card className="py-4">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
               <CardTitle className="text-sm font-medium">
-                Tổng đơn hàng
+                Tổng giải ngân
               </CardTitle>
-              <ShoppingBag className="h-5 w-5 text-muted-foreground" />
+              <Wallet className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="text-2xl font-bold">
@@ -130,7 +130,7 @@ export default function AdminDashboard() {
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 <Link
-                  href="/admin/orders"
+                  href="/admin/disbursement"
                   className="text-primary hover:underline"
                 >
                   Xem tất cả
@@ -271,9 +271,9 @@ export default function AdminDashboard() {
                 </Link>
               </Button>
               <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
-                <Link href="/admin/orders">
-                  <ShoppingBag className="h-4 w-4" />
-                  <span className="text-xs">Đơn hàng</span>
+                <Link href="/admin/disbursement">
+                  <Wallet className="h-4 w-4" />
+                  <span className="text-xs">Giải ngân</span>
                 </Link>
               </Button>
               <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>

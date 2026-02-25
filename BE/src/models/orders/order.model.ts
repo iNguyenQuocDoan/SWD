@@ -76,7 +76,7 @@ const OrderSchema = new Schema<IOrder>(
 );
 
 // Indexes
-OrderSchema.index({ orderCode: 1 });
+// Note: orderCode index is automatically created by unique: true
 OrderSchema.index({ customerUserId: 1 });
 OrderSchema.index({ status: 1 });
 OrderSchema.index({ createdAt: -1 });

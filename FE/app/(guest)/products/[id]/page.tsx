@@ -18,16 +18,22 @@ import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { useAuthStore } from "@/lib/auth";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { Shield, Star, CheckCircle, AlertCircle, Copy, Lock, Clock, Package, User, HelpCircle } from "lucide-react";
+import { Shield, Star, CheckCircle, Lock, Package, User, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
-import { productService } from "@/lib/services/product.service";
+import { productService, type ProductResponse } from "@/lib/services/product.service";
+import { shopService } from "@/lib/services/shop.service";
+import { reviewService } from "@/lib/services/review.service";
+import { ProductReviews } from "@/components/reviews";
+import { ChatWithShopButton } from "@/components/chat";
 
 // Types for backend data
 interface ProductShop {
   id: string;
   name: string;
   avatar: string | null;
+  ownerId?: string; // ID của chủ shop để chặn self-chat
   rating: number;
+  reviewCount: number;
   listingCount: number;
   soldCount: number;
   responseRate: number;
@@ -59,7 +65,7 @@ interface Product {
 
 export default function ProductDetailPage() {
   const { id: productId } = useParams<{ id: string }>();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user: currentUser } = useAuthStore();
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState("description");
@@ -70,13 +76,46 @@ export default function ProductDetailPage() {
     const fetchProduct = async () => {
       setIsLoading(true);
       try {
+        console.log("[ProductDetail] Fetching ID:", productId);
         const response = await productService.getProductById(productId);
+        console.log("[ProductDetail] Response raw:", response);
 
-        if (response.success && response.data) {
-          const productData = response.data;
+        // BE có thể trả {success, data} hoặc trả thẳng data object tùy thuộc vào API client
+        const productData = response.success ? response.data : (response as unknown as ProductResponse);
+        
+        if (productData && (productData._id || productData.id)) {
+          console.log("[ProductDetail] Processing data:", productData);
+
+          // Type for populated shop data from API
+          type PopulatedShop = { _id?: string; id?: string; shopName?: string; ownerUserId?: any };
+
+          // Get shopId - could be string or object
+          const shopIdObj = productData.shopId as unknown as string | PopulatedShop;
+          const shopId = typeof shopIdObj === "object"
+            ? (shopIdObj._id || shopIdObj.id || "")
+            : shopIdObj;
+
+          // Fetch shop details, rating stats, and shop products count in parallel
+          const [shopRes, ratingStats, shopProductsRes] = await Promise.all([
+            shopId ? shopService.getShopById(shopId).catch(() => null) : Promise.resolve(null),
+            reviewService.getProductRatingStats(productId).catch(() => null),
+            shopId ? productService.getProducts({ shopId }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+          ]);
+          
+          // shopRes có thể là ApiResponse<Shop> hoặc Shop tùy theo implementation
+          const shopData = (shopRes as any)?.success ? (shopRes as any).data : shopRes;
+          const shopProductsCount = (shopProductsRes as any)?.data?.length || 0;
+
+          // Extract shop info from populated shopId if available
+          const populatedShop = typeof shopIdObj === "object" ? shopIdObj : null;
+          
+          // Lấy ownerId từ shopData (có thể là string hoặc object)
+          const ownerId = typeof shopData?.ownerUserId === 'string' 
+            ? shopData.ownerUserId 
+            : shopData?.ownerUserId?._id || populatedShop?.ownerUserId?._id || populatedShop?.ownerUserId;
 
           const mappedProduct: Product = {
-            id: productData._id || productData.id || productId,
+            id: (productData._id || productData.id) as string,
             title: productData.title,
             thumbnailUrl: productData.thumbnailUrl || null,
             platform: productData.platformId,
@@ -87,23 +126,25 @@ export default function ProductDetailPage() {
             description: productData.description,
             warranty: productData.warrantyPolicy,
             howToUse: productData.howToUse,
-            soldCount: 0,
+            soldCount: (productData as any).salesCount || 0,
             inventoryCount: 0,
             inStock: productData.status === "Approved",
             status: productData.status || "Approved",
-            shopId: productData.shopId,
+            shopId: shopId,
             shop: {
-              id: productData.shopId,
-              name: "Shop",
+              id: shopId,
+              name: shopData?.shopName || populatedShop?.shopName || "Shop",
               avatar: null,
-              rating: 0,
-              listingCount: 0,
-              soldCount: 0,
-              responseRate: 0,
-              joinedDate: "",
+              ownerId: ownerId,
+              rating: ratingStats?.averageRating || shopData?.ratingAvg || 0,
+              reviewCount: ratingStats?.totalReviews || shopData?.reviewCount || 0,
+              listingCount: shopProductsCount,
+              soldCount: shopData?.totalSales || 0,
+              responseRate: shopData?.responseRate || 0,
+              joinedDate: shopData?.createdAt || "",
               isVerified: false,
               trustLevel: "Standard",
-              status: "active",
+              status: shopData?.status === "Active" ? "active" : (shopData?.status?.toLowerCase() || "active"),
             },
           };
 
@@ -111,8 +152,17 @@ export default function ProductDetailPage() {
         } else {
           setProduct(null);
         }
-      } catch {
-        toast.error("Không thể tải thông tin sản phẩm");
+      } catch (err: any) {
+        console.error("[ProductDetail] fetchProduct error:", err);
+        const msg =
+          err instanceof Error
+            ? err.message
+            : typeof err?.message === "string"
+              ? err.message
+              : typeof err?.response?.data?.message === "string"
+                ? err.response.data.message
+                : "Không thể tải thông tin sản phẩm";
+        toast.error(msg);
         setProduct(null);
       } finally {
         setIsLoading(false);
@@ -138,11 +188,6 @@ export default function ProductDetailPage() {
       return;
     }
     router.push(`/checkout?product=${productId}&quantity=${quantity}`);
-  };
-
-  const handleCopyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Đã sao chép");
   };
 
   if (isLoading) {
@@ -257,19 +302,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={(value) => {
-            if (value === "reviews" && !isAuthenticated) {
-              toast.info("Vui lòng đăng nhập để xem đánh giá", {
-                action: {
-                  label: "Đăng nhập",
-                  onClick: () => router.push(`/login?redirect=/products/${productId}`),
-                },
-              });
-              router.push(`/login?redirect=/products/${productId}`);
-              return;
-            }
-            setActiveTab(value);
-          }} className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-12 md:h-14">
               <TabsTrigger value="description" className="text-sm md:text-base">Mô tả</TabsTrigger>
               <TabsTrigger value="warranty" className="text-sm md:text-base">Bảo hành</TabsTrigger>
@@ -322,30 +355,10 @@ export default function ProductDetailPage() {
             </TabsContent>
 
             <TabsContent value="reviews" className="mt-6">
-              {!isAuthenticated ? (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                    <Lock className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Vui lòng đăng nhập</h3>
-                    <p className="text-sm text-muted-foreground max-w-sm mb-4">
-                      Bạn cần đăng nhập để xem đánh giá từ khách hàng
-                    </p>
-                    <Button onClick={() => router.push(`/login?redirect=/products/${productId}`)}>
-                      Đăng nhập ngay
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  <Star className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Chưa có đánh giá</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm">
-                    Sẽ hiển thị đánh giá từ khách hàng sau khi họ mua và sử dụng sản phẩm
-                  </p>
-                </CardContent>
-              </Card>
-              )}
+              <ProductReviews
+                productId={productId}
+                currentUserId={isAuthenticated ? currentUser?.id : undefined}
+              />
             </TabsContent>
           </Tabs>
 
@@ -406,7 +419,12 @@ export default function ProductDetailPage() {
                   <p className="text-muted-foreground mb-2">Đánh giá</p>
                   <div className="flex items-center gap-2">
                     <Star className="h-5 w-5 md:h-6 md:w-6 fill-yellow-400 text-yellow-400" />
-                    <span className="font-semibold text-lg md:text-xl">{product.shop.rating}</span>
+                    <span className="font-semibold text-lg md:text-xl">
+                      {product.shop.rating ? product.shop.rating.toFixed(1) : "0"}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      ({product.shop.reviewCount})
+                    </span>
                   </div>
                 </div>
                 <div>
@@ -421,11 +439,13 @@ export default function ProductDetailPage() {
                     Xem shop
                   </Link>
                 </Button>
-                <Button variant="outline" size="icon" className="h-11 w-11 md:h-12 md:w-12" asChild>
-                  <Link href={`/shops/${product.shop.id}/chat`}>
-                    <User className="h-5 w-5" />
-                  </Link>
-                </Button>
+                <ChatWithShopButton
+                  shopId={product.shop.id}
+                  shopName={product.shop.name}
+                  sellerUserId={product.shop.ownerId}
+                  variant="outline"
+                  className="h-11 md:h-12"
+                />
               </div>
             </CardContent>
           </Card>
@@ -537,4 +557,3 @@ export default function ProductDetailPage() {
     </div>
   );
 }
-

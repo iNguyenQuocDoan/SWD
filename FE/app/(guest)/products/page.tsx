@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Search,
   X,
@@ -25,8 +26,9 @@ import {
   ShoppingBag,
   Store,
   ChevronDown,
+  Star,
 } from "lucide-react";
-import { productService } from "@/lib/services/product.service";
+import { productService, type ProductResponse } from "@/lib/services/product.service";
 import { inventoryService } from "@/lib/services/inventory.service";
 import { toast } from "sonner";
 import type { Product } from "@/types";
@@ -92,6 +94,14 @@ function ProductsContent() {
 
         const response = await productService.getProducts(filter);
 
+        console.log("[Products] Full API response:", {
+          success: response.success,
+          hasData: !!response.data,
+          dataType: Array.isArray(response.data) ? "array" : typeof response.data,
+          dataLength: Array.isArray(response.data) ? response.data.length : "N/A",
+          pagination: (response as any).pagination,
+        });
+
         if (!response.success) {
           throw new Error(response.message || "Không thể tải danh sách sản phẩm");
         }
@@ -99,6 +109,33 @@ function ProductsContent() {
         // BE returns: { success: true, data: Product[], pagination: {...} }
         const list = (response.data as any) || [];
         console.log("[Products] fetched list", { filter, count: list.length });
+        
+        // Debug: Check if salesCount is present in ALL products
+        if (list.length > 0) {
+          console.log("[Products] First product sample:", {
+            id: list[0]._id || list[0].id,
+            title: list[0].title,
+            hasSalesCount: list[0].salesCount !== undefined,
+            salesCount: list[0].salesCount,
+            salesCountType: typeof list[0].salesCount,
+            allKeys: Object.keys(list[0]),
+            fullProduct: list[0],
+          });
+          
+          // Check all products for salesCount
+          const productsWithSales = list.filter((p: any) => p.salesCount !== undefined);
+          const productsWithoutSales = list.filter((p: any) => p.salesCount === undefined);
+          console.log("[Products] Sales count stats:", {
+            total: list.length,
+            withSalesCount: productsWithSales.length,
+            withoutSalesCount: productsWithoutSales.length,
+            sampleWithoutSales: productsWithoutSales[0] ? {
+              id: productsWithoutSales[0]._id || productsWithoutSales[0].id,
+              title: productsWithoutSales[0].title,
+            } : null,
+          });
+        }
+        
         setProducts(list);
 
         // Extract unique platforms from products
@@ -213,8 +250,8 @@ function ProductsContent() {
         case "price_high":
           return b.price - a.price;
         case "rating":
-          const aRating = typeof a.shop === "object" ? (a.shop as any).ratingAvg || 0 : 0;
-          const bRating = typeof b.shop === "object" ? (b.shop as any).ratingAvg || 0 : 0;
+          const aRating = (a as unknown as ProductResponse).avgRating || 0;
+          const bRating = (b as unknown as ProductResponse).avgRating || 0;
           return bRating - aRating;
         case "newest":
         default:
@@ -456,36 +493,51 @@ function ProductsContent() {
           <>
             {/* Product Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
-              {paginatedProducts.map((product) => {
+              {paginatedProducts.map((product, index) => {
                 const stockCount = inventoryCounts[(product as any)._id || (product as any).id || ""] ?? 0;
                 const isInStock = stockCount > 0;
+                const salesCount = (product as any).salesCount ?? 0;
+                const productId = (product as any)._id || (product as any).id;
+
+                // Debug log - only for first 3 products
+                if (index < 3) {
+                  console.log("[Product Card] Product:", {
+                    index,
+                    id: productId,
+                    title: product.title,
+                    salesCount,
+                    hasSalesCount: (product as any).salesCount !== undefined,
+                    rawProduct: product,
+                  });
+                }
 
                 return (
                   <Card
                     key={product._id || product.id}
                     className="group relative overflow-hidden border-0 shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 h-full flex flex-col bg-card"
                   >
-                    <Link href={`/products/${product._id || product.id}`} className="flex-1 flex flex-col">
+                    <Link href={`/products/${product._id || product.id}`} prefetch={true} className="flex-1 flex flex-col">
                       {/* Thumbnail */}
-                      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-muted to-muted/50">
+                      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                         {(product as any).thumbnailUrl ? (
-                          <>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={(product as any).thumbnailUrl}
-                              alt={product.title}
-                              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                              loading="lazy"
-                            />
-                          </>
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center">
+                          <Image
+                            src={(product as any).thumbnailUrl}
+                            alt={product.title}
+                            fill
+                            className="object-contain group-hover:scale-105 transition-transform duration-500"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
+                            unoptimized={(product as any).thumbnailUrl?.startsWith("data:")}
+                          />
+                        ) : null}
+                        {/* Fallback icon */}
+                        {!(product as any).thumbnailUrl && (
+                          <div className="absolute inset-0 h-full w-full flex items-center justify-center">
                             <Package className="h-16 w-16 text-muted-foreground/30" />
                           </div>
                         )}
 
-                        {/* Badges overlay */}
-                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                        {/* Badges overlay - Top Left */}
+                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
                           <Badge className="bg-primary text-primary-foreground shadow-lg text-xs font-medium">
                             {typeof (product as any).platformId === "object"
                               ? ((product as any).platformId.platformName || "N/A")
@@ -495,8 +547,8 @@ function ProductsContent() {
                           </Badge>
                         </div>
 
-                        {/* Stock indicator */}
-                        <div className="absolute top-3 right-3">
+                        {/* Stock indicator - Top Right */}
+                        <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
                           <Badge
                             variant={isInStock ? "default" : "destructive"}
                             className={isInStock
@@ -505,6 +557,14 @@ function ProductsContent() {
                             }
                           >
                             {isInStock ? `Còn ${stockCount}` : "Hết hàng"}
+                          </Badge>
+                        </div>
+
+                        {/* Sales count - Bottom Left - Always show */}
+                        <div className="absolute bottom-3 left-3 z-10">
+                          <Badge className="bg-violet-600 text-white shadow-lg text-xs font-medium flex items-center gap-1">
+                            <ShoppingBag className="h-3 w-3" />
+                            <span>Đã bán: {salesCount ?? 0}</span>
                           </Badge>
                         </div>
                       </div>
@@ -526,14 +586,27 @@ function ProductsContent() {
                         </h3>
 
                         {/* Shop info */}
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
                           <Store className="h-3.5 w-3.5" />
                           <span className="truncate">
-                            {typeof (product as any).shopId === "object"
-                              ? ((product as any).shopId.shopName || "N/A")
-                              : (typeof (product as any).shop === "object"
-                                ? ((product as any).shop.shopName || "N/A")
-                                : "N/A")}
+                            {(() => {
+                              const shopData = (product as any).shopId || (product as any).shop;
+                              if (shopData && typeof shopData === "object" && shopData.shopName) {
+                                return shopData.shopName;
+                              }
+                              return "N/A";
+                            })()}
+                          </span>
+                        </div>
+
+                        {/* Rating */}
+                        <div className="flex items-center gap-1.5 text-sm mb-3">
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium">
+                            {(product as any).avgRating ? (product as any).avgRating.toFixed(1) : "0"}
+                          </span>
+                          <span className="text-muted-foreground">
+                            ({(product as any).reviewCount ?? 0} đánh giá)
                           </span>
                         </div>
 

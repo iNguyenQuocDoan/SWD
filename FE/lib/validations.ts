@@ -161,6 +161,77 @@ export const replyTicketSchema = z.object({
   isInternal: z.boolean().optional(),
 });
 
+// Complaint schemas
+export const createComplaintSchema = z.object({
+  orderItemId: z.string().min(1, VALIDATION_MESSAGES.COMPLAINT.ORDER_ITEM_REQUIRED),
+  title: z
+    .string()
+    .min(5, VALIDATION_MESSAGES.COMPLAINT.TITLE_MIN_LENGTH)
+    .max(200, VALIDATION_MESSAGES.COMPLAINT.TITLE_MAX_LENGTH),
+  content: z.string().min(20, VALIDATION_MESSAGES.COMPLAINT.CONTENT_MIN_LENGTH),
+
+  // Match swagger.yml (components/schemas/ComplaintCategory)
+  category: z.enum(
+    [
+      "ProductQuality",
+      "NotAsDescribed",
+      "MissingWrongItems",
+      "DeliveryIssues",
+      "AccountNotWorking",
+      "SellerNotResponding",
+      "RefundDispute",
+    ],
+    { message: VALIDATION_MESSAGES.COMPLAINT.CATEGORY_REQUIRED }
+  ),
+
+  // Match swagger.yml (components/schemas/ComplaintSubcategory)
+  subcategory: z
+    .enum([
+      "ItemDefective",
+      "ItemDamaged",
+      "DifferentFromPhoto",
+      "DifferentSpecifications",
+      "MissingItems",
+      "WrongItems",
+      "NeverDelivered",
+      "PartialDelivery",
+      "CredentialsInvalid",
+      "AccountExpired",
+      "AccountAlreadyUsed",
+      "NoResponse48h",
+      "RefuseRefund",
+      "PartialRefundDispute",
+    ])
+    .optional(),
+
+  // Match swagger.yml evidence array (maxItems: 10)
+  evidence: z
+    .array(
+      z.object({
+        type: z.enum(["Image", "Video", "Screenshot", "Document"]),
+        url: z.string().url(),
+        description: z.string().max(500).optional(),
+      })
+    )
+    .max(10)
+    .optional(),
+});
+
+export const fileAppealSchema = z.object({
+  reason: z.string().min(20, VALIDATION_MESSAGES.COMPLAINT.APPEAL_REASON_MIN),
+});
+
+export const makeDecisionSchema = z.object({
+  resolution: z.enum([
+    "FullRefund",
+    "PartialRefund",
+    "Replace",
+    "Reject",
+  ], { message: VALIDATION_MESSAGES.COMPLAINT.RESOLUTION_REQUIRED }),
+  reason: z.string().min(10, VALIDATION_MESSAGES.COMPLAINT.DECISION_REASON_MIN),
+  refundAmount: z.number().min(0).optional(),
+});
+
 // Moderation schemas
 export const moderateProductSchema = z.object({
   productId: z.string(),
@@ -287,3 +358,6 @@ export type SearchProductInput = z.infer<typeof searchProductSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type DepositInput = z.infer<typeof depositSchema>;
 export type WithdrawalInput = z.infer<typeof withdrawalSchema>;
+export type CreateComplaintInput = z.infer<typeof createComplaintSchema>;
+export type FileAppealInput = z.infer<typeof fileAppealSchema>;
+export type MakeDecisionInput = z.infer<typeof makeDecisionSchema>;

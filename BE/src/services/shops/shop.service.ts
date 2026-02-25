@@ -1,5 +1,5 @@
 import { BaseService } from "@/services/base.service";
-import { Shop, IShop, User, Role } from "@/models";
+import { Shop, IShop, User, Role, KycSession } from "@/models";
 import { AppError } from "@/middleware/errorHandler";
 import { MESSAGES } from "@/constants/messages";
 import { SHOP_STATUS } from "@/constants/shopStatus";
@@ -46,6 +46,11 @@ export class ShopService extends BaseService<IShop> {
     shopName: string,
     description?: string
   ): Promise<IShop> {
+    const kycSession = await KycSession.findOne({ userId: ownerUserId });
+    if (!kycSession || kycSession.status !== "VERIFIED") {
+      throw new AppError("Bạn cần xác thực eKYC thành công trước khi tạo shop.", 403);
+    }
+
     // Check if user already has a shop (any status)
     const existingShop = await Shop.findOne({ ownerUserId });
 
@@ -234,20 +239,11 @@ export class ShopService extends BaseService<IShop> {
 
       // Filter out shops where ownerUserId is null (user was deleted)
       const validShops = shops.filter((shop: any) => {
-        const hasOwner = shop.ownerUserId !== null && shop.ownerUserId !== undefined;
-        if (!hasOwner) {
-          console.warn("Shop without owner:", shop._id);
-        }
-        return hasOwner;
+        return shop.ownerUserId !== null && shop.ownerUserId !== undefined;
       });
 
       return validShops;
     } catch (error) {
-      console.error("Error in getPendingShops service:", error);
-      if (error instanceof Error) {
-        console.error("Error message:", error.message);
-        console.error("Error stack:", error.stack);
-      }
       throw error;
     }
   }

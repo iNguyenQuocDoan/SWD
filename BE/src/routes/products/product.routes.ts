@@ -9,6 +9,8 @@ const productController = new ProductController();
 
 // Public routes (Guest can access)
 router.get("/", wrapRequestHandler(productController.getProducts));
+router.get("/featured", wrapRequestHandler(productController.getFeaturedProducts));
+router.get("/top", wrapRequestHandler(productController.getTopProducts));
 router.get("/:productId", wrapRequestHandler(productController.getProductById));
 
 // Protected routes (require authentication)

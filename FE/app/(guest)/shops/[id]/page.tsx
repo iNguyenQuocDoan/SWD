@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { shopService, type Shop } from "@/lib/services/shop.service";
 import { productService, type ProductResponse } from "@/lib/services/product.service";
 import { inventoryService } from "@/lib/services/inventory.service";
-import { Package, Store, Star } from "lucide-react";
+import { Package, Store, Star, MessageCircle } from "lucide-react";
+import { ShopReviews } from "@/components/reviews";
+import { ChatWithShopButton } from "@/components/chat";
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
@@ -94,6 +97,11 @@ export default function PublicShopPage() {
     );
   }
 
+  // Get ownerId safely from populated shop data
+  const ownerId = typeof (shop as any).ownerUserId === 'string' 
+    ? (shop as any).ownerUserId 
+    : (shop as any).ownerUserId?._id || (shop as any).ownerId;
+
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Header */}
@@ -107,13 +115,21 @@ export default function PublicShopPage() {
             {shop.description || "Shop chưa có mô tả."}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href={`/products?shopId=${shop._id}`}>Xem tất cả sản phẩm</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <ChatWithShopButton
+            shopId={shop._id}
+            shopName={shop.shopName}
+            sellerUserId={ownerId}
+            variant="outline"
+          />
+          <Button asChild variant="outline">
+            <Link href={`/products?shopId=${shop._id}`}>Xem tất cả sản phẩm</Link>
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Sản phẩm</CardTitle>
@@ -130,6 +146,18 @@ export default function PublicShopPage() {
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
               <span className="text-lg font-semibold">{shop.ratingAvg?.toFixed(1) ?? "0.0"}</span>
+              <span className="text-sm text-muted-foreground">({shop.reviewCount ?? 0})</span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Tỷ lệ phản hồi</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-1">
+              <MessageCircle className="h-4 w-4 text-blue-500" />
+              <span className="text-lg font-semibold text-blue-600">{shop.responseRate ?? 0}%</span>
             </div>
           </CardContent>
         </Card>
@@ -169,11 +197,14 @@ export default function PublicShopPage() {
                     <Card className="h-full hover:shadow-md transition-shadow overflow-hidden">
                       <CardContent className="p-0">
                         {p.thumbnailUrl && (
-                          <div className="aspect-video w-full overflow-hidden bg-muted">
-                            <img
+                          <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                            <Image
                               src={p.thumbnailUrl}
                               alt={p.title}
-                              className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform"
+                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
+                              unoptimized={p.thumbnailUrl?.startsWith("data:")}
                             />
                           </div>
                         )}
@@ -209,7 +240,9 @@ export default function PublicShopPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Shop Reviews - chỉ hiển thị 3 đánh giá mới nhất */}
+      <ShopReviews shopId={shopId} limit={3} showViewAll />
     </div>
   );
 }
-

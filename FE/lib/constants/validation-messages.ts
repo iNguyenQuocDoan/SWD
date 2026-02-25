@@ -72,6 +72,18 @@ export const VALIDATION_MESSAGES = {
     MESSAGE_REQUIRED: "Tin nhắn không được để trống",
   },
 
+  // Complaint
+  COMPLAINT: {
+    ORDER_ITEM_REQUIRED: "Vui lòng chọn sản phẩm cần khiếu nại",
+    TITLE_MIN_LENGTH: "Tiêu đề phải có ít nhất 5 ký tự",
+    TITLE_MAX_LENGTH: "Tiêu đề không được quá 200 ký tự",
+    CONTENT_MIN_LENGTH: "Nội dung phải có ít nhất 20 ký tự",
+    CATEGORY_REQUIRED: "Vui lòng chọn loại khiếu nại",
+    APPEAL_REASON_MIN: "Lý do kháng cáo phải có ít nhất 20 ký tự",
+    DECISION_REASON_MIN: "Lý do quyết định phải có ít nhất 10 ký tự",
+    RESOLUTION_REQUIRED: "Vui lòng chọn hình thức xử lý",
+  },
+
   // Wallet
   WALLET: {
     AMOUNT_REQUIRED: "Vui lòng nhập số tiền",

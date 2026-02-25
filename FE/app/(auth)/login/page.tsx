@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@/lib/validations";
@@ -28,9 +28,41 @@ import { toast } from "sonner";
 import { authService } from "@/lib/services/auth.service";
 import { useAuthStore } from "@/lib/auth";
 
+// Helper function to get dashboard by role
+const getDashboardByRole = (role?: string) => {
+  switch (role) {
+    case "admin":
+      return "/admin";
+    case "moderator":
+      return "/moderator";
+    case "seller":
+      return "/seller";
+    case "customer":
+    default:
+      return "/";
+  }
+};
+
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { isAuthenticated, user } = useAuthStore();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const redirect =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("redirect")
+          : null;
+      const safeRedirect =
+        redirect && redirect.startsWith("/") && !redirect.startsWith("//")
+          ? redirect
+          : null;
+
+      router.replace(safeRedirect || getDashboardByRole(user.role));
+    }
+  }, [isAuthenticated, user, router]);
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -56,25 +88,9 @@ export default function LoginPage() {
       }
 
       toast.success("Đăng nhập thành công!");
-      
+
       // Get user role from auth store
-      const user = useAuthStore.getState().user;
-      
-      // Determine redirect based on role
-      const getDashboardByRole = (role?: string) => {
-        switch (role) {
-          case "admin":
-            return "/admin";
-          case "moderator":
-            return "/moderator";
-          case "seller":
-            return "/seller";
-          case "customer":
-            return "/"; // Customer goes to home page
-          default:
-            return "/";
-        }
-      };
+      const loggedInUser = useAuthStore.getState().user;
 
       const redirect =
         typeof window !== "undefined"
@@ -84,10 +100,10 @@ export default function LoginPage() {
         redirect && redirect.startsWith("/") && !redirect.startsWith("//")
           ? redirect
           : null;
-      
+
       // Use role-based dashboard if no specific redirect
-      const finalRedirect = safeRedirect || getDashboardByRole(user?.role) || "/";
-      router.push(finalRedirect);
+      const finalRedirect = safeRedirect || getDashboardByRole(loggedInUser?.role);
+      router.replace(finalRedirect);
     } catch (error: any) {
       toast.error(error.message || "Đăng nhập thất bại. Vui lòng thử lại.");
     } finally {

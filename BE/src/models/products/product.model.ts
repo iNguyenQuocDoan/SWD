@@ -16,6 +16,8 @@ export interface IProduct extends Document {
   approvedByUserId?: mongoose.Types.ObjectId | null; // MODERATOR
   approvedAt?: Date | null;
   rejectionReason?: string | null;
+  ratingAvg: number; // 0-5, average rating
+  reviewCount: number; // Total visible reviews
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -88,6 +90,17 @@ const ProductSchema = new Schema<IProduct>(
       type: String,
       default: null,
       maxlength: 1000,
+    },
+    ratingAvg: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    reviewCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     isDeleted: {
       type: Boolean,

@@ -8,8 +8,16 @@ const router = Router();
 const reviewController = new ReviewController();
 
 // Public routes (Guest can access)
+// Product reviews
+router.get("/product/:productId", wrapRequestHandler(reviewController.getReviewsByProduct));
+router.get("/product/:productId/stats", wrapRequestHandler(reviewController.getProductRatingStats));
+
+// Shop reviews
 router.get("/shop/:shopId", wrapRequestHandler(reviewController.getReviewsByShop));
 router.get("/shop/:shopId/stats", wrapRequestHandler(reviewController.getShopRatingStats));
+router.get("/shop/:shopId/unreplied-count", wrapRequestHandler(reviewController.getUnrepliedReviewsCount));
+
+// Single review
 router.get("/:reviewId", wrapRequestHandler(reviewController.getReviewById));
 
 // Protected routes (require authentication)
@@ -57,6 +65,13 @@ router.patch(
   "/:reviewId/unhide",
   checkPermission(PERMISSIONS.REVIEW_HIDE),
   wrapRequestHandler(reviewController.unhideReview)
+);
+
+// Seller route - Reply to review (once per review)
+router.post(
+  "/:reviewId/reply",
+  checkPermission(PERMISSIONS.REVIEW_REPLY),
+  wrapRequestHandler(reviewController.replyToReview)
 );
 
 export default router;

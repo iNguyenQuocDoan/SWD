@@ -236,9 +236,9 @@ export default function CustomerDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base md:text-lg font-medium">
-                Ticket hỗ trợ
+                Khiếu nại
               </CardTitle>
-              <MessageSquare className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
+              <AlertCircle className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -250,7 +250,7 @@ export default function CustomerDashboard() {
                   </div>
                   <p className="text-sm md:text-base text-muted-foreground mt-2">
                     <Link
-                      href="/customer/tickets"
+                      href="/customer/complaints"
                       className="text-primary hover:underline"
                     >
                       Xem tất cả
@@ -283,9 +283,15 @@ export default function CustomerDashboard() {
                 </Link>
               </Button>
               <Button variant="outline" className="h-auto py-6 flex-col" asChild>
+                <Link href="/customer/complaints">
+                  <AlertCircle className="h-6 w-6 mb-2" />
+                  <span>Khiếu nại</span>
+                </Link>
+              </Button>
+              <Button variant="outline" className="h-auto py-6 flex-col" asChild>
                 <Link href="/customer/tickets/create">
                   <FileText className="h-6 w-6 mb-2" />
-                  <span>Tạo ticket</span>
+                  <span>Tạo khiếu nại</span>
                 </Link>
               </Button>
             </div>
@@ -298,7 +304,7 @@ export default function CustomerDashboard() {
             <TabsTrigger value="overview">Tổng quan</TabsTrigger>
             <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
             <TabsTrigger value="reviews">Đánh giá</TabsTrigger>
-            <TabsTrigger value="tickets">Hỗ trợ</TabsTrigger>
+            <TabsTrigger value="tickets">Khiếu nại</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -537,28 +543,41 @@ export default function CustomerDashboard() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Ticket hỗ trợ</CardTitle>
+                    <CardTitle>Khiếu nại</CardTitle>
                     <CardDescription>
-                      {stats.pendingTickets} ticket đang mở
+                      Quản lý khiếu nại về sản phẩm
                     </CardDescription>
                   </div>
-                  <Button asChild>
-                    <Link href="/customer/tickets/create">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Tạo ticket mới
-                    </Link>
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" asChild>
+                      <Link href="/customer/complaints">
+                        <Eye className="mr-2 h-4 w-4" />
+                        Xem tất cả
+                      </Link>
+                    </Button>
+                    <Button asChild>
+                      <Link href="/customer/tickets/create">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Tạo khiếu nại
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-12">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground mb-4">
-                    Bạn chưa có ticket nào. Tạo ticket khi cần hỗ trợ!
+                    Gặp vấn đề với sản phẩm? Tạo khiếu nại để được hỗ trợ.
                   </p>
-                  <Button asChild>
-                    <Link href="/customer/tickets/create">Tạo ticket mới</Link>
-                  </Button>
+                  <div className="flex gap-3 justify-center">
+                    <Button variant="outline" asChild>
+                      <Link href="/customer/complaints">Xem khiếu nại</Link>
+                    </Button>
+                    <Button asChild>
+                      <Link href="/customer/tickets/create">Tạo khiếu nại mới</Link>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

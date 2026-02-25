@@ -68,9 +68,41 @@ export class ProductController {
 
       const paginatedProducts = products.slice(skip, skip + limitNum);
 
+      // Get sales count and rating stats for products
+      const productIds = paginatedProducts
+        .map((p) => p._id?.toString())
+        .filter((id): id is string => !!id);
+
+      let salesCounts: Record<string, number> = {};
+      let ratingStats: Record<string, { avgRating: number; reviewCount: number }> = {};
+
+      try {
+        [salesCounts, ratingStats] = await Promise.all([
+          this.productService.getProductsSalesCount(productIds),
+          this.productService.getProductsRatingStats(productIds),
+        ]);
+      } catch {
+        // Continue with empty data
+      }
+
+      // Add salesCount, avgRating, reviewCount to each product
+      const productsWithStats = paginatedProducts.map((product) => {
+        const productId = product._id?.toString() || "";
+        const salesCount = productId ? (salesCounts[productId] || 0) : 0;
+        const stats = productId ? (ratingStats[productId] || { avgRating: 0, reviewCount: 0 }) : { avgRating: 0, reviewCount: 0 };
+        const productObj = product.toObject ? product.toObject() : product;
+
+        return {
+          ...productObj,
+          salesCount,
+          avgRating: stats.avgRating,
+          reviewCount: stats.reviewCount,
+        };
+      });
+
       res.status(200).json({
         success: true,
-        data: paginatedProducts,
+        data: productsWithStats,
         pagination: {
           page: pageNum,
           limit: limitNum,
@@ -90,15 +122,29 @@ export class ProductController {
   ): Promise<void> => {
     try {
       const productId = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
-      const product = await this.productService.findById(productId);
+      const product = await this.productService.getProductByIdWithPopulate(productId);
 
       if (!product || product.isDeleted || product.status !== "Approved") {
         throw new AppError(MESSAGES.ERROR.PRODUCT.NOT_FOUND, 404);
       }
 
+      // Get sales count and rating stats
+      const [salesCounts, ratingStats] = await Promise.all([
+        this.productService.getProductsSalesCount([productId]),
+        this.productService.getProductsRatingStats([productId]),
+      ]);
+
+      const productObj = product.toObject ? product.toObject() : product;
+      const stats = ratingStats[productId] || { avgRating: 0, reviewCount: 0 };
+
       res.status(200).json({
         success: true,
-        data: product,
+        data: {
+          ...productObj,
+          salesCount: salesCounts[productId] || 0,
+          avgRating: stats.avgRating,
+          reviewCount: stats.reviewCount,
+        },
       });
     } catch (error) {
       next(error);
@@ -205,6 +251,48 @@ export class ProductController {
       });
     } catch (error) {
       next(error);
+    }
+  };
+
+  getFeaturedProducts = async (
+    req: Request,
+    res: Response,
+    _next: NextFunction
+  ): Promise<void> => {
+    try {
+      const limit = Number.parseInt(req.query.limit as string, 10) || 4;
+      const products = await this.productService.getFeaturedProducts(limit);
+
+      res.status(200).json({
+        success: true,
+        data: Array.isArray(products) ? products : [],
+      });
+    } catch {
+      res.status(200).json({
+        success: true,
+        data: [],
+      });
+    }
+  };
+
+  getTopProducts = async (
+    req: Request,
+    res: Response,
+    _next: NextFunction
+  ): Promise<void> => {
+    try {
+      const limit = Number.parseInt(req.query.limit as string, 10) || 5;
+      const products = await this.productService.getTopProducts(limit);
+
+      res.status(200).json({
+        success: true,
+        data: Array.isArray(products) ? products : [],
+      });
+    } catch {
+      res.status(200).json({
+        success: true,
+        data: [],
+      });
     }
   };
 

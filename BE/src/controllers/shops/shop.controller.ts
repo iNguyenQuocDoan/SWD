@@ -320,7 +320,7 @@ export class ShopController {
         {
           $match: {
             shopId: new mongoose.Types.ObjectId(shopId.toString()),
-            isDeleted: false,
+            status: "Visible", // Review không có isDeleted, dùng status thay thế
           },
         },
         {

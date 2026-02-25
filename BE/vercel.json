@@ -13,13 +13,22 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "VERCEL": "1"
   },
+  "regions": ["sin1"],
   "functions": {
     "dist/index.js": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "memory": 1024
     }
   },
+  "crons": [
+    {
+      "path": "/api/disbursement/cron/process?secret=${CRON_SECRET}",
+      "schedule": "0 * * * *"
+    }
+  ],
   "installCommand": "yarn install",
   "buildCommand": "yarn build"
 }
