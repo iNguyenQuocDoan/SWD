@@ -38,11 +38,13 @@ import { productService } from "@/lib/services/product.service";
 import { type ApiError } from "@/lib/api";
 import { useShop } from "@/lib/hooks/useShop";
 import { Skeleton } from "@/components/ui/skeleton";
+import { platformCatalogService, type PlatformCatalog } from "@/lib/services/platform-catalog.service";
 
 export default function CreateProductPage() {
   const router = useRouter();
   const { shop, loading: shopLoading, hasActiveShop } = useShop();
   const [isLoading, setIsLoading] = useState(false);
+  const [platforms, setPlatforms] = useState<PlatformCatalog[]>([]);
 
   const form = useForm<CreateProductInput>({
     resolver: zodResolver(createProductSchema),
@@ -65,6 +67,19 @@ export default function CreateProductPage() {
       form.setValue("shopId", shop._id);
     }
   }, [shop?._id, form]);
+
+  useEffect(() => {
+    const fetchPlatforms = async () => {
+      try {
+        const data = await platformCatalogService.getAll();
+        setPlatforms(data.filter((p) => p.status === "Active"));
+      } catch {
+        toast.error("Không thể tải danh mục nền tảng");
+      }
+    };
+
+    fetchPlatforms();
+  }, []);
 
   const onSubmit = async (data: CreateProductInput) => {
     if (!shop?._id) {
@@ -272,14 +287,17 @@ export default function CreateProductPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="69763a2862db1945ad210103">Netflix</SelectItem>
-                            <SelectItem value="69763a2962db1945ad21011f">Disney+</SelectItem>
-                            <SelectItem value="69763a2962db1945ad210132">HBO Max</SelectItem>
-                            <SelectItem value="69763a2962db1945ad210138">Amazon Prime Video</SelectItem>
-                            <SelectItem value="69763a2962db1945ad21013d">Spotify</SelectItem>
-                            <SelectItem value="69763a2962db1945ad210145">YouTube Premium</SelectItem>
-                            <SelectItem value="69763a2962db1945ad210148">Apple Music</SelectItem>
-                            <SelectItem value="69763a2a62db1945ad21014b">Crunchyroll</SelectItem>
+                            {platforms.length === 0 ? (
+                              <SelectItem value="__empty" disabled>
+                                Không có nền tảng khả dụng
+                              </SelectItem>
+                            ) : (
+                              platforms.map((platform) => (
+                                <SelectItem key={platform._id} value={platform._id}>
+                                  {platform.platformName}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />

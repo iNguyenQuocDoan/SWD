@@ -61,6 +61,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  AlertTriangle,
   Loader2,
   Database,
   Reply,
@@ -426,6 +427,12 @@ export default function SellerHome() {
             </Button>
             <Button asChild variant="outline">
               <Link href="/seller/orders">Lịch sử bán hàng</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/seller/complaints">
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Khiếu nại shop
+              </Link>
             </Button>
             <Button asChild disabled={shop.status !== "Active"}>
               <Link href="/seller/products/create">

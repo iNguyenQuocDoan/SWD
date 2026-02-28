@@ -176,22 +176,12 @@ export default function RegisterPage() {
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <div className="text-base text-muted-foreground text-center">
+        <CardFooter>
+          <div className="text-base text-muted-foreground text-center w-full">
             Đã có tài khoản?{" "}
             <Link href="/login" className="text-primary hover:underline font-medium">
               Đăng nhập ngay
             </Link>
-          </div>
-          <div className="w-full border-t pt-4">
-            <p className="text-sm text-muted-foreground text-center mb-2">
-              Bạn muốn bán hàng?
-            </p>
-            <Button variant="outline" className="w-full h-11 text-base" asChild>
-              <Link href="/seller/register">
-                Đăng ký làm Seller
-              </Link>
-            </Button>
           </div>
         </CardFooter>
       </Card>

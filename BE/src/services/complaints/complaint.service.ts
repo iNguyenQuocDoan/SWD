@@ -21,6 +21,7 @@ import type {
   CreateComplaintInput,
   AddEvidenceInput,
   MakeDecisionInput,
+  SellerDecisionInput,
   FileAppealInput,
   AppealDecisionInput,
   GetComplaintsQuery,
@@ -30,6 +31,36 @@ const COMPLAINT_WINDOW_HOURS = 72;
 
 export class ComplaintService {
   // ===== Helper Methods =====
+
+  private canViewComplaint(
+    ticket: ISupportTicket,
+    user?: { id: string; roleKey: string }
+  ): boolean {
+    if (!user) return false;
+
+    if (user.roleKey === "ADMIN" || user.roleKey === "MODERATOR") {
+      return true;
+    }
+
+    const resolveId = (value: unknown): string | null => {
+      if (!value) return null;
+      if (typeof value === "string") return value;
+      if (typeof value === "object" && value !== null && "_id" in (value as Record<string, unknown>)) {
+        const id = (value as { _id?: unknown })._id;
+        if (!id) return null;
+        return typeof id === "string" ? id : String(id);
+      }
+      return String(value);
+    };
+
+    const buyerId = resolveId(ticket.customerUserId);
+    const sellerId = resolveId(ticket.sellerUserId);
+
+    const isBuyer = buyerId === user.id;
+    const isSeller = sellerId === user.id;
+
+    return isBuyer || isSeller;
+  }
 
   private generateTicketCode(): string {
     const timestamp = Date.now().toString(36).toUpperCase();
@@ -150,15 +181,14 @@ export class ComplaintService {
       );
     }
 
-    // Parallel queries: check existing ticket, get users, find moderator
-    const [existingTicket, customer, seller, moderator] = await Promise.all([
+    // Parallel queries: check existing ticket, get users
+    const [existingTicket, customer, seller] = await Promise.all([
       SupportTicket.findOne({
         orderItemId: input.orderItemId,
-        status: { $nin: ["Resolved", "Closed"] },
+        status: { $nin: ["RESOLVED_REFUNDED", "CLOSED_REJECTED", "Closed"] },
       }),
       User.findById(customerId),
       User.findById(shop.ownerUserId),
-      this.findModerator(),
     ]);
 
     if (existingTicket) {
@@ -168,20 +198,14 @@ export class ComplaintService {
       );
     }
 
-    if (!moderator) {
-      throw new AppError("Hệ thống chưa có moderator, vui lòng liên hệ admin", 500);
-    }
-
     // Prepare evidence array
-    const buyerEvidence: IComplaintEvidence[] = (input.evidence || []).map(
-      (e) => ({
+    const buyerEvidence: IComplaintEvidence[] = (input.evidence || []).map((e) => ({
         uploadedBy: customerId,
         type: e.type,
         url: e.url,
         description: e.description,
         uploadedAt: new Date(),
-      })
-    );
+    }));
 
     // Create order snapshot
     const product = orderItem.productId as any;
@@ -193,14 +217,16 @@ export class ComplaintService {
       paidAt: order.paidAt || new Date(),
       productTitle: product?.title || "N/A",
       productThumbnail: product?.thumbnailUrl || null,
-      deliveryContent: "***", // Masked
+      deliveryContent: "***",
       deliveredAt: orderItem.deliveredAt || undefined,
     };
 
     const buyerTrustLevel = customer?.trustLevel || 50;
     const sellerTrustLevel = seller?.trustLevel || 50;
+    const sellerResponseDeadlineAt = new Date(
+      Date.now() + COMPLAINT_CONFIG.SELLER_RESPONSE_HOURS * 60 * 60 * 1000
+    );
 
-    // Create ticket - already assigned to moderator
     const ticket = (await SupportTicket.create({
       ticketCode: this.generateTicketCode(),
       customerUserId: new mongoose.Types.ObjectId(customerId),
@@ -210,61 +236,25 @@ export class ComplaintService {
       type: "Complaint",
       category: input.category,
       subcategory: input.subcategory || null,
-      status: "ModeratorAssigned",
+      status: "PENDING_SELLER",
       resolutionType: "None",
-
-      // Shop info
       shopId: shop._id,
       sellerUserId: shop.ownerUserId,
-
-      // Auto-assign to moderator
-      assignedToUserId: moderator._id,
-      firstResponseAt: new Date(),
-
-      // Evidence
       buyerEvidence,
       orderSnapshot,
-
-      // Escalation - starts at Moderator level
       escalationLevel: "Level2_Moderator",
-
-      // Priority calculation
       orderValue,
       buyerTrustLevel,
       sellerTrustLevel,
+      sellerResponseDeadlineAt,
     })) as ISupportTicket & { _id: mongoose.Types.ObjectId };
 
-    // Calculate priority
     const calculatedPriority = this.calculatePriority(ticket);
-    const isHighValue = orderValue >= COMPLAINT_CONFIG.HIGH_VALUE_THRESHOLD;
 
-    // Parallel updates: priority, order status, queue, timeline
     await Promise.all([
-      // Update ticket priority
       SupportTicket.findByIdAndUpdate(ticket._id, { calculatedPriority }),
-
-      // Update order item and order status
       OrderItem.findByIdAndUpdate(input.orderItemId, { itemStatus: "Disputed" }),
       Order.findByIdAndUpdate(order._id, { status: "Disputed" }),
-
-      // Add to ComplaintQueue (for tracking/stats)
-      ComplaintQueue.create({
-        ticketId: ticket._id,
-        queuePriority: calculatedPriority,
-        status: "Assigned",
-        addedToQueueAt: new Date(),
-        pickedUpAt: new Date(),
-        assignedModeratorId: moderator._id,
-        orderValue,
-        buyerTrustLevel,
-        sellerTrustLevel,
-        ticketAge: 0,
-        isHighValue,
-        isEscalated: false,
-        sellerTimeoutOccurred: false,
-      }),
-
-      // Add timeline events
       this.addTimelineEvent(
         ticket._id.toString(),
         "Created",
@@ -275,14 +265,12 @@ export class ComplaintService {
       ),
       this.addTimelineEvent(
         ticket._id.toString(),
-        "ModeratorAssigned",
-        moderator._id.toString(),
+        "SellerNotified",
+        customerId,
         "SYSTEM",
-        `Khiếu nại được tự động gán cho moderator: ${moderator.fullName}`
+        "Đã gửi khiếu nại cho seller xử lý trong 24 giờ"
       ),
     ]);
-
-    // TODO: Notify moderator via socket
 
     return ticket;
   }
@@ -308,9 +296,10 @@ export class ComplaintService {
 
     // Check status allows adding evidence
     const allowedStatuses: TicketStatus[] = [
-      "ModeratorAssigned",
-      "InReview",
-      "NeedMoreInfo",
+      "PENDING_SELLER",
+      "SELLER_APPROVED",
+      "AUTO_ESCALATED",
+      "MODERATOR_REVIEW",
     ];
     if (!allowedStatuses.includes(ticket.status as TicketStatus)) {
       throw new AppError("Không thể thêm bằng chứng ở trạng thái này", 400);
@@ -361,8 +350,8 @@ export class ComplaintService {
       throw new AppError("Không có quyền kháng cáo", 403);
     }
 
-    if (ticket.status !== "Appealable" && ticket.status !== "DecisionMade") {
-      throw new AppError("Không thể kháng cáo ở trạng thái này", 400);
+    if (ticket.status !== "CLOSED_REJECTED") {
+      throw new AppError("Chỉ khiếu nại bị từ chối mới có thể kháng cáo", 400);
     }
 
     // Check appeal deadline
@@ -419,6 +408,164 @@ export class ComplaintService {
     return appealTicket;
   }
 
+  async sellerDecision(
+    ticketId: string,
+    sellerId: string,
+    input: SellerDecisionInput
+  ): Promise<ISupportTicket> {
+    const ticket = await SupportTicket.findById(ticketId).populate("orderItemId");
+
+    if (!ticket) {
+      throw new AppError("Khiếu nại không tồn tại", 404);
+    }
+
+    if (ticket.sellerUserId?.toString() !== sellerId) {
+      throw new AppError("Không có quyền phản hồi khiếu nại này", 403);
+    }
+
+    if (ticket.status !== "PENDING_SELLER") {
+      throw new AppError("Khiếu nại không ở trạng thái chờ seller xử lý", 400);
+    }
+
+    const now = new Date();
+    const sellerStatus = input.decision === "APPROVE" ? "SELLER_APPROVED" : "SELLER_REJECTED";
+    const sellerDecisionText = input.decision === "APPROVE" ? "Seller chấp thuận khiếu nại" : "Seller từ chối khiếu nại";
+
+    await SupportTicket.findByIdAndUpdate(ticketId, {
+      status: sellerStatus,
+      sellerRespondedAt: now,
+      decisionNote: input.note || sellerDecisionText,
+    });
+
+    await this.addTimelineEvent(
+      ticketId,
+      "SellerResponded",
+      sellerId,
+      "SELLER",
+      `${sellerDecisionText}, chuyển moderator kiểm tra`,
+      { decision: input.decision, note: input.note }
+    );
+
+    // Cả approve/reject đều chuyển cho moderator quyết định cuối cùng
+    const moderator = await this.findModerator();
+    if (!moderator) {
+      throw new AppError("Không tìm thấy moderator để xử lý", 500);
+    }
+
+    await Promise.all([
+      SupportTicket.findByIdAndUpdate(ticketId, {
+        status: "MODERATOR_REVIEW",
+        assignedToUserId: moderator._id,
+        firstResponseAt: ticket.firstResponseAt || now,
+      }),
+      ComplaintQueue.create({
+        ticketId: new mongoose.Types.ObjectId(ticketId),
+        queuePriority: ticket.calculatedPriority || this.calculatePriority(ticket as ISupportTicket),
+        status: "Assigned",
+        addedToQueueAt: now,
+        pickedUpAt: now,
+        assignedModeratorId: moderator._id,
+        orderValue: ticket.orderValue || 0,
+        buyerTrustLevel: ticket.buyerTrustLevel || 50,
+        sellerTrustLevel: ticket.sellerTrustLevel || 50,
+        ticketAge: 0,
+        isHighValue: (ticket.orderValue || 0) >= COMPLAINT_CONFIG.HIGH_VALUE_THRESHOLD,
+        isEscalated: false,
+        sellerTimeoutOccurred: false,
+      }),
+      this.addTimelineEvent(
+        ticketId,
+        "ModeratorAssigned",
+        moderator._id.toString(),
+        "SYSTEM",
+        `Chuyển moderator xử lý: ${moderator.fullName}`
+      ),
+    ]);
+
+    return (await SupportTicket.findById(ticketId))!;
+  }
+
+  async autoEscalatePendingSellerComplaints(): Promise<{ escalated: number; refunded: number; errors: string[] }> {
+    const now = new Date();
+    const tickets = await SupportTicket.find({
+      status: "PENDING_SELLER",
+      sellerResponseDeadlineAt: { $lte: now },
+      escalatedAt: null,
+    }).limit(100);
+
+    let escalated = 0;
+    let refunded = 0;
+    const errors: string[] = [];
+
+    for (const ticket of tickets) {
+      try {
+        await SupportTicket.findOneAndUpdate(
+          {
+            _id: ticket._id,
+            status: "PENDING_SELLER",
+            escalatedAt: null,
+          },
+          {
+            status: "AUTO_ESCALATED",
+            escalatedAt: now,
+          }
+        );
+
+        escalated += 1;
+
+        await this.addTimelineEvent(
+          ticket._id.toString(),
+          "SellerTimeout",
+          ticket.customerUserId.toString(),
+          "SYSTEM",
+          "Seller không phản hồi trong 24h, tự động escalate"
+        );
+
+        // Auto assign moderator for final decision (không auto refund)
+        const moderator = await this.findModerator();
+        if (!moderator) {
+          errors.push(`${ticket.ticketCode}: No moderator found`);
+          continue;
+        }
+
+        await Promise.all([
+          SupportTicket.findByIdAndUpdate(ticket._id, {
+            status: "MODERATOR_REVIEW",
+            assignedToUserId: moderator._id,
+            firstResponseAt: ticket.firstResponseAt || now,
+            decisionNote: "Auto escalated do seller không phản hồi trong 24h",
+          }),
+          ComplaintQueue.create({
+            ticketId: new mongoose.Types.ObjectId(ticket._id.toString()),
+            queuePriority: ticket.calculatedPriority || this.calculatePriority(ticket as ISupportTicket),
+            status: "Assigned",
+            addedToQueueAt: now,
+            pickedUpAt: now,
+            assignedModeratorId: moderator._id,
+            orderValue: ticket.orderValue || 0,
+            buyerTrustLevel: ticket.buyerTrustLevel || 50,
+            sellerTrustLevel: ticket.sellerTrustLevel || 50,
+            ticketAge: 0,
+            isHighValue: (ticket.orderValue || 0) >= COMPLAINT_CONFIG.HIGH_VALUE_THRESHOLD,
+            isEscalated: true,
+            sellerTimeoutOccurred: true,
+          }),
+          this.addTimelineEvent(
+            ticket._id.toString(),
+            "ModeratorAssigned",
+            moderator._id.toString(),
+            "SYSTEM",
+            `Auto assign moderator xử lý: ${moderator.fullName}`
+          ),
+        ]);
+      } catch (e: any) {
+        errors.push(`${ticket.ticketCode}: ${e?.message || "Unknown error"}`);
+      }
+    }
+
+    return { escalated, refunded, errors };
+  }
+
   // ===== Moderator Methods =====
 
   /**
@@ -434,12 +581,17 @@ export class ComplaintService {
       throw new AppError("Khiếu nại không tồn tại", 404);
     }
 
-    if (ticket.status !== "ModeratorAssigned" && ticket.status !== "InReview") {
+    if (
+      ticket.status !== "AUTO_ESCALATED" &&
+      ticket.status !== "SELLER_APPROVED" &&
+      ticket.status !== "SELLER_REJECTED" &&
+      ticket.status !== "MODERATOR_REVIEW"
+    ) {
       throw new AppError("Khiếu nại không thể gán lại", 400);
     }
 
     await SupportTicket.findByIdAndUpdate(ticketId, {
-      status: "ModeratorAssigned",
+      status: "MODERATOR_REVIEW",
       assignedToUserId: new mongoose.Types.ObjectId(moderatorId),
       firstResponseAt: ticket.firstResponseAt || new Date(),
     });
@@ -515,7 +667,7 @@ export class ComplaintService {
     }
 
     await SupportTicket.findByIdAndUpdate(ticketId, {
-      status: "NeedMoreInfo",
+      status: "MODERATOR_REVIEW",
     });
 
     await this.addTimelineEvent(
@@ -573,20 +725,23 @@ export class ComplaintService {
       });
     }
 
-    // Set appeal deadline
-    const appealDeadline = new Date(
-      Date.now() + COMPLAINT_CONFIG.APPEAL_WINDOW_HOURS * 60 * 60 * 1000
-    );
+    const nextStatus: TicketStatus =
+      input.resolutionType === "FullRefund" || input.resolutionType === "PartialRefund"
+        ? "RESOLVED_REFUNDED"
+        : "CLOSED_REJECTED";
 
     // Update ticket
     await SupportTicket.findByIdAndUpdate(ticketId, {
-      status: "Appealable",
+      status: nextStatus,
       resolutionType: input.resolutionType,
       decisionNote: input.decisionNote,
       decisionTemplate: input.templateId || null,
       decidedByUserId: new mongoose.Types.ObjectId(moderatorId),
       decidedAt: new Date(),
-      appealDeadline,
+      refundProcessedAt:
+        input.resolutionType === "FullRefund" || input.resolutionType === "PartialRefund"
+          ? new Date()
+          : null,
       sellerPenalty: input.sellerPenalty || null,
     });
 
@@ -602,7 +757,7 @@ export class ComplaintService {
       moderatorId,
       "MODERATOR",
       `Quyết định: ${input.resolutionType} - ${input.decisionNote}`,
-      { resolutionType: input.resolutionType, penalty: input.sellerPenalty }
+      { resolutionType: input.resolutionType, penalty: input.sellerPenalty, status: nextStatus }
     );
 
     // TODO: Notify parties
@@ -657,7 +812,7 @@ export class ComplaintService {
     // Close original ticket
     if (originalTicket) {
       await SupportTicket.findByIdAndUpdate(originalTicket._id, {
-        status: "Closed",
+        status: input.decision === "Upheld" ? "CLOSED_REJECTED" : "RESOLVED_REFUNDED",
       });
     }
 
@@ -699,9 +854,35 @@ export class ComplaintService {
       .exec();
   }
 
+  async getSellerComplaints(
+    sellerId: string,
+    options: { limit?: number; skip?: number; status?: string } = {}
+  ): Promise<ISupportTicket[]> {
+    const { limit = 20, skip = 0, status } = options;
+
+    const filter: any = {
+      sellerUserId: new mongoose.Types.ObjectId(sellerId),
+    };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    return SupportTicket.find(filter)
+      .populate("customerUserId", "fullName email")
+      .populate({
+        path: "orderItemId",
+        populate: [{ path: "productId" }, { path: "shopId" }, { path: "orderId" }],
+      })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip)
+      .exec();
+  }
+
   async getComplaintById(
     ticketId: string,
-    _userId?: string
+    user?: { id: string; roleKey: string }
   ): Promise<ISupportTicket | null> {
     const ticket = await SupportTicket.findById(ticketId)
       .populate("customerUserId", "fullName email")
@@ -711,6 +892,12 @@ export class ComplaintService {
         path: "orderItemId",
         populate: [{ path: "productId" }, { path: "shopId" }, { path: "orderId" }],
       });
+
+    if (!ticket) return null;
+
+    if (!this.canViewComplaint(ticket, user)) {
+      throw new AppError("Không có quyền xem khiếu nại này", 403);
+    }
 
     return ticket;
   }
@@ -790,7 +977,7 @@ export class ComplaintService {
 
     const existingTicket = await SupportTicket.findOne({
       orderItemId,
-      status: { $nin: ["Resolved", "Closed"] },
+      status: { $nin: ["RESOLVED_REFUNDED", "CLOSED_REJECTED", "Closed"] },
     });
 
     if (existingTicket) {

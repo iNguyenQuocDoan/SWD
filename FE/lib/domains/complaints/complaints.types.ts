@@ -235,6 +235,11 @@ export interface RequestInfoRequest {
   questions: string[];
 }
 
+export interface SellerDecisionRequest {
+  decision: "APPROVE" | "REJECT";
+  note?: string;
+}
+
 export interface MakeDecisionRequest {
   resolutionType: ResolutionType;
   decisionNote: string;

@@ -90,16 +90,17 @@ export class EkycProcessController {
       const faceMatchThreshold =
         typeof thresholdRaw === "number" ? thresholdRaw : thresholdRaw != null ? Number(thresholdRaw) : null;
 
-      // Cải tiến logic compareOk: 
-      // Nếu có prob và threshold, so sánh trực tiếp.
-      // Nếu threshold null nhưng prob cao (thường VNPT trả 0-1 hoặc 0-100), mặc định pass nếu > 80 (hoặc 0.8)
+      // Logic compare an toàn theo đúng thang điểm:
+      // - Nếu có threshold từ provider: dùng threshold đó.
+      // - Nếu không có threshold:
+      //   + prob <= 1  => coi là thang 0..1, pass khi >= 0.8
+      //   + prob > 1   => coi là thang 0..100, pass khi >= 80
       let compareOk = false;
       if (faceMatchProb != null) {
         if (faceMatchThreshold != null) {
           compareOk = faceMatchProb >= faceMatchThreshold;
         } else {
-          // Fallback khi threshold null: giả định ngưỡng an toàn là 80%
-          compareOk = faceMatchProb >= 80 || faceMatchProb >= 0.8; 
+          compareOk = faceMatchProb <= 1 ? faceMatchProb >= 0.8 : faceMatchProb >= 80;
         }
       } else {
         compareOk = String((faceCompareRaw as any)?.object?.msg ?? "").toLowerCase() === "success";

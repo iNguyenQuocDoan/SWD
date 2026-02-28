@@ -63,6 +63,11 @@ export interface AppealDecisionRequest {
   note?: string;
 }
 
+export interface SellerDecisionRequest {
+  decision: "APPROVE" | "REJECT";
+  note?: string;
+}
+
 export interface ComplaintFilter {
   status?: string;
   category?: string;
@@ -154,6 +159,29 @@ class ComplaintService {
       tickets: res.data,
       total: res.pagination?.total || res.data.length,
     };
+  }
+
+  /**
+   * Get complaints for seller's own shop/orders
+   */
+  async getSellerComplaints(filter: ComplaintFilter = {}): Promise<ComplaintsResponse> {
+    const res = await complaintsApi.getSellerComplaints({
+      status: filter.status,
+      limit: filter.limit,
+      skip: filter.skip,
+    });
+    return {
+      tickets: res.data,
+      total: res.pagination?.total || res.data.length,
+    };
+  }
+
+  /**
+   * Seller decision on complaint
+   */
+  async sellerDecision(complaintId: string, data: SellerDecisionRequest): Promise<T.Complaint> {
+    const res = await complaintsApi.sellerDecision(complaintId, data);
+    return res.data;
   }
 
   /**

@@ -1,4 +1,5 @@
 import { disbursementService } from "@/services/disbursement/disbursement.service";
+import { complaintService } from "@/services/complaints/complaint.service";
 
 // Run every 15 minutes
 const DISBURSEMENT_INTERVAL_MS = 15 * 60 * 1000;
@@ -47,8 +48,9 @@ export class SchedulerService {
 
     try {
       await disbursementService.processAllPendingDisbursements();
+      await complaintService.autoEscalatePendingSellerComplaints();
     } catch {
-      // Disbursement job failed - will retry on next schedule
+      // Scheduler job failed - will retry on next schedule
     } finally {
       isProcessing = false;
     }

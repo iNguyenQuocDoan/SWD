@@ -51,15 +51,13 @@ import type { Complaint, ComplaintTimeline, EvidenceType } from "@/lib/services/
 
 // Status config matched with Swagger
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
-  ModeratorAssigned: { label: "Đang xử lý", variant: "default", color: "text-blue-600" },
-  InReview: { label: "Đang xem xét", variant: "default", color: "text-blue-600" },
-  NeedMoreInfo: { label: "Cần bổ sung thông tin", variant: "outline", color: "text-orange-600" },
-  DecisionMade: { label: "Đã có quyết định", variant: "secondary", color: "text-green-600" },
-  Appealable: { label: "Chờ kháng cáo", variant: "outline", color: "text-purple-600" },
-  AppealFiled: { label: "Đang kháng cáo", variant: "destructive", color: "text-red-600" },
-  AppealReview: { label: "Đang xem xét kháng cáo", variant: "destructive", color: "text-red-600" },
-  Resolved: { label: "Đã giải quyết", variant: "outline", color: "text-green-600" },
-  Closed: { label: "Đã đóng", variant: "secondary", color: "text-gray-600" },
+  PENDING_SELLER: { label: "Chờ Seller phản hồi", variant: "outline", color: "text-amber-600" },
+  SELLER_APPROVED: { label: "Seller đã chấp thuận", variant: "default", color: "text-blue-600" },
+  SELLER_REJECTED: { label: "Seller đã từ chối", variant: "destructive", color: "text-red-600" },
+  AUTO_ESCALATED: { label: "Tự động chuyển Moderator", variant: "outline", color: "text-orange-600" },
+  MODERATOR_REVIEW: { label: "Moderator đang xem xét", variant: "default", color: "text-blue-600" },
+  RESOLVED_REFUNDED: { label: "Đã hoàn tiền", variant: "secondary", color: "text-green-600" },
+  CLOSED_REJECTED: { label: "Đã đóng (từ chối)", variant: "secondary", color: "text-gray-600" },
 };
 
 const categoryLabels: Record<string, string> = {

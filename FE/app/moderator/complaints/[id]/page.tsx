@@ -52,15 +52,13 @@ import type { Complaint, ComplaintTimeline, ComplaintResolution } from "@/lib/se
 
 // Status config matched with Swagger
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
-  ModeratorAssigned: { label: "Đã gán Moderator", variant: "default", color: "text-blue-600" },
-  InReview: { label: "Đang xem xét", variant: "default", color: "text-blue-600" },
-  NeedMoreInfo: { label: "Cần thêm thông tin", variant: "outline", color: "text-orange-600" },
-  DecisionMade: { label: "Đã có quyết định", variant: "secondary", color: "text-green-600" },
-  Appealable: { label: "Có thể kháng cáo", variant: "outline", color: "text-purple-600" },
-  AppealFiled: { label: "Đã nộp kháng cáo", variant: "destructive", color: "text-red-600" },
-  AppealReview: { label: "Đang xem xét kháng cáo", variant: "destructive", color: "text-red-600" },
-  Resolved: { label: "Đã giải quyết", variant: "outline", color: "text-green-600" },
-  Closed: { label: "Đã đóng", variant: "secondary", color: "text-gray-600" },
+  PENDING_SELLER: { label: "Chờ Seller phản hồi", variant: "outline", color: "text-amber-600" },
+  SELLER_APPROVED: { label: "Seller đã chấp thuận", variant: "default", color: "text-blue-600" },
+  SELLER_REJECTED: { label: "Seller đã từ chối", variant: "destructive", color: "text-red-600" },
+  AUTO_ESCALATED: { label: "Tự động chuyển Moderator", variant: "outline", color: "text-orange-600" },
+  MODERATOR_REVIEW: { label: "Moderator đang xem xét", variant: "default", color: "text-blue-600" },
+  RESOLVED_REFUNDED: { label: "Đã hoàn tiền", variant: "secondary", color: "text-green-600" },
+  CLOSED_REJECTED: { label: "Đã đóng (từ chối)", variant: "secondary", color: "text-gray-600" },
 };
 
 const categoryLabels: Record<string, string> = {
@@ -257,7 +255,7 @@ export default function ModeratorComplaintDetailPage({
   }
 
   const status = statusConfig[complaint.status] || { label: complaint.status, variant: "outline" as const, color: "text-gray-600" };
-  const canMakeDecision = ["ModeratorAssigned", "InReview", "NeedMoreInfo"].includes(complaint.status);
+  const canMakeDecision = ["MODERATOR_REVIEW", "AUTO_ESCALATED", "SELLER_APPROVED", "SELLER_REJECTED"].includes(complaint.status);
   const canAssign = !complaint.assignedToUserId;
 
   return (

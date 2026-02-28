@@ -38,15 +38,13 @@ import type { Complaint } from "@/lib/services/complaint.service";
 
 // Status config matched with Swagger
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
-  ModeratorAssigned: { label: "Đang xử lý", variant: "default", color: "text-blue-600" },
-  InReview: { label: "Đang xem xét", variant: "default", color: "text-blue-600" },
-  NeedMoreInfo: { label: "Cần bổ sung thông tin", variant: "outline", color: "text-orange-600" },
-  DecisionMade: { label: "Đã có quyết định", variant: "secondary", color: "text-green-600" },
-  Appealable: { label: "Chờ kháng cáo", variant: "outline", color: "text-purple-600" },
-  AppealFiled: { label: "Đang kháng cáo", variant: "destructive", color: "text-red-600" },
-  AppealReview: { label: "Đang xem xét kháng cáo", variant: "destructive", color: "text-red-600" },
-  Resolved: { label: "Đã giải quyết", variant: "outline", color: "text-green-600" },
-  Closed: { label: "Đã đóng", variant: "secondary", color: "text-gray-600" },
+  PENDING_SELLER: { label: "Chờ Seller phản hồi", variant: "outline", color: "text-amber-600" },
+  SELLER_APPROVED: { label: "Seller đã chấp thuận", variant: "default", color: "text-blue-600" },
+  SELLER_REJECTED: { label: "Seller đã từ chối", variant: "destructive", color: "text-red-600" },
+  AUTO_ESCALATED: { label: "Tự động chuyển Moderator", variant: "outline", color: "text-orange-600" },
+  MODERATOR_REVIEW: { label: "Moderator đang xem xét", variant: "default", color: "text-blue-600" },
+  RESOLVED_REFUNDED: { label: "Đã hoàn tiền", variant: "secondary", color: "text-green-600" },
+  CLOSED_REJECTED: { label: "Đã đóng (từ chối)", variant: "secondary", color: "text-gray-600" },
 };
 
 const categoryLabels: Record<string, string> = {
@@ -149,12 +147,13 @@ export default function CustomerComplaintsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                      <SelectItem value="ModeratorAssigned">Đang xử lý</SelectItem>
-                      <SelectItem value="NeedMoreInfo">Cần bổ sung thông tin</SelectItem>
-                      <SelectItem value="DecisionMade">Đã có quyết định</SelectItem>
-                      <SelectItem value="AppealFiled">Đang kháng cáo</SelectItem>
-                      <SelectItem value="Resolved">Đã giải quyết</SelectItem>
-                      <SelectItem value="Closed">Đã đóng</SelectItem>
+                      <SelectItem value="PENDING_SELLER">Chờ Seller phản hồi</SelectItem>
+                      <SelectItem value="SELLER_APPROVED">Seller đã chấp thuận</SelectItem>
+                      <SelectItem value="SELLER_REJECTED">Seller đã từ chối</SelectItem>
+                      <SelectItem value="AUTO_ESCALATED">Tự động chuyển Moderator</SelectItem>
+                      <SelectItem value="MODERATOR_REVIEW">Moderator đang xem xét</SelectItem>
+                      <SelectItem value="RESOLVED_REFUNDED">Đã hoàn tiền</SelectItem>
+                      <SelectItem value="CLOSED_REJECTED">Đã đóng (từ chối)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

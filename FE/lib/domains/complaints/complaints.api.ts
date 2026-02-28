@@ -30,6 +30,18 @@ export const complaintsApi = {
   },
 
   /**
+   * Lấy khiếu nại của shop tôi (Seller)
+   * GET /api/complaints/seller/me
+   */
+  async getSellerComplaints(params?: {
+    status?: string;
+    limit?: number;
+    skip?: number;
+  }): Promise<T.ListResponse<T.Complaint>> {
+    return await apiClient.get<T.Complaint[]>("/complaints/seller/me", { params });
+  },
+
+  /**
    * Kiểm tra có thể tạo khiếu nại
    * GET /api/complaints/check/{orderItemId}
    */
@@ -52,6 +64,14 @@ export const complaintsApi = {
    */
   async fileAppeal(id: string, data: T.FileAppealRequest): Promise<T.DetailResponse<T.Complaint>> {
     return await apiClient.post<T.Complaint>(`/complaints/${id}/appeal`, data);
+  },
+
+  /**
+   * Seller phản hồi khiếu nại
+   * POST /api/complaints/{id}/seller-decision
+   */
+  async sellerDecision(id: string, data: T.SellerDecisionRequest): Promise<T.DetailResponse<T.Complaint>> {
+    return await apiClient.post<T.Complaint>(`/complaints/${id}/seller-decision`, data);
   },
 
   // ===== Moderator Endpoints =====

@@ -52,14 +52,15 @@ export type WalletTxnDirection = "In" | "Out";
 
 // Support Ticket Types
 export type TicketStatus =
-  | "ModeratorAssigned"
-  | "InReview"
-  | "NeedMoreInfo"
-  | "DecisionMade"
-  | "Appealable"
+  | "PENDING_SELLER"
+  | "SELLER_APPROVED"
+  | "SELLER_REJECTED"
+  | "AUTO_ESCALATED"
+  | "MODERATOR_REVIEW"
+  | "RESOLVED_REFUNDED"
+  | "CLOSED_REJECTED"
   | "AppealFiled"
   | "AppealReview"
-  | "Resolved"
   | "Closed";
 
 export type TicketType = "Complaint" | "Dispute" | "General" | "Appeal";
@@ -352,7 +353,7 @@ export interface SocketComplaintPayload {
 
 // Complaint Configuration Constants
 export const COMPLAINT_CONFIG = {
-  SELLER_RESPONSE_HOURS: 48,
+  SELLER_RESPONSE_HOURS: 24,
   APPEAL_WINDOW_HOURS: 72,
   HIGH_VALUE_THRESHOLD: 1000000, // 1M VND
   LOW_TRUST_THRESHOLD: 30,

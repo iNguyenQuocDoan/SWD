@@ -89,6 +89,13 @@ export const fileAppealSchema = z.object({
     .optional(),
 });
 
+// ===== Seller Schemas =====
+
+export const sellerDecisionSchema = z.object({
+  decision: z.enum(["APPROVE", "REJECT"]),
+  note: z.string().max(1000).optional(),
+});
+
 // ===== Moderator Schemas =====
 
 // Add internal note
@@ -216,6 +223,7 @@ export const getModeratorStatsQuerySchema = z.object({
 export type CreateComplaintInput = z.infer<typeof createComplaintSchema>;
 export type AddEvidenceInput = z.infer<typeof addEvidenceSchema>;
 export type FileAppealInput = z.infer<typeof fileAppealSchema>;
+export type SellerDecisionInput = z.infer<typeof sellerDecisionSchema>;
 export type AddInternalNoteInput = z.infer<typeof addInternalNoteSchema>;
 export type RequestInfoInput = z.infer<typeof requestInfoSchema>;
 export type MakeDecisionInput = z.infer<typeof makeDecisionSchema>;

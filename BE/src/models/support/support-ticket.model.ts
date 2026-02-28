@@ -180,6 +180,10 @@ export interface ISupportTicket extends Document {
 
   // SLA Tracking (NEW)
   firstResponseAt?: Date | null;
+  sellerResponseDeadlineAt?: Date | null;
+  sellerRespondedAt?: Date | null;
+  escalatedAt?: Date | null;
+  refundProcessedAt?: Date | null;
   slaBreached: boolean;
 
   // Priority Calculation (NEW)
@@ -243,17 +247,18 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
       type: String,
       required: true,
       enum: [
-        "ModeratorAssigned",
-        "InReview",
-        "NeedMoreInfo",
-        "DecisionMade",
-        "Appealable",
+        "PENDING_SELLER",
+        "SELLER_APPROVED",
+        "SELLER_REJECTED",
+        "AUTO_ESCALATED",
+        "MODERATOR_REVIEW",
+        "RESOLVED_REFUNDED",
+        "CLOSED_REJECTED",
         "AppealFiled",
         "AppealReview",
-        "Resolved",
         "Closed",
       ],
-      default: "ModeratorAssigned",
+      default: "PENDING_SELLER",
     },
 
     // Category System (NEW)
@@ -370,6 +375,22 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
 
     // SLA Tracking (NEW)
     firstResponseAt: {
+      type: Date,
+      default: null,
+    },
+    sellerResponseDeadlineAt: {
+      type: Date,
+      default: null,
+    },
+    sellerRespondedAt: {
+      type: Date,
+      default: null,
+    },
+    escalatedAt: {
+      type: Date,
+      default: null,
+    },
+    refundProcessedAt: {
       type: Date,
       default: null,
     },
