@@ -8,11 +8,19 @@ import { uploadImage } from "@/config/multer";
 const router = Router();
 const uploadController = new UploadController();
 
-// Upload single image
+// Upload single image (for sellers - product images)
 router.post(
   "/image",
   authenticate,
   checkPermission(PERMISSIONS.PRODUCT_CREATE),
+  uploadImage.single("file"),
+  wrapRequestHandler(uploadController.uploadSingle)
+);
+
+// General upload for authenticated users (complaints, reviews, etc.)
+router.post(
+  "/general",
+  authenticate,
   uploadImage.single("file"),
   wrapRequestHandler(uploadController.uploadSingle)
 );

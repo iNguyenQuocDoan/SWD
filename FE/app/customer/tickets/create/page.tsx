@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createComplaintSchema, type CreateComplaintInput } from "@/lib/validations";
@@ -41,11 +41,10 @@ import {
   CheckCircle,
   Loader2,
   Package,
-  Plus,
-  Trash2,
   Image as ImageIcon,
   FileText,
 } from "lucide-react";
+import { EvidenceUpload, type EvidenceItem } from "@/components/complaint/EvidenceUpload";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -131,12 +130,6 @@ const SUBCATEGORY_OPTIONS: Record<string, { value: string; label: string }[]> = 
   ],
 };
 
-const EVIDENCE_TYPE_OPTIONS = [
-  { value: "Screenshot", label: "Ảnh màn hình" },
-  { value: "Image", label: "Hình ảnh" },
-  { value: "Video", label: "Video" },
-  { value: "Document", label: "Tài liệu" },
-] as const;
 
 function CreateComplaintContent() {
   const router = useRouter();
@@ -162,14 +155,7 @@ function CreateComplaintContent() {
     },
   });
 
-  const {
-    fields: evidenceFields,
-    append: appendEvidence,
-    remove: removeEvidence,
-  } = useFieldArray({
-    control: form.control,
-    name: "evidence",
-  });
+  const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
 
   // Fetch user's order items
   useEffect(() => {
@@ -256,7 +242,7 @@ function CreateComplaintContent() {
         content: data.content,
         category: data.category,
         subcategory: data.subcategory ? data.subcategory : undefined,
-        evidence: data.evidence?.length ? data.evidence : undefined,
+        evidence: evidenceItems.length > 0 ? evidenceItems : undefined,
       };
 
       const complaint = await complaintService.createComplaint(payload as any);
@@ -499,107 +485,17 @@ function CreateComplaintContent() {
                     Bằng chứng (tối đa 10)
                   </CardTitle>
                   <CardDescription>
-                    Dán URL ảnh/video/tài liệu (VD: Cloudinary). Bạn có thể thêm nhiều bằng chứng.
+                    Tải lên ảnh/video/tài liệu làm bằng chứng cho khiếu nại của bạn.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {evidenceFields.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">
-                      Chưa có bằng chứng nào.
-                    </div>
-                  ) : null}
-
-                  <div className="space-y-4">
-                    {evidenceFields.map((ev, index) => (
-                      <div key={ev.id} className="rounded-lg border p-4 space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="text-sm font-medium">Bằng chứng #{index + 1}</div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeEvidence(index)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Xóa
-                          </Button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <FormField
-                            control={form.control}
-                            name={`evidence.${index}.type` as const}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Loại</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || "Screenshot"}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {EVIDENCE_TYPE_OPTIONS.map((opt) => (
-                                      <SelectItem key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <div className="md:col-span-2">
-                            <FormField
-                              control={form.control}
-                              name={`evidence.${index}.url` as const}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>URL *</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="https://..." {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-
-                        <FormField
-                          control={form.control}
-                          name={`evidence.${index}.description` as const}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Mô tả (tùy chọn)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Mô tả ngắn về bằng chứng..." {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={evidenceFields.length >= 10}
-                    onClick={() =>
-                      appendEvidence({
-                        type: "Screenshot",
-                        url: "",
-                        description: "",
-                      } as any)
-                    }
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Thêm bằng chứng
-                  </Button>
+                <CardContent>
+                  <EvidenceUpload
+                    evidence={evidenceItems}
+                    onChange={setEvidenceItems}
+                    maxItems={10}
+                    maxSizeMB={10}
+                    disabled={isLoading}
+                  />
                 </CardContent>
               </Card>
 

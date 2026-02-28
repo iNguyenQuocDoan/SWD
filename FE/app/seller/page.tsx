@@ -1,6 +1,6 @@
 "use client";
 
-import SellerHome from "@/components/seller/SellerHome";
+import { SellerHome } from "@/components/seller/SellerHome";
 
 export default function SellerPage() {
   return <SellerHome />;

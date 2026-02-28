@@ -46,25 +46,34 @@ export class ReportService {
   }
 
   private getStartOfDay(date: Date): Date {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    // Convert to Vietnam timezone (UTC+7) then get start of day
+    const vnOffset = 7 * 60 * 60 * 1000; // 7 hours in ms
+    const vnTime = new Date(date.getTime() + vnOffset);
+    vnTime.setUTCHours(0, 0, 0, 0);
+    // Convert back to UTC for MongoDB query
+    return new Date(vnTime.getTime() - vnOffset);
   }
 
   private getStartOfWeek(date: Date): Date {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    // Convert to Vietnam timezone (UTC+7)
+    const vnOffset = 7 * 60 * 60 * 1000;
+    const vnTime = new Date(date.getTime() + vnOffset);
+    const day = vnTime.getUTCDay();
+    const diff = vnTime.getUTCDate() - day + (day === 0 ? -6 : 1);
+    vnTime.setUTCDate(diff);
+    vnTime.setUTCHours(0, 0, 0, 0);
+    // Convert back to UTC for MongoDB query
+    return new Date(vnTime.getTime() - vnOffset);
   }
 
   private getStartOfMonth(date: Date): Date {
-    const d = new Date(date);
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    // Convert to Vietnam timezone (UTC+7)
+    const vnOffset = 7 * 60 * 60 * 1000;
+    const vnTime = new Date(date.getTime() + vnOffset);
+    vnTime.setUTCDate(1);
+    vnTime.setUTCHours(0, 0, 0, 0);
+    // Convert back to UTC for MongoDB query
+    return new Date(vnTime.getTime() - vnOffset);
   }
 
   // ============ REVENUE REPORTS ============
