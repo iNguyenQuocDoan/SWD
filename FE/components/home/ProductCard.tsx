@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { ShoppingCart } from "lucide-react";
 
 interface ProductCardProps {
   id: string;
@@ -121,11 +122,14 @@ export function ProductCard({
     <Link
       href={`/products/${id}`}
       prefetch={true}
-      className={`group relative flex flex-col h-full backdrop-blur-md bg-white/90 border border-white/20 rounded-lg overflow-hidden hover:shadow-lg hover:border-violet-300 transition-all duration-200 ${className}`}
+      className={`group relative flex flex-col h-full backdrop-blur-xl bg-white/60 dark:bg-neutral-900/60 border border-white/40 dark:border-neutral-800 shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.15)] rounded-2xl overflow-hidden hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:border-violet-300/50 dark:hover:border-violet-700/50 transition-all duration-300 ${className}`}
     >
-      {/* Image - Improved display with better height and full image support */}
+      {/* Background gradient subtle glow on hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-transparent to-fuchsia-500/0 group-hover:from-violet-500/5 group-hover:to-fuchsia-500/5 transition-all duration-500 rounded-2xl pointer-events-none" />
+
+      {/* Image Container */}
       <div
-        className={`${imageHeight} w-full bg-gradient-to-br ${gradient} relative overflow-hidden flex-shrink-0 flex items-center justify-center`}
+        className={`${imageHeight} w-full bg-gradient-to-br ${gradient} relative overflow-hidden flex-shrink-0 flex items-center justify-center rounded-b-2xl shadow-sm`}
       >
         {/* Product Image - Always render when image URL exists */}
         {hasImage && !imageError && (
@@ -133,7 +137,7 @@ export function ProductCard({
             src={image}
             alt={name}
             fill
-            className="object-contain group-hover:scale-105 transition-transform duration-300 z-20"
+            className="object-contain p-2 group-hover:scale-110 group-hover:rotate-1 transition-transform duration-500 ease-out z-20"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
             unoptimized={isDataUrl}
             onError={() => {
@@ -144,30 +148,38 @@ export function ProductCard({
         )}
         {/* Fallback gradient with initial - Only show when no image or image failed */}
         {(!hasImage || imageError) && (
-          <div className="image-fallback absolute inset-0 bg-gradient-to-br from-white/20 to-transparent flex items-center justify-center z-10">
-            <span className="text-white/60 font-bold text-2xl">{name.charAt(0).toUpperCase()}</span>
+          <div className="image-fallback absolute inset-0 bg-gradient-to-br from-white/20 to-black/5 flex items-center justify-center z-10">
+            <span className="text-white/80 font-bold text-3xl drop-shadow-md">{name.charAt(0).toUpperCase()}</span>
           </div>
         )}
+        {/* Subtle overlay */}
+        <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-300 z-30 pointer-events-none" />
       </div>
 
       {/* Content */}
-      <div className={`${cardPadding} flex flex-col flex-1 min-h-0`}>
+      <div className={`${cardPadding} flex flex-col flex-1 min-h-0 relative z-40 bg-white/40 dark:bg-black/20 m-1 rounded-xl`}>
         {/* Name */}
         <h3
-          className={`${titleSize} font-medium text-foreground line-clamp-2 mb-2 group-hover:text-violet-600 transition-colors leading-tight flex-1`}
+          className={`${titleSize} font-semibold text-foreground line-clamp-2 mb-3 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors leading-relaxed flex-1`}
         >
           {name}
         </h3>
 
         {/* Price & Button */}
         <div className="flex items-center justify-between gap-2 mt-auto">
-          <p className={`${titleSize} font-bold text-foreground truncate`}>{price.toLocaleString("vi-VN")}đ</p>
+          <p className={`${titleSize} font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-fuchsia-600 dark:from-violet-400 dark:to-fuchsia-400 truncate`}>
+            {price.toLocaleString("vi-VN")}đ
+          </p>
           <Button
             size="sm"
-            className={`bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 rounded-full ${buttonSize} flex-shrink-0`}
+            className={`overflow-hidden relative bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-full ${buttonSize} flex-shrink-0 shadow-md group/btn border-0`}
             onClick={(e) => e.preventDefault()}
           >
-            Mua ngay
+            <span className="flex items-center gap-1.5 transition-transform duration-300 group-hover/btn:-translate-x-1">
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>Mua</span>
+            </span>
+            <div className="absolute inset-0 h-full w-full opacity-0 group-hover/btn:opacity-20 bg-white transition-opacity duration-300"></div>
           </Button>
         </div>
       </div>

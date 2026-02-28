@@ -1,102 +1,115 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ShoppingBag, TrendingUp, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { FadeIn } from "@/components/animations";
 import { motion } from "framer-motion";
 
 export function CTASection() {
   return (
-    <section className="py-12 md:py-16 lg:py-20 relative overflow-hidden">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left: Floating Images */}
+    <section className="py-24 md:py-32 relative overflow-hidden bg-white/5 dark:bg-black/20">
+      {/* Decorative Blur Backgrounds */}
+      <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[500px] h-[500px] bg-violet-600/10 blur-[120px] rounded-full" />
+      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-fuchsia-600/10 blur-[120px] rounded-full" />
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+          {/* Left: Premium Floating Showcase */}
           <FadeIn direction="right" delay={0.2}>
-            <div className="relative h-[320px] hidden lg:flex justify-center items-center overflow-hidden">
-            <div className="relative w-[400px] h-[350px] translate-x-[40%]">
-
+            <div className="relative h-[450px] hidden lg:flex justify-center items-center">
+              <div className="relative w-full max-w-[500px]">
+                {/* Main "Shop" Mockup */}
                 <motion.div
-                  className="absolute left-0 top-0 w-48 h-48 rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-400 shadow-xl overflow-hidden"
-                  animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[400px] rounded-[2.5rem] bg-white/80 dark:bg-neutral-900/80 border border-white/40 dark:border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] backdrop-blur-2xl z-20 flex flex-col p-6 overflow-hidden"
+                  animate={{ y: [0, -20, 0] }}
                   transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                />
-
-                <motion.div
-                  className="absolute left-32 top-12 w-56 h-56 rounded-2xl bg-gradient-to-br from-orange-400 to-pink-400 shadow-xl overflow-hidden z-10"
-                  animate={{ y: [0, 10, 0], rotate: [2, -2, 2] }}
-                  transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                />
-
-                <motion.div
-                  className="absolute left-8 top-52 w-44 h-44 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-xl overflow-hidden"
-                  animate={{ y: [0, -10, 0], rotate: [-1, 1, -1] }}
-                  transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                />
-
-                <motion.div
-                  className="absolute left-48 bottom-0 w-40 h-52 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-500 shadow-xl overflow-hidden"
-                  animate={{ y: [0, 12, 0], rotate: [1, -1, 1] }}
-                  transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-                />
-
-                <div className="absolute left-20 top-40 flex -space-x-3 z-20">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="w-10 h-10 rounded-full border-2 border-white bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold shadow-lg"
-                    >
-                      {String.fromCharCode(64 + i)}
+                >
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center text-white font-bold">DS</div>
+                    <div className="flex gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-red-400" />
+                      <div className="w-2 h-2 rounded-full bg-amber-400" />
+                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
                     </div>
-                  ))}
-                </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="h-4 w-3/4 bg-muted rounded-full animate-pulse" />
+                    <div className="h-32 w-full bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-900/20 dark:to-fuchsia-900/20 rounded-2xl border border-dashed border-violet-200 dark:border-violet-800 flex items-center justify-center">
+                      <ShoppingBag className="w-12 h-12 text-violet-400 opacity-50" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="h-10 rounded-xl bg-violet-600/10 dark:bg-violet-600/20" />
+                      <div className="h-10 rounded-xl bg-fuchsia-600/10 dark:bg-fuchsia-600/20" />
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Floating Stats Card */}
+                <motion.div
+                  className="absolute -right-4 top-10 w-48 p-4 rounded-3xl bg-white/90 dark:bg-neutral-800/90 border border-white dark:border-white/5 shadow-2xl backdrop-blur-xl z-30"
+                  animate={{ y: [0, 20, 0], x: [0, 10, 0] }}
+                  transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                      <TrendingUp className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Doanh thu</p>
+                      <p className="text-lg font-black text-emerald-600">+125%</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Decorative circles */}
+                <div className="absolute -left-10 bottom-20 w-32 h-32 bg-fuchsia-500/30 blur-[60px] rounded-full animate-pulse" />
+                <div className="absolute -right-10 top-20 w-32 h-32 bg-violet-500/30 blur-[60px] rounded-full animate-pulse" />
               </div>
             </div>
           </FadeIn>
 
-
           {/* Right: Content */}
           <FadeIn direction="left" delay={0.3}>
-            <div className="space-y-6 lg:pl-2222 xl:pl-35">
-
-              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground leading-tight">
-                BẮT ĐẦU BÁN
-                <br />
-                <span className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600 bg-clip-text text-transparent">
-                  SẢN PHẨM SỐ
+            <div className="space-y-8 lg:max-w-xl">
+              <div className="space-y-4">
+                <span className="inline-block px-4 py-1.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-sm font-bold tracking-wide uppercase">
+                  Dành cho nhà cung cấp
                 </span>
-                <br />
-                CỦA BẠN
-              </h2>
+                <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-foreground leading-[1.1] tracking-tight">
+                  KHỞI TẠO <span className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600 bg-clip-text text-transparent">ĐẾ CHẾ</span> KINH DOANH SỐ
+                </h2>
+              </div>
 
-              <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
-                Đăng ký làm seller, tạo shop của bạn và tiếp cận hàng nghìn khách hàng tiềm năng.
-                Hệ thống hỗ trợ thanh toán an toàn và quản lý sản phẩm dễ dàng.
+              <p className="text-xl text-muted-foreground leading-relaxed">
+                Đừng để sản phẩm tuyệt vời của bạn bị giới hạn. Tiếp cận hàng triệu khách hàng tiềm năng với nền tảng thương mại điện tử sản phẩm số hàng đầu.
               </p>
 
-              <ul className="space-y-3 text-muted-foreground">
+              <div className="grid sm:grid-cols-2 gap-4">
                 {[
-                  "Miễn phí đăng ký và tạo shop",
-                  "Hoa hồng cạnh tranh chỉ từ 5%",
-                  "Thanh toán nhanh chóng trong 24h",
-                  "Hỗ trợ marketing và quảng bá",
+                  "Miễn phí duy trì shop",
+                  "Phí sàn thấp nhất",
+                  "Rút tiền siêu tốc",
+                  "Hỗ trợ 1:1 tận tâm",
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600" />
-                    {item}
-                  </li>
+                  <div key={item} className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 flex items-center justify-center">
+                      <CheckCircle2 className="w-4 h-4 text-violet-600" />
+                    </div>
+                    <span className="font-semibold text-foreground/80">{item}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
 
-              <div className="pt-4">
+              <div className="pt-6">
                 <Button
                   size="lg"
-                  className="h-14 px-10 text-base font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 shadow-lg shadow-violet-500/25 hover:shadow-xl transition-all duration-300 rounded-full group"
+                  className="h-16 px-12 text-lg font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 shadow-[0_20px_40px_-15px_rgba(124,58,237,0.4)] hover:shadow-[0_25px_50px_-12px_rgba(124,58,237,0.5)] transition-all duration-300 rounded-full group"
                   asChild
                 >
                   <Link href="/seller/register">
-                    Đăng ký ngay
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    Bắt đầu ngay bây giờ
+                    <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
               </div>

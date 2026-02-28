@@ -26,26 +26,33 @@ const features = [
 
 export function FeaturesRow() {
   return (
-    <section className="py-12 md:py-16 border-y bg-white/5 backdrop-blur-md">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-16 md:py-24 border-y border-white/10 bg-white/[0.02] backdrop-blur-sm relative overflow-hidden">
+      {/* Background Decorative Element */}
+      <div className="absolute top-0 left-1/4 w-64 h-64 bg-violet-500/5 blur-[100px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-fuchsia-500/5 blur-[100px] rounded-full pointer-events-none" />
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <FadeIn direction="up">
-          <div className="text-center mb-8">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              THE AMAZING DIGITAL MARKETPLACE OF VIETNAM
+          <div className="text-center mb-12">
+            <h2 className="text-xs font-bold text-violet-500 dark:text-violet-400 uppercase tracking-[0.2em] mb-3">
+              THE AMAZING DIGITAL MARKETPLACE
             </h2>
+            <div className="h-1 w-12 bg-gradient-to-r from-violet-600 to-fuchsia-600 mx-auto rounded-full" />
           </div>
         </FadeIn>
 
-        <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
+        <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 max-w-6xl mx-auto">
           {features.map((feature) => (
             <StaggerItem key={feature.title}>
-              <div className="flex flex-col items-center text-center space-y-3 p-4">
-                <div className={`p-3 rounded-2xl ${feature.color}`}>
-                  <feature.icon className="h-6 w-6" />
+              <div className="group flex flex-col items-center text-center space-y-5 p-6 rounded-3xl transition-all duration-300 hover:bg-white/[0.04] dark:hover:bg-white/[0.02]">
+                <div className={`relative p-5 rounded-2xl ${feature.color} shadow-inner transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3`}>
+                  <feature.icon className="h-8 w-8 stroke-[1.5px]" />
+                  {/* Subtle glow */}
+                  <div className="absolute inset-0 rounded-2xl bg-current opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{feature.description}</p>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-foreground group-hover:text-violet-600 transition-colors">{feature.title}</h3>
+                  <p className="text-base text-muted-foreground leading-relaxed max-w-[250px]">{feature.description}</p>
                 </div>
               </div>
             </StaggerItem>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowRight, Sparkles, CheckCircle2, Loader2, ShoppingBag } from "lucide-react";
@@ -129,7 +130,7 @@ export function HeroSection() {
                       {statsLoading ? (
                         <Loader2 className="h-6 w-6 animate-spin text-white inline-block" />
                       ) : (
-                      <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                        <AnimatedCounter value={stat.value} suffix={stat.suffix} />
                       )}
                     </div>
                     <div className="text-xs text-white/80 mt-0.5 drop-shadow-md">{stat.label}</div>
@@ -139,42 +140,53 @@ export function HeroSection() {
             </FadeIn>
           </div>
 
-          {/* Right: Static Marketplace Icon */}
-          <FadeIn direction="left" delay={0.4} className="hidden lg:block">
-            <div className="relative max-w-sm mx-auto">
-              {/* Card container with semi-transparent background */}
+          {/* Right: Hero Image */}
+          <FadeIn direction="left" delay={0.4} className="hidden lg:block relative h-[500px]">
+            <div className="absolute inset-0 flex items-center justify-center">
+              {/* Animated Glow behind the image */}
               <motion.div
-                className="relative z-10 rounded-2xl overflow-hidden backdrop-blur-md bg-white/10 border border-white/20 shadow-2xl min-h-[320px] flex items-center justify-center"
-                whileHover={{ scale: 1.02 }}
-                transition={{ duration: 0.3 }}
+                className="absolute w-[450px] h-[450px] bg-violet-500/20 blur-[100px] rounded-full"
+                animate={{
+                  scale: [1, 1.2, 1],
+                  opacity: [0.3, 0.5, 0.3],
+                }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+              />
+
+              <motion.div
+                className="relative z-10 w-full h-full flex items-center justify-center"
+                animate={{
+                  y: [-15, 15, -15],
+                  rotate: [-1, 1, -1]
+                }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
               >
-                {/* Static Marketplace Icon - No rotation, no dots */}
-                <div className="relative z-20 flex flex-col items-center justify-center">
-                  <div className="relative">
-                    {/* Main icon - static */}
-                    <ShoppingBag className="w-24 h-24 text-white/95 drop-shadow-2xl" />
-                    {/* Static ring */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-32 h-32 rounded-full border-4 border-white/40" />
-                    </div>
-                  </div>
-                  
-                  {/* Text below icon */}
-                  <motion.div
-                    className="mt-8 text-center"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8, duration: 0.5 }}
-                  >
-                    <h3 className="text-2xl font-bold text-white drop-shadow-lg mb-2">
-                      Marketplace
-                    </h3>
-                    <p className="text-white/90 text-sm font-medium">
-                      Sàn giao dịch số
-                    </p>
-                  </motion.div>
+                <div className="relative group">
+                  {/* Subtle outer glow on hover */}
+                  <div className="absolute -inset-4 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 rounded-[3rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                  <Image
+                    src="/images/Hero.png"
+                    alt="Marketplace Hero"
+                    width={450}
+                    height={450}
+                    className="relative z-10 object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)] filter contrast-[1.05]"
+                    priority
+                  />
                 </div>
               </motion.div>
+
+              {/* Decorative elements to maintain the floaty feel */}
+              <motion.div
+                className="absolute top-1/4 right-[10%] w-3 h-3 bg-violet-400 rounded-full blur-[1px] shadow-[0_0_15px_rgba(167,139,250,0.8)]"
+                animate={{ y: [0, -20, 0], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <motion.div
+                className="absolute bottom-1/4 left-[10%] w-4 h-4 bg-fuchsia-400 rounded-full blur-[1px] shadow-[0_0_15px_rgba(232,121,249,0.8)]"
+                animate={{ y: [0, 20, 0], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+              />
             </div>
           </FadeIn>
         </div>

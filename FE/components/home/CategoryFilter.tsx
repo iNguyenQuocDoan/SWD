@@ -79,12 +79,12 @@ export function CategoryFilter() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <FadeIn direction="up">
-          <div className="mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-              KHÁM PHÁ THÊM
+          <div className="mb-12 text-center lg:text-left">
+            <h2 className="text-3xl md:text-5xl font-black text-foreground tracking-tight mb-4">
+              KHÁM PHÁ <span className="bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">BỘ SƯU TẬP</span>
             </h2>
-            <p className="text-muted-foreground mt-2">
-              Những sản phẩm nổi bật dành cho bạn
+            <p className="text-lg text-muted-foreground max-w-2xl">
+              Những sản phẩm số được tuyển chọn kỹ lưỡng, mang lại giá trị cao nhất cho hiệu suất công việc của bạn.
             </p>
           </div>
         </FadeIn>
@@ -133,13 +133,12 @@ export function CategoryFilter() {
                   {products.map((product, index) => (
                     <div
                       key={product._id || product.id}
-                      className={`pl-6 flex-[0_0_33.3333%] transition-all duration-300 ${
-                        Math.abs(index - selectedIndex) === 0
+                      className={`pl-6 flex-[0_0_33.3333%] transition-all duration-300 ${Math.abs(index - selectedIndex) === 0
                           ? "opacity-100 scale-100 z-20"
                           : Math.abs(index - selectedIndex) === 1
-                          ? "opacity-40 scale-90 z-10"
-                          : "opacity-0 scale-75 pointer-events-none"
-                      }`}
+                            ? "opacity-40 scale-90 z-10"
+                            : "opacity-0 scale-75 pointer-events-none"
+                        }`}
                     >
                       <ProductCard
                         id={product._id || product.id || ""}

@@ -86,14 +86,15 @@ export function Header() {
           <div className="flex items-center gap-6 lg:gap-8 shrink-0">
             <Link
               href="/"
-              className="flex items-center gap-2.5 hover:opacity-90 transition-opacity"
+              className="group flex items-center gap-3 hover:opacity-100 transition-all duration-300"
             >
-              <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25">
-                <Store className="h-5 w-5 text-primary-foreground" />
+              <div className="relative flex items-center justify-center h-10 w-10 rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-600 to-pink-600 shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 group-hover:scale-105 transition-all duration-500 overflow-hidden">
+                <Store className="h-5 w-5 text-white z-10" />
+                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               </div>
               <div className="hidden sm:block">
-                <span className="font-bold text-lg bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
-                  Sàn Tài Khoản Số
+                <span className="font-black text-xl tracking-tighter bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent group-hover:from-violet-600 group-hover:to-fuchsia-600 transition-all duration-500">
+                  DIGIMARKET
                 </span>
               </div>
             </Link>
@@ -104,7 +105,7 @@ export function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg transition-all hover:text-foreground hover:bg-accent"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-muted-foreground/80 rounded-full transition-all duration-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5"
                 >
                   <link.icon className="h-4 w-4" />
                   {link.label}
@@ -118,7 +119,7 @@ export function Header() {
             <form
               action="/products"
               method="get"
-              className="relative w-full"
+              className="relative w-full group"
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
@@ -130,12 +131,12 @@ export function Header() {
                 }
               }}
             >
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-violet-500 transition-colors pointer-events-none z-10" />
               <Input
                 type="search"
                 name="search"
-                placeholder="Tìm kiếm nền tảng, loại gói..."
-                className="pl-10 h-10 bg-muted/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background"
+                placeholder="Tìm kiếm sản phẩm số..."
+                className="pl-11 h-11 bg-muted/30 border-white/5 dark:border-white/5 focus-visible:ring-violet-500/20 focus-visible:bg-background/50 backdrop-blur-sm rounded-2xl transition-all duration-300"
                 autoComplete="off"
               />
             </form>
