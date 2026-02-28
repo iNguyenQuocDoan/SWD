@@ -17,8 +17,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
   Disputed: { label: "Đang tranh chấp", color: "bg-orange-500", bgColor: "bg-orange-100" },
   Refunded: { label: "Đã hoàn tiền", color: "bg-red-500", bgColor: "bg-red-100" },
   // OrderItemStatus (if mixed)
-  WaitingDelivery: { label: "Chờ giao key", color: "bg-purple-500", bgColor: "bg-purple-100" },
-  Delivered: { label: "Đã giao key", color: "bg-green-500", bgColor: "bg-green-100" },
 };
 
 const formatPrice = (price: number) => {
@@ -104,7 +102,9 @@ export function OrderStatusSection() {
 
         {/* Status Breakdown */}
         <div className="space-y-3">
-          {data.byStatus.map((item) => {
+          {data.byStatus
+            .filter((item) => !["WaitingDelivery", "Delivered"].includes(item.status))
+            .map((item) => {
             const config = STATUS_CONFIG[item.status] || {
               label: item.status,
               color: "bg-gray-500",

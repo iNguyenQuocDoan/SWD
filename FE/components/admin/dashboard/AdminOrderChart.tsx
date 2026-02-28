@@ -84,11 +84,13 @@ export function AdminOrderChart() {
 
   if (!data) return null;
 
-  const chartData = data.byStatus.map((item) => ({
-    status: STATUS_LABELS[item.status] || item.status,
-    count: item.count,
-    color: STATUS_COLORS[item.status] || "#6b7280",
-  }));
+  const chartData = data.byStatus
+    .filter((item) => !["Cancelled", "PendingPayment"].includes(item.status))
+    .map((item) => ({
+      status: STATUS_LABELS[item.status] || item.status,
+      count: item.count,
+      color: STATUS_COLORS[item.status] || "#6b7280",
+    }));
 
   return (
     <Card>
