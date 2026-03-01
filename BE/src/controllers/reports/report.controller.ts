@@ -225,6 +225,23 @@ export class ReportController {
       next(error);
     }
   };
+
+  // ============ SHOP RANKINGS ============
+
+  getShopRankings = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const dateRange = this.parseDateRange(req.query);
+      const limit = parseInt(req.query.limit as string) || 10;
+      const data = await reportService.getShopRankings({ ...dateRange, limit });
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const reportController = new ReportController();

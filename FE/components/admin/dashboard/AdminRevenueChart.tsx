@@ -2,26 +2,25 @@
 
 import { useState, useEffect } from "react";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
   ResponsiveContainer,
-  BarChart,
-  Bar,
+  Tooltip,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TrendingUp, TrendingDown, Minus, Calendar } from "lucide-react";
 import { reportService } from "@/lib/services/report.service";
-import { RevenueTrendItem } from "@/types/report";
 
-type TimeRange = "7d" | "30d" | "90d";
-type ChartType = "area" | "bar";
+const QUARTER_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
 
 const formatPrice = (value: number) => {
   if (value >= 1_000_000_000) {
@@ -36,159 +35,412 @@ const formatPrice = (value: number) => {
   return value.toString();
 };
 
-const getDateRange = (range: TimeRange) => {
-  const end = new Date();
-  const start = new Date();
+const formatNumber = (value: number) => {
+  return new Intl.NumberFormat("vi-VN").format(value);
+};
 
-  switch (range) {
-    case "7d":
-      start.setDate(end.getDate() - 7);
-      break;
-    case "30d":
-      start.setDate(end.getDate() - 30);
-      break;
-    case "90d":
-      start.setDate(end.getDate() - 90);
-      break;
+interface QuarterData {
+  name: string;
+  revenue: number;
+  orderCount: number;
+  totalFees: number;
+  avgOrderValue: number;
+  color: string;
+}
+
+interface ComparisonData {
+  revenueChange: number | null;
+  orderChange: number | null;
+  feeChange: number | null;
+}
+
+function MiniPieChart({
+  data,
+  dataKey,
+  title,
+  formatter
+}: {
+  data: QuarterData[];
+  dataKey: "revenue" | "orderCount" | "totalFees";
+  title: string;
+  formatter: (value: number) => string;
+}) {
+  const chartData = data.map(q => ({
+    name: q.name,
+    value: q[dataKey],
+    color: q.color,
+  })).filter(d => d.value > 0);
+
+  if (chartData.length === 0) {
+    return (
+      <div className="text-center">
+        <p className="text-xs text-muted-foreground mb-2">{title}</p>
+        <div className="h-[120px] flex items-center justify-center text-muted-foreground text-xs">
+          Chưa có dữ liệu
+        </div>
+      </div>
+    );
   }
 
-  return {
-    startDate: start.toISOString().split("T")[0],
-    endDate: end.toISOString().split("T")[0],
-  };
+  return (
+    <div className="text-center">
+      <p className="text-xs text-muted-foreground mb-2">{title}</p>
+      <div className="h-[120px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={30}
+              outerRadius={50}
+              paddingAngle={2}
+              dataKey="value"
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(value) => formatter(Number(value))}
+              contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function ComparisonBadge({
+  label,
+  change
+}: {
+  label: string;
+  change: number | null;
+}) {
+  if (change === null) {
+    return (
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Minus className="h-3 w-3" />
+        <span>{label}: N/A</span>
+      </div>
+    );
+  }
+
+  const isPositive = change > 0;
+  const isNegative = change < 0;
+
+  return (
+    <div className={`flex items-center gap-1 text-xs ${
+      isPositive ? "text-green-600" : isNegative ? "text-red-600" : "text-muted-foreground"
+    }`}>
+      {isPositive ? (
+        <TrendingUp className="h-3 w-3" />
+      ) : isNegative ? (
+        <TrendingDown className="h-3 w-3" />
+      ) : (
+        <Minus className="h-3 w-3" />
+      )}
+      <span>{label}: {isPositive ? "+" : ""}{change.toFixed(1)}%</span>
+    </div>
+  );
+}
+
+// Generate year options (current year and 4 years back)
+const getYearOptions = () => {
+  const currentYear = new Date().getFullYear();
+  const years: number[] = [];
+  for (let i = 0; i < 5; i++) {
+    years.push(currentYear - i);
+  }
+  return years;
 };
 
 export function AdminRevenueChart() {
-  const [timeRange, setTimeRange] = useState<TimeRange>("7d");
-  const [chartType, setChartType] = useState<ChartType>("area");
-  const [data, setData] = useState<RevenueTrendItem[]>([]);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [data, setData] = useState<QuarterData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({ totalRevenue: 0, totalOrders: 0, avgOrderValue: 0 });
+  const [totals, setTotals] = useState({ revenue: 0, orders: 0, fees: 0 });
+  const [comparison, setComparison] = useState<ComparisonData>({
+    revenueChange: null,
+    orderChange: null,
+    feeChange: null,
+  });
+
+  const yearOptions = getYearOptions();
 
   useEffect(() => {
-    async function fetchData() {
+    async function fetchQuarterlyData() {
       setLoading(true);
       try {
-        const { startDate, endDate } = getDateRange(timeRange);
-        const res = await reportService.getRevenueTrends({
-          startDate,
-          endDate,
-          granularity: "day",
-        });
+        const currentYear = selectedYear;
+        const now = new Date();
+        const isCurrentYear = selectedYear === now.getFullYear();
+        const currentMonth = now.getMonth();
+        const currentQuarterIndex = isCurrentYear ? Math.floor(currentMonth / 3) : 3;
 
-        if (res.success && res.data) {
-          setData(res.data.data);
-          setSummary(res.data.summary);
+        const quarters = [
+          { name: "Q1", startMonth: 0, endMonth: 2 },
+          { name: "Q2", startMonth: 3, endMonth: 5 },
+          { name: "Q3", startMonth: 6, endMonth: 8 },
+          { name: "Q4", startMonth: 9, endMonth: 11 },
+        ];
+
+        const quarterlyData: QuarterData[] = [];
+        let totalRevenue = 0;
+        let totalOrders = 0;
+        let totalFees = 0;
+
+        for (let i = 0; i < quarters.length; i++) {
+          const q = quarters[i];
+          const startDate = new Date(currentYear, q.startMonth, 1);
+          const endDate = new Date(currentYear, q.endMonth + 1, 0);
+
+          // Skip future quarters (only for current year)
+          if (isCurrentYear && startDate > now) {
+            quarterlyData.push({
+              name: q.name,
+              revenue: 0,
+              orderCount: 0,
+              totalFees: 0,
+              avgOrderValue: 0,
+              color: QUARTER_COLORS[i],
+            });
+            continue;
+          }
+
+          try {
+            const res = await reportService.getRevenueTrends({
+              startDate: startDate.toISOString().split("T")[0],
+              endDate: endDate.toISOString().split("T")[0],
+              granularity: "month",
+            });
+
+            if (res.success && res.data) {
+              const summary = res.data.summary;
+              const dataItems = res.data.data;
+
+              // Sum up totalFees from data items
+              const fees = dataItems.reduce((sum, item) => sum + (item.totalFees || 0), 0);
+
+              totalRevenue += summary.totalRevenue;
+              totalOrders += summary.totalOrders;
+              totalFees += fees;
+
+              quarterlyData.push({
+                name: q.name,
+                revenue: summary.totalRevenue,
+                orderCount: summary.totalOrders,
+                totalFees: fees,
+                avgOrderValue: summary.avgOrderValue,
+                color: QUARTER_COLORS[i],
+              });
+            } else {
+              quarterlyData.push({
+                name: q.name,
+                revenue: 0,
+                orderCount: 0,
+                totalFees: 0,
+                avgOrderValue: 0,
+                color: QUARTER_COLORS[i],
+              });
+            }
+          } catch {
+            quarterlyData.push({
+              name: q.name,
+              revenue: 0,
+              orderCount: 0,
+              totalFees: 0,
+              avgOrderValue: 0,
+              color: QUARTER_COLORS[i],
+            });
+          }
+        }
+
+        setData(quarterlyData);
+        setTotals({ revenue: totalRevenue, orders: totalOrders, fees: totalFees });
+
+        // Calculate comparison with previous quarter
+        if (currentQuarterIndex > 0) {
+          const current = quarterlyData[currentQuarterIndex];
+          const previous = quarterlyData[currentQuarterIndex - 1];
+
+          if (current && previous && previous.revenue > 0) {
+            setComparison({
+              revenueChange: ((current.revenue - previous.revenue) / previous.revenue) * 100,
+              orderChange: previous.orderCount > 0
+                ? ((current.orderCount - previous.orderCount) / previous.orderCount) * 100
+                : null,
+              feeChange: previous.totalFees > 0
+                ? ((current.totalFees - previous.totalFees) / previous.totalFees) * 100
+                : null,
+            });
+          }
         }
       } catch (err) {
-        console.error("Failed to fetch revenue trends", err);
+        console.error("Failed to fetch quarterly data", err);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchData();
-  }, [timeRange]);
+    fetchQuarterlyData();
+  }, [selectedYear]);
 
-  const chartData = data.map((item) => ({
-    ...item,
-    date: item.date.day ? `${item.date.day}/${item.date.month}` : `${item.date.month}/${item.date.year}`,
-  }));
+  if (loading) {
+    return (
+      <Card className="col-span-2">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-medium">Thống kê theo quý</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[400px] w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const hasData = data.some(q => q.revenue > 0 || q.orderCount > 0);
 
   return (
     <Card className="col-span-2">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="text-base font-medium">Doanh thu Platform</CardTitle>
-          <div className="flex items-center gap-2">
-            <Tabs value={chartType} onValueChange={(v) => setChartType(v as ChartType)}>
-              <TabsList className="h-7">
-                <TabsTrigger value="area" className="text-xs h-6 px-2">Line</TabsTrigger>
-                <TabsTrigger value="bar" className="text-xs h-6 px-2">Bar</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <div className="flex gap-1">
-              {(["7d", "30d", "90d"] as TimeRange[]).map((range) => (
-                <Button
-                  key={range}
-                  variant={timeRange === range ? "default" : "outline"}
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => setTimeRange(range)}
-                >
-                  {range === "7d" ? "7 ngày" : range === "30d" ? "30 ngày" : "90 ngày"}
-                </Button>
-              ))}
-            </div>
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Thống kê theo quý
+          </CardTitle>
+          <div className="flex items-center gap-3">
+            <Select
+              value={selectedYear.toString()}
+              onValueChange={(v) => setSelectedYear(parseInt(v))}
+            >
+              <SelectTrigger className="w-[100px] h-8 text-xs">
+                <SelectValue placeholder="Chọn năm" />
+              </SelectTrigger>
+              <SelectContent>
+                {yearOptions.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">
+              Tổng: {formatPrice(totals.revenue)}đ
+            </span>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-[250px] w-full" />
+      <CardContent className="space-y-4">
+        {!hasData ? (
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+            Chưa có dữ liệu thống kê
+          </div>
         ) : (
           <>
-            {/* Summary Stats */}
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <p className="text-xs text-gray-500">Tổng doanh thu</p>
-                <p className="text-lg font-bold text-green-600">
-                  {formatPrice(summary.totalRevenue)}đ
-                </p>
-              </div>
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <p className="text-xs text-gray-500">Tổng đơn hàng</p>
-                <p className="text-lg font-bold text-blue-600">
-                  {summary.totalOrders.toLocaleString()}
-                </p>
-              </div>
-              <div className="text-center p-3 bg-purple-50 rounded-lg">
-                <p className="text-xs text-gray-500">TB/đơn</p>
-                <p className="text-lg font-bold text-purple-600">
-                  {formatPrice(summary.avgOrderValue)}đ
-                </p>
+            {/* 3 Pie Charts */}
+            <div className="grid grid-cols-3 gap-4">
+              <MiniPieChart
+                data={data}
+                dataKey="revenue"
+                title="Doanh thu"
+                formatter={(v) => formatPrice(v) + "đ"}
+              />
+              <MiniPieChart
+                data={data}
+                dataKey="orderCount"
+                title="Đơn hàng"
+                formatter={(v) => formatNumber(v) + " đơn"}
+              />
+              <MiniPieChart
+                data={data}
+                dataKey="totalFees"
+                title="Phí sàn"
+                formatter={(v) => formatPrice(v) + "đ"}
+              />
+            </div>
+
+            {/* Legend */}
+            <div className="flex justify-center gap-4 text-xs">
+              {data.filter(q => q.revenue > 0 || q.orderCount > 0).map((q) => (
+                <div key={q.name} className="flex items-center gap-1">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: q.color }}
+                  />
+                  <span>{q.name}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Comparison with previous quarter */}
+            <div className="pt-3 border-t">
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                So sánh với quý trước:
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <ComparisonBadge label="Doanh thu" change={comparison.revenueChange} />
+                <ComparisonBadge label="Đơn hàng" change={comparison.orderChange} />
+                <ComparisonBadge label="Phí sàn" change={comparison.feeChange} />
               </div>
             </div>
 
-            {/* Chart */}
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                {chartType === "area" ? (
-                  <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="colorAdminRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={formatPrice} />
-                    <Tooltip
-                      formatter={(value) =>
-                        new Intl.NumberFormat("vi-VN").format(Number(value)) + "đ"
-                      }
-                      labelFormatter={(label) => `Ngày: ${label}`}
-                      contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb" }}
-                    />
-                    <Area type="monotone" dataKey="totalRevenue" stroke="#3b82f6" strokeWidth={2} fill="url(#colorAdminRevenue)" />
-                  </AreaChart>
-                ) : (
-                  <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={formatPrice} />
-                    <Tooltip
-                      formatter={(value) =>
-                        new Intl.NumberFormat("vi-VN").format(Number(value)) + "đ"
-                      }
-                      labelFormatter={(label) => `Ngày: ${label}`}
-                      contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb" }}
-                    />
-                    <Bar dataKey="totalRevenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
+            {/* Detail Table */}
+            <div className="pt-3 border-t">
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Chi tiết từng quý:
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 font-medium">Quý</th>
+                      <th className="text-right py-2 font-medium">Doanh thu</th>
+                      <th className="text-right py-2 font-medium">Đơn hàng</th>
+                      <th className="text-right py-2 font-medium">Phí sàn</th>
+                      <th className="text-right py-2 font-medium">TB/đơn</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.filter(q => q.revenue > 0 || q.orderCount > 0).map((q) => (
+                      <tr key={q.name} className="border-b last:border-0">
+                        <td className="py-2">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: q.color }}
+                            />
+                            {q.name}
+                          </div>
+                        </td>
+                        <td className="text-right py-2 font-medium">
+                          {formatPrice(q.revenue)}đ
+                        </td>
+                        <td className="text-right py-2">
+                          {formatNumber(q.orderCount)}
+                        </td>
+                        <td className="text-right py-2">
+                          {formatPrice(q.totalFees)}đ
+                        </td>
+                        <td className="text-right py-2">
+                          {formatPrice(q.avgOrderValue)}đ
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="font-medium bg-muted/50">
+                      <td className="py-2">Tổng</td>
+                      <td className="text-right py-2">{formatPrice(totals.revenue)}đ</td>
+                      <td className="text-right py-2">{formatNumber(totals.orders)}</td>
+                      <td className="text-right py-2">{formatPrice(totals.fees)}đ</td>
+                      <td className="text-right py-2">-</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           </>
         )}

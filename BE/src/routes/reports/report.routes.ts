@@ -38,4 +38,7 @@ router.get(
   reportController.getModeratorPerformance
 );
 
+// Shop Rankings
+router.get("/shops/rankings", ...adminAuth, reportController.getShopRankings);
+
 export default router;
