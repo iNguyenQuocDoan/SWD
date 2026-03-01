@@ -1,4 +1,4 @@
-import { Order, OrderItem, SupportTicket, ModeratorStats } from "@/models";
+import { Order, OrderItem, SupportTicket, ModeratorStats, Shop } from "@/models";
 import {
   DateRangeQuery,
   RevenueOverviewResponse,
@@ -14,6 +14,7 @@ import {
   SLAComplianceResponse,
   ModeratorPerformanceResponse,
   AdminDashboardResponse,
+  ShopRankingResponse,
 } from "@/types/report.types";
 
 const PLATFORM_FEE_RATE = 0.05; // 5%
@@ -940,6 +941,134 @@ export class ReportService {
         totalHolding: escrowStats[0]?.total[0]?.amount || 0,
         readyForDisbursement: escrowStats[0]?.ready[0]?.count || 0,
         withComplaints,
+      },
+    };
+  }
+
+  // ============ SHOP RANKINGS ============
+
+  async getShopRankings(dateRange: DateRangeQuery & { limit?: number }): Promise<ShopRankingResponse> {
+    const { startDate, endDate, limit = 10 } = dateRange;
+
+    // Get all active shops
+    const activeShops = await Shop.find({ status: "Active" }).select(
+      "_id shopName ratingAvg totalSales status"
+    );
+
+    const shopMap = new Map(
+      activeShops.map((s) => [s._id.toString(), { name: s.shopName, rating: s.ratingAvg, status: s.status }])
+    );
+
+    // Aggregate revenue by shop from OrderItems
+    const revenueByShop = await OrderItem.aggregate([
+      {
+        $match: {
+          itemStatus: { $in: ["Completed", "Delivered"] },
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: "$shopId",
+          revenue: { $sum: "$subtotal" },
+          orderCount: { $sum: 1 },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: limit },
+    ]);
+
+    // Aggregate complaints by shop
+    const complaintsByShop = await SupportTicket.aggregate([
+      {
+        $match: {
+          type: { $in: ["Complaint", "Dispute"] },
+          shopId: { $exists: true, $ne: null },
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: "$shopId",
+          complaintCount: { $sum: 1 },
+        },
+      },
+      { $sort: { complaintCount: -1 } },
+      { $limit: limit },
+    ]);
+
+    // Create complaint count map
+    const complaintMap = new Map(
+      complaintsByShop.map((c) => [c._id?.toString(), c.complaintCount])
+    );
+
+    // Build top by revenue list
+    const topByRevenue = revenueByShop
+      .filter((r) => shopMap.has(r._id?.toString()))
+      .map((r) => {
+        const shopId = r._id?.toString() || "";
+        const shopInfo = shopMap.get(shopId);
+        return {
+          shopId,
+          shopName: shopInfo?.name || "Unknown",
+          revenue: r.revenue,
+          orderCount: r.orderCount,
+          complaintCount: complaintMap.get(shopId) || 0,
+          rating: shopInfo?.rating || 0,
+          status: shopInfo?.status || "Unknown",
+        };
+      });
+
+    // Build top by complaints list (need to lookup shop info)
+    const topByComplaints = await Promise.all(
+      complaintsByShop
+        .filter((c) => c._id)
+        .map(async (c) => {
+          const shopId = c._id?.toString() || "";
+          let shopInfo = shopMap.get(shopId);
+
+          // If shop not in active shops, try to fetch it
+          if (!shopInfo) {
+            const shop = await Shop.findById(c._id).select("shopName ratingAvg status");
+            if (shop) {
+              shopInfo = { name: shop.shopName, rating: shop.ratingAvg, status: shop.status };
+            }
+          }
+
+          // Get revenue for this shop
+          const revenueInfo = revenueByShop.find((r) => r._id?.toString() === shopId);
+
+          return {
+            shopId,
+            shopName: shopInfo?.name || "Unknown",
+            revenue: revenueInfo?.revenue || 0,
+            orderCount: revenueInfo?.orderCount || 0,
+            complaintCount: c.complaintCount,
+            rating: shopInfo?.rating || 0,
+            status: shopInfo?.status || "Unknown",
+          };
+        })
+    );
+
+    // Calculate summary
+    const totalComplaints = await SupportTicket.countDocuments({
+      type: { $in: ["Complaint", "Dispute"] },
+      createdAt: { $gte: startDate, $lte: endDate },
+    });
+
+    const avgRating =
+      activeShops.length > 0
+        ? activeShops.reduce((sum, s) => sum + (s.ratingAvg || 0), 0) / activeShops.length
+        : 0;
+
+    return {
+      period: { startDate, endDate },
+      topByRevenue,
+      topByComplaints,
+      summary: {
+        totalActiveShops: activeShops.length,
+        avgRating: Math.round(avgRating * 100) / 100,
+        totalComplaints,
       },
     };
   }

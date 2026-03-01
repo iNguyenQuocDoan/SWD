@@ -29,7 +29,7 @@ import {
 import { reportService } from "@/lib/services/report.service";
 import { shopService, Shop } from "@/lib/services/shop.service";
 import { AdminDashboardResponse } from "@/types/report";
-import { AdminRevenueChart, AdminOrderChart } from "@/components/admin/dashboard";
+import { AdminRevenueChart, AdminOrderChart, AdminDateRangeChart, AdminShopRankingChart } from "@/components/admin/dashboard";
 
 const formatPrice = (price: number) => {
   if (price >= 1_000_000_000) {
@@ -270,10 +270,16 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* Analytics Charts */}
+      {/* Analytics Charts - Row 1: Thống kê theo quý + Xếp hạng Shop */}
       <div className="grid gap-6 md:grid-cols-3">
         <AdminRevenueChart />
+        <AdminShopRankingChart />
+      </div>
+
+      {/* Analytics Charts - Row 2: Đơn hàng + Thời gian tùy chọn */}
+      <div className="grid gap-6 md:grid-cols-2">
         <AdminOrderChart />
+        <AdminDateRangeChart />
       </div>
 
       {/* Pending Sellers */}

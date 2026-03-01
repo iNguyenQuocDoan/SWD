@@ -16,10 +16,6 @@ export const reportService = {
     return apiClient.get<T.RevenueTrendResponse>("/reports/revenue/trends", { params });
   },
 
-  getOrderOverview: async (params: { startDate?: string; endDate?: string }): Promise<ApiResponse<{ totalOrders: number; totalAmount: number; averageOrderValue: number }>> => {
-    return apiClient.get<{ totalOrders: number; totalAmount: number; averageOrderValue: number }>("/reports/orders/overview", { params });
-  },
-
   getOrdersByStatus: async (params: { startDate?: string; endDate?: string }): Promise<ApiResponse<T.OrderStatusResponse>> => {
     return apiClient.get<T.OrderStatusResponse>("/reports/orders/by-status", { params });
   },
@@ -48,5 +44,11 @@ export const reportService = {
 
   getSellerOrderTrends: async (params: { startDate?: string; endDate?: string; granularity?: string }): Promise<ApiResponse<T.OrderTrendResponse>> => {
     return apiClient.get<T.OrderTrendResponse>("/seller/reports/orders/trends", { params });
+  },
+
+  // ============ SHOP RANKINGS ============
+
+  getShopRankings: async (params: { startDate?: string; endDate?: string; limit?: number }): Promise<ApiResponse<T.ShopRankingResponse>> => {
+    return apiClient.get<T.ShopRankingResponse>("/reports/shops/rankings", { params });
   },
 };
