@@ -17,14 +17,9 @@ import { useAuthStore } from "@/lib/auth";
 import { authService } from "@/lib/services/auth.service";
 import {
   LogOut,
-  User,
   Shield,
   Settings,
-  Users,
   Package,
-  ShoppingBag,
-  BarChart3,
-  Cog,
   FileText,
   Store,
   Menu,
@@ -48,13 +43,9 @@ export function AdminHeader() {
   const navItems = [
     { href: "/admin", label: "Dashboard", icon: Home },
     { href: "/admin/reports", label: "Báo cáo", icon: FileText },
-    { href: "/admin/users", label: "Người dùng", icon: Users },
-    { href: "/admin/sellers", label: "Duyệt Seller", icon: Store },
     { href: "/admin/disbursement", label: "Giải ngân", icon: Wallet },
     { href: "/admin/categories", label: "Danh mục", icon: Package },
     { href: "/admin/permissions", label: "Phân quyền", icon: Shield },
-    { href: "/admin/analytics", label: "Phân tích", icon: BarChart3 },
-    { href: "/admin/settings", label: "Cấu hình", icon: Settings },
   ];
 
   const isActive = (href: string) => {
@@ -67,7 +58,7 @@ export function AdminHeader() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-14 sm:h-16 items-center justify-between gap-3 sm:gap-4">
+        <div className="relative flex h-14 sm:h-16 items-center justify-between gap-3 sm:gap-4">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
             <Link
@@ -79,28 +70,28 @@ export function AdminHeader() {
                 Admin Panel
               </span>
             </Link>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex gap-0.5">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-                      isActive(item.href)
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
           </div>
+
+          {/* Desktop Navigation (Centered) */}
+          <nav className="hidden lg:flex absolute left-1/2 -translate-x-1/2 gap-0.5">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                    isActive(item.href)
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
