@@ -78,6 +78,8 @@ export interface ComplaintFilter {
 export interface QueueFilter {
   status?: string;
   priority?: "high" | "normal"; // Deprecated in swagger, but kept for types
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
   limit?: number;
   skip?: number;
 }
@@ -205,6 +207,8 @@ class ComplaintService {
   async getQueue(filter: QueueFilter = {}): Promise<QueueResponse> {
     const res = await complaintsApi.getQueue({
       status: filter.status as T.ComplaintQueueStatus,
+      sortBy: filter.sortBy,
+      sortOrder: filter.sortOrder,
       limit: filter.limit,
       skip: filter.skip,
     });

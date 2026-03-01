@@ -31,6 +31,8 @@ import {
   Users,
   Timer,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { complaintService } from "@/lib/services/complaint.service";
@@ -60,20 +62,36 @@ export default function ModeratorComplaintsPage() {
   const [queueItems, setQueueItems] = useState<ComplaintQueueItem[]>([]);
   const [stats, setStats] = useState<ComplaintQueueStats | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("Assigned");
+  const [sortOption, setSortOption] = useState<string>("newest");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 10;
 
   // Fetch queue data
   const fetchQueue = async () => {
     setIsLoading(true);
     try {
+      // Parse sort option
+      const sortConfig: Record<string, { sortBy: string; sortOrder: "asc" | "desc" }> = {
+        newest: { sortBy: "addedToQueueAt", sortOrder: "desc" },
+        oldest: { sortBy: "addedToQueueAt", sortOrder: "asc" },
+        priority: { sortBy: "queuePriority", sortOrder: "desc" },
+      };
+      const { sortBy, sortOrder } = sortConfig[sortOption] || sortConfig.newest;
+
       const [queueResult, statsResult] = await Promise.all([
         complaintService.getQueue({
           status: statusFilter !== "all" ? (statusFilter as any) : undefined,
-          limit: 50,
+          sortBy,
+          sortOrder,
+          limit: itemsPerPage,
+          skip: (currentPage - 1) * itemsPerPage,
         }),
         complaintService.getQueueStats(),
       ]);
 
       setQueueItems(queueResult.items);
+      setTotalItems(queueResult.total);
       setStats(statsResult);
     } catch (error) {
       console.error("Failed to fetch queue:", error);
@@ -85,7 +103,14 @@ export default function ModeratorComplaintsPage() {
 
   useEffect(() => {
     fetchQueue();
-  }, [statusFilter]);
+  }, [statusFilter, sortOption, currentPage]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, sortOption]);
+
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   // View complaint details
   const handleViewComplaint = (queueItem: ComplaintQueueItem) => {
@@ -256,6 +281,19 @@ export default function ModeratorComplaintsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Sắp xếp:</span>
+                  <Select value={sortOption} onValueChange={setSortOption}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Mới nhất</SelectItem>
+                      <SelectItem value="oldest">Cũ nhất</SelectItem>
+                      <SelectItem value="priority">Ưu tiên cao</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -267,7 +305,7 @@ export default function ModeratorComplaintsPage() {
                 <div>
                   <CardTitle className="text-base">Danh sách khiếu nại</CardTitle>
                   <CardDescription className="text-xs">
-                    {queueItems.length} khiếu nại
+                    Hiển thị {queueItems.length} / {totalItems} khiếu nại
                   </CardDescription>
                 </div>
               </div>
@@ -288,73 +326,104 @@ export default function ModeratorComplaintsPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {queueItems.map((item) => {
-                    const ticket = typeof item.ticketId === "object" ? item.ticketId as Complaint : null;
-                    const status = statusConfig[item.status] || { label: item.status, variant: "outline" as const };
+                <>
+                  <div className="space-y-3">
+                    {queueItems.map((item) => {
+                      const ticket = typeof item.ticketId === "object" ? item.ticketId as Complaint : null;
+                      const status = statusConfig[item.status] || { label: item.status, variant: "outline" as const };
 
-                    return (
-                      <div
-                        key={item._id}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex-1 min-w-0 space-y-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-sm">
-                              {ticket?.ticketCode || "N/A"}
-                            </span>
-                            <Badge variant={status.variant} className="text-xs">
-                              {status.label}
-                            </Badge>
-                            {item.isHighValue && (
-                              <Badge variant="destructive" className="text-xs">
-                                Giá trị cao
-                              </Badge>
-                            )}
-                            {item.isEscalated && (
-                              <Badge variant="outline" className="text-xs border-orange-500 text-orange-500">
-                                Leo thang
-                              </Badge>
-                            )}
-                          </div>
-
-                          <p className="text-sm truncate">
-                            {ticket?.title || "Không có tiêu đề"}
-                          </p>
-
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                            {ticket?.category && (
-                              <span className="bg-muted px-2 py-0.5 rounded">
-                                {categoryLabels[ticket.category] || ticket.category}
+                      return (
+                        <div
+                          key={item._id}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0 space-y-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">
+                                {ticket?.ticketCode || "N/A"}
                               </span>
-                            )}
-                            <span>
-                              Giá trị: {formatPrice(item.orderValue)}
-                            </span>
-                            <span>
-                              Chờ: {formatTime(item.ticketAge * 60)}
-                            </span>
-                            <span>
-                              Ưu tiên: {item.queuePriority.toFixed(0)}
-                            </span>
+                              <Badge variant={status.variant} className="text-xs">
+                                {status.label}
+                              </Badge>
+                              {item.isHighValue && (
+                                <Badge variant="destructive" className="text-xs">
+                                  Giá trị cao
+                                </Badge>
+                              )}
+                              {item.isEscalated && (
+                                <Badge variant="outline" className="text-xs border-orange-500 text-orange-500">
+                                  Leo thang
+                                </Badge>
+                              )}
+                            </div>
+
+                            <p className="text-sm truncate">
+                              {ticket?.title || "Không có tiêu đề"}
+                            </p>
+
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                              {ticket?.category && (
+                                <span className="bg-muted px-2 py-0.5 rounded">
+                                  {categoryLabels[ticket.category] || ticket.category}
+                                </span>
+                              )}
+                              <span>
+                                Giá trị: {formatPrice(item.orderValue)}
+                              </span>
+                              <span>
+                                Chờ: {formatTime(item.ticketAge * 60)}
+                              </span>
+                              <span>
+                                Ưu tiên: {item.queuePriority.toFixed(0)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs"
+                              onClick={() => handleViewComplaint(item)}
+                            >
+                              <Eye className="mr-1.5 h-3.5 w-3.5" />
+                              Xem chi tiết
+                            </Button>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={() => handleViewComplaint(item)}
-                          >
-                            <Eye className="mr-1.5 h-3.5 w-3.5" />
-                            Xem chi tiết
-                          </Button>
-                        </div>
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 border-t mt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Trang {currentPage} / {totalPages}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Trước
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                        >
+                          Sau
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
