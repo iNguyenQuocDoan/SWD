@@ -59,9 +59,9 @@ export type TicketStatus =
   | "MODERATOR_REVIEW"
   | "RESOLVED_REFUNDED"
   | "CLOSED_REJECTED"
-  | "AppealFiled"
-  | "AppealReview"
-  | "Closed";
+  | "APPEAL_FILED"
+  | "APPEAL_REVIEW"
+  | "APPEAL_CLOSED";
 
 export type TicketType = "Complaint" | "Dispute" | "General" | "Appeal";
 

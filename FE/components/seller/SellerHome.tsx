@@ -140,11 +140,11 @@ export function SellerHome() {
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <Store className="h-7 w-7 text-primary" />
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <Store className="h-7 w-7 text-primary" />
+          </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold">{shop.shopName}</h1>
@@ -165,29 +165,29 @@ export function SellerHome() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link href="/seller/reports">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Báo cáo & Thống kê
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/seller/orders">Lịch sử bán hàng</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/seller/complaints">
-              <AlertTriangle className="mr-2 h-4 w-4" />
-              Khiếu nại shop
-            </Link>
-          </Button>
-          <Button asChild disabled={shop.status !== "Active"}>
-            <Link href="/seller/products/create">
-              <Plus className="mr-2 h-4 w-4" />
-              Thêm sản phẩm
-            </Link>
-          </Button>
+            <Button asChild variant="outline">
+              <Link href="/seller/reports">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Báo cáo & Thống kê
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/seller/orders">Lịch sử bán hàng</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/seller/complaints">
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Khiếu nại shop
+              </Link>
+            </Button>
+            <Button asChild disabled={shop.status !== "Active"}>
+              <Link href="/seller/products/create">
+                <Plus className="mr-2 h-4 w-4" />
+                Thêm sản phẩm
+              </Link>
+            </Button>
+          </div>
         </div>
-      </div>
 
       {hasTodos && <TodoSection todoItems={todoItems} />}
 
