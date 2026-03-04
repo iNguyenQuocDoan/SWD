@@ -89,6 +89,34 @@ export const fileAppealSchema = z.object({
     .optional(),
 });
 
+// ===== Seller Schemas =====
+
+export const sellerDecisionSchema = z
+  .object({
+  decision: z.enum(["APPROVE", "REJECT"]),
+  note: z.string().max(1000).optional(),
+    evidence: z.array(evidenceSchema).max(10, "Tối đa 10 bằng chứng").optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.decision === "REJECT") {
+      if (!data.note || data.note.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["note"],
+          message: "Khi từ chối khiếu nại, seller phải nhập lý do",
+        });
+      }
+
+      if (!data.evidence || data.evidence.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["evidence"],
+          message: "Khi từ chối khiếu nại, seller phải cung cấp ít nhất 1 bằng chứng",
+        });
+      }
+    }
+});
+
 // ===== Moderator Schemas =====
 
 // Add internal note
@@ -216,6 +244,7 @@ export const getModeratorStatsQuerySchema = z.object({
 export type CreateComplaintInput = z.infer<typeof createComplaintSchema>;
 export type AddEvidenceInput = z.infer<typeof addEvidenceSchema>;
 export type FileAppealInput = z.infer<typeof fileAppealSchema>;
+export type SellerDecisionInput = z.infer<typeof sellerDecisionSchema>;
 export type AddInternalNoteInput = z.infer<typeof addInternalNoteSchema>;
 export type RequestInfoInput = z.infer<typeof requestInfoSchema>;
 export type MakeDecisionInput = z.infer<typeof makeDecisionSchema>;

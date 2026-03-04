@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -11,516 +11,355 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RequireAuth } from "@/components/auth/RequireAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Users,
-  Package,
   DollarSign,
   AlertTriangle,
   Settings,
   Shield,
-  TrendingUp,
   FileText,
-  BarChart3,
-  Cog,
   UserCheck,
-  Ban,
   ShoppingBag,
   Wallet,
+  Clock,
+  Package,
+  ArrowRight,
 } from "lucide-react";
-
-// TODO: Replace with API data from backend
-const stats = {
-  totalUsers: 0,
-  totalOrders: 0,
-  totalRevenue: 0,
-  activeTickets: 0,
-  criticalAlerts: 0,
-  pendingSellerApplications: 0,
-  activeProducts: 0,
-  totalShops: 0,
-};
-
-// TODO: Fetch from API - GET /api/users?sort=createdAt&limit=5
-const recentUsers: Array<{
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: string;
-  createdAt: string;
-}> = [];
-
-// TODO: Fetch from API - GET /api/shops/applications/pending
-const pendingApplications: Array<{
-  id: string;
-  sellerName: string;
-  email: string;
-  submittedAt: string;
-  status: string;
-}> = [];
+import { reportService } from "@/lib/services/report.service";
+import { shopService, Shop } from "@/lib/services/shop.service";
+import { AdminDashboardResponse } from "@/types/report";
+import { AdminRevenueChart, AdminOrderChart } from "@/components/admin/dashboard";
 
 const formatPrice = (price: number) => {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(price);
+  if (price >= 1_000_000_000) {
+    return `${(price / 1_000_000_000).toFixed(1)}B`;
+  }
+  if (price >= 1_000_000) {
+    return `${(price / 1_000_000).toFixed(1)}M`;
+  }
+  return new Intl.NumberFormat("vi-VN").format(price) + "đ";
 };
 
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-28" />
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Skeleton className="h-48" />
+        <Skeleton className="h-48" />
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [dashboard, setDashboard] = useState<AdminDashboardResponse | null>(null);
+  const [pendingShops, setPendingShops] = useState<Shop[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      try {
+        const [dashboardRes, shopsRes] = await Promise.all([
+          reportService.getDashboard(),
+          shopService.getPendingShops(),
+        ]);
+
+        if (dashboardRes.success && dashboardRes.data) {
+          setDashboard(dashboardRes.data);
+        }
+        setPendingShops(shopsRes);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load dashboard");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <DashboardSkeleton />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="py-8 text-center">
+            <AlertTriangle className="h-12 w-12 mx-auto text-red-500 mb-4" />
+            <p className="text-red-600">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const revenue = dashboard?.revenue;
+  const orders = dashboard?.orders;
+  const complaints = dashboard?.complaints;
+  const escrow = dashboard?.escrow;
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Dashboard Quản trị
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Quản lý toàn bộ hệ thống
-            </p>
+    <div className="container mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard Quản trị</h1>
+          <p className="text-sm text-muted-foreground">
+            Tổng quan hệ thống
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/admin/settings">
+            <Settings className="h-4 w-4 mr-2" />
+            Cấu hình
+          </Link>
+        </Button>
+      </div>
+
+      {/* Revenue Stats */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Doanh thu Platform
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Hôm nay</p>
+              <p className="text-xl font-bold text-green-600">
+                {formatPrice(revenue?.todayRevenue ?? 0)}
+              </p>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Tuần này</p>
+              <p className="text-xl font-bold text-blue-600">
+                {formatPrice(revenue?.weekRevenue ?? 0)}
+              </p>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Tháng này</p>
+              <p className="text-xl font-bold text-purple-600">
+                {formatPrice(revenue?.monthRevenue ?? 0)}
+              </p>
+            </div>
+            <div className="text-center p-4 bg-orange-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Phí platform</p>
+              <p className="text-xl font-bold text-orange-600">
+                {formatPrice(revenue?.platformFeeToday ?? 0)}
+              </p>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/admin/settings">
-                <Settings className="mr-2 h-4 w-4" />
-                Cấu hình
-              </Link>
-            </Button>
-          </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Stats Cards */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="py-4">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
-              <CardTitle className="text-sm font-medium">
-                Tổng người dùng
-              </CardTitle>
-              <Users className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold">
-                {stats.totalUsers.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                <Link
-                  href="/admin/users"
-                  className="text-primary hover:underline"
-                >
-                  Quản lý người dùng
-                </Link>
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
-              <CardTitle className="text-sm font-medium">
-                Tổng giải ngân
-              </CardTitle>
-              <Wallet className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold">
-                {stats.totalOrders.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                <Link
-                  href="/admin/disbursement"
-                  className="text-primary hover:underline"
-                >
-                  Xem tất cả
-                </Link>
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
-              <CardTitle className="text-sm font-medium">
-                Tổng doanh thu
-              </CardTitle>
-              <DollarSign className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold text-green-600">
-                {formatPrice(stats.totalRevenue)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Tất cả thời gian
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
-              <CardTitle className="text-sm font-medium">
-                Cảnh báo
-              </CardTitle>
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold text-red-600">
-                {stats.criticalAlerts}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Cần xử lý ngay
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Secondary Stats */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="py-4">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
-              <CardTitle className="text-sm font-medium">
-                Ticket hỗ trợ
-              </CardTitle>
-              <FileText className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold text-orange-600">
-                {stats.activeTickets}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Đang mở
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
-              <CardTitle className="text-sm font-medium">
-                Đơn seller chờ duyệt
-              </CardTitle>
-              <UserCheck className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold text-blue-600">
-                {stats.pendingSellerApplications}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                <Link
-                  href="/admin/sellers"
-                  className="text-primary hover:underline"
-                >
-                  Xem danh sách
-                </Link>
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
-              <CardTitle className="text-sm font-medium">
-                Sản phẩm active
-              </CardTitle>
-              <Package className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold">
-                {stats.activeProducts}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Đang bán
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="py-4">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
-              <CardTitle className="text-sm font-medium">
-                Tổng shop
-              </CardTitle>
-              <Shield className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-bold">
-                {stats.totalShops}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Shop hoạt động
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <Card className="py-4">
-          <CardHeader className="px-4 pt-4 pb-3">
-            <CardTitle className="text-base">Thao tác nhanh</CardTitle>
-            <CardDescription className="text-xs">Các chức năng quản trị</CardDescription>
+      {/* Orders & Complaints Grid */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Orders */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <ShoppingBag className="h-4 w-4" />
+              Đơn hàng
+            </CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
-                <Link href="/admin/users">
-                  <Users className="h-4 w-4" />
-                  <span className="text-xs">Người dùng</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
-                <Link href="/admin/sellers">
-                  <UserCheck className="h-4 w-4" />
-                  <span className="text-xs">Duyệt Seller</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
-                <Link href="/admin/disbursement">
-                  <Wallet className="h-4 w-4" />
-                  <span className="text-xs">Giải ngân</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
-                <Link href="/admin/categories">
-                  <Package className="h-4 w-4" />
-                  <span className="text-xs">Danh mục</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
-                <Link href="/admin/permissions">
-                  <Shield className="h-4 w-4" />
-                  <span className="text-xs">Phân quyền</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
-                <Link href="/admin/settings">
-                  <Cog className="h-4 w-4" />
-                  <span className="text-xs">Cấu hình</span>
-                </Link>
-              </Button>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <span className="text-sm">Đơn hôm nay</span>
+              <span className="font-bold">{orders?.todayOrders ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+              <span className="text-sm">Đang chờ xử lý</span>
+              <span className="font-bold text-yellow-600">
+                {orders?.pendingOrders ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+              <span className="text-sm">Có tranh chấp</span>
+              <span className="font-bold text-red-600">
+                {orders?.disputedOrders ?? 0}
+              </span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Tabs Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 h-9">
-            <TabsTrigger value="overview" className="text-xs sm:text-sm">Tổng quan</TabsTrigger>
-            <TabsTrigger value="users" className="text-xs sm:text-sm">Người dùng</TabsTrigger>
-            <TabsTrigger value="applications" className="text-xs sm:text-sm">Đơn đăng ký</TabsTrigger>
-            <TabsTrigger value="analytics" className="text-xs sm:text-sm">Phân tích</TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-4">
-            {/* Pending Applications */}
-            <Card className="py-4">
-              <CardHeader className="px-4 pt-4 pb-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-base">Đơn đăng ký Seller chờ duyệt</CardTitle>
-                    <CardDescription className="text-xs">
-                      {stats.pendingSellerApplications} đơn cần xử lý
-                    </CardDescription>
-                  </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href="/admin/sellers">Xem tất cả</Link>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="space-y-2">
-                  {pendingApplications.map((app) => (
-                    <div
-                      key={app.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{app.sellerName}</p>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <span className="text-xs text-muted-foreground truncate">
-                            {app.email}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {app.submittedAt}
-                          </span>
-                          <Badge variant="secondary" className="text-xs">Chờ duyệt</Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button variant="outline" size="sm" className="h-8 text-xs">
-                          <Ban className="mr-1.5 h-3.5 w-3.5" />
-                          Từ chối
-                        </Button>
-                        <Button size="sm" className="h-8 text-xs">
-                          <UserCheck className="mr-1.5 h-3.5 w-3.5" />
-                          Duyệt
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Users */}
-            <Card className="py-4">
-              <CardHeader className="px-4 pt-4 pb-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-base">Người dùng mới</CardTitle>
-                    <CardDescription className="text-xs">5 người dùng đăng ký gần đây</CardDescription>
-                  </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href="/admin/users">Xem tất cả</Link>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="space-y-2">
-                  {recentUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{user.name}</p>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <span className="text-xs text-muted-foreground truncate">
-                            {user.email}
-                          </span>
-                          <Badge variant="outline" className="text-xs">{user.role}</Badge>
-                          <Badge
-                            variant={
-                              user.status === "active" ? "default" : "secondary"
-                            }
-                            className="text-xs"
-                          >
-                            {user.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
-                          <Link href={`/admin/users/${user.id}`}>
-                            Xem chi tiết
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Users Tab */}
-          <TabsContent value="users">
-            <Card className="py-4">
-              <CardHeader className="px-4 pt-4 pb-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-base">Quản lý người dùng</CardTitle>
-                    <CardDescription className="text-xs">
-                      {stats.totalUsers} người dùng trong hệ thống
-                    </CardDescription>
-                  </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href="/admin/users">Xem tất cả</Link>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="space-y-2">
-                  {recentUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{user.name}</p>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <span className="text-xs text-muted-foreground truncate">
-                            {user.email}
-                          </span>
-                          <Badge variant="outline" className="text-xs">{user.role}</Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
-                          <Link href={`/admin/users/${user.id}`}>
-                            Quản lý
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Applications Tab */}
-          <TabsContent value="applications">
-            <Card className="py-4">
-              <CardHeader className="px-4 pt-4 pb-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-base">Đơn đăng ký Seller</CardTitle>
-                    <CardDescription className="text-xs">
-                      {stats.pendingSellerApplications} đơn chờ duyệt
-                    </CardDescription>
-                  </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href="/admin/sellers">Xem tất cả</Link>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="space-y-2">
-                  {pendingApplications.map((app) => (
-                    <div
-                      key={app.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{app.sellerName}</p>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <span className="text-xs text-muted-foreground truncate">
-                            {app.email}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {app.submittedAt}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button variant="outline" size="sm" className="h-8 text-xs">
-                          Từ chối
-                        </Button>
-                        <Button size="sm" className="h-8 text-xs">Duyệt</Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Analytics Tab */}
-          <TabsContent value="analytics">
-            <Card className="py-4">
-              <CardHeader className="px-4 pt-4 pb-3">
-                <CardTitle className="text-base">Phân tích hệ thống</CardTitle>
-                <CardDescription className="text-xs">Thống kê và báo cáo</CardDescription>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="text-center py-8">
-                  <BarChart3 className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">
-                    Tính năng phân tích đang được phát triển.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Complaints */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Khiếu nại & Hỗ trợ
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <span className="text-sm">Ticket đang mở</span>
+              <span className="font-bold">{complaints?.openTickets ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+              <span className="text-sm">Khẩn cấp</span>
+              <Badge variant="destructive">{complaints?.urgentTickets ?? 0}</Badge>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+              <span className="text-sm">Vi phạm SLA hôm nay</span>
+              <span className="font-bold text-orange-600">
+                {complaints?.slaBreachedToday ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t">
+              <span className="text-sm text-gray-500">Thời gian xử lý TB</span>
+              <span className="font-semibold">
+                {(complaints?.avgResolutionHours ?? 0).toFixed(1)}h
+              </span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Escrow */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              Escrow & Giải ngân
+            </CardTitle>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/admin/disbursement">
+                Chi tiết <ArrowRight className="h-3 w-3 ml-1" />
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Tổng đang giữ</p>
+              <p className="text-lg font-bold text-blue-600">
+                {formatPrice(escrow?.totalHolding ?? 0)}
+              </p>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Sẵn sàng giải ngân</p>
+              <p className="text-lg font-bold text-green-600">
+                {formatPrice(escrow?.readyForDisbursement ?? 0)}
+              </p>
+            </div>
+            <div className="text-center p-4 bg-red-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Có khiếu nại</p>
+              <p className="text-lg font-bold text-red-600">
+                {formatPrice(escrow?.withComplaints ?? 0)}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Analytics Charts */}
+      <div className="grid gap-6 md:grid-cols-3">
+        <AdminRevenueChart />
+        <AdminOrderChart />
+      </div>
+
+      {/* Pending Sellers */}
+      {pendingShops.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" />
+                  Seller chờ duyệt
+                </CardTitle>
+                <CardDescription>{pendingShops.length} đơn cần xử lý</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/admin/sellers">Xem tất cả</Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {pendingShops.slice(0, 3).map((shop) => (
+                <div
+                  key={shop._id}
+                  className="flex items-center justify-between p-3 border rounded-lg"
+                >
+                  <div>
+                    <p className="font-medium text-sm">{shop.shopName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(shop.createdAt).toLocaleDateString("vi-VN")}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">Chờ duyệt</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-medium">Thao tác nhanh</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+              <Link href="/admin/users">
+                <Users className="h-4 w-4" />
+                <span className="text-xs">Người dùng</span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+              <Link href="/admin/sellers">
+                <UserCheck className="h-4 w-4" />
+                <span className="text-xs">Duyệt Seller</span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+              <Link href="/admin/disbursement">
+                <Wallet className="h-4 w-4" />
+                <span className="text-xs">Giải ngân</span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+              <Link href="/admin/categories">
+                <Package className="h-4 w-4" />
+                <span className="text-xs">Danh mục</span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+              <Link href="/admin/permissions">
+                <Shield className="h-4 w-4" />
+                <span className="text-xs">Phân quyền</span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+              <Link href="/admin/reports">
+                <FileText className="h-4 w-4" />
+                <span className="text-xs">Báo cáo</span>
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

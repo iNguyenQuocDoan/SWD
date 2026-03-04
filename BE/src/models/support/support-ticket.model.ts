@@ -157,6 +157,7 @@ export interface ISupportTicket extends Document {
 
   // Evidence System
   buyerEvidence: IComplaintEvidence[];
+  sellerEvidence: IComplaintEvidence[];
 
   // Order Snapshot (NEW)
   orderSnapshot?: IOrderSnapshot | null;
@@ -180,6 +181,11 @@ export interface ISupportTicket extends Document {
 
   // SLA Tracking (NEW)
   firstResponseAt?: Date | null;
+  sellerResponseDeadlineAt?: Date | null;
+  sellerRespondedAt?: Date | null;
+  sellerResponseNote?: string | null;
+  escalatedAt?: Date | null;
+  refundProcessedAt?: Date | null;
   slaBreached: boolean;
 
   // Priority Calculation (NEW)
@@ -243,17 +249,18 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
       type: String,
       required: true,
       enum: [
-        "ModeratorAssigned",
-        "InReview",
-        "NeedMoreInfo",
-        "DecisionMade",
-        "Appealable",
-        "AppealFiled",
-        "AppealReview",
-        "Resolved",
-        "Closed",
+        "PENDING_SELLER",
+        "SELLER_APPROVED",
+        "SELLER_REJECTED",
+        "AUTO_ESCALATED",
+        "MODERATOR_REVIEW",
+        "RESOLVED_REFUNDED",
+        "CLOSED_REJECTED",
+        "APPEAL_FILED",
+        "APPEAL_REVIEW",
+        "APPEAL_CLOSED",
       ],
-      default: "ModeratorAssigned",
+      default: "PENDING_SELLER",
     },
 
     // Category System (NEW)
@@ -307,6 +314,10 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
 
     // Evidence System
     buyerEvidence: {
+      type: [ComplaintEvidenceSchema],
+      default: [],
+    },
+    sellerEvidence: {
       type: [ComplaintEvidenceSchema],
       default: [],
     },
@@ -373,6 +384,22 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
       type: Date,
       default: null,
     },
+    sellerResponseDeadlineAt: {
+      type: Date,
+      default: null,
+    },
+    sellerRespondedAt: {
+      type: Date,
+      default: null,
+    },
+    escalatedAt: {
+      type: Date,
+      default: null,
+    },
+    refundProcessedAt: {
+      type: Date,
+      default: null,
+    },
     slaBreached: {
       type: Boolean,
       default: false,
@@ -415,6 +442,10 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
     refundAmount: {
       type: Number,
       min: 0,
+    },
+    sellerResponseNote: {
+      type: String,
+      default: null,
     },
     decidedByUserId: {
       type: Schema.Types.ObjectId,

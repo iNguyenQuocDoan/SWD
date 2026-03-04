@@ -52,15 +52,13 @@ import type { Complaint, ComplaintTimeline, ComplaintResolution } from "@/lib/se
 
 // Status config matched with Swagger
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
-  ModeratorAssigned: { label: "Đã gán Moderator", variant: "default", color: "text-blue-600" },
-  InReview: { label: "Đang xem xét", variant: "default", color: "text-blue-600" },
-  NeedMoreInfo: { label: "Cần thêm thông tin", variant: "outline", color: "text-orange-600" },
-  DecisionMade: { label: "Đã có quyết định", variant: "secondary", color: "text-green-600" },
-  Appealable: { label: "Có thể kháng cáo", variant: "outline", color: "text-purple-600" },
-  AppealFiled: { label: "Đã nộp kháng cáo", variant: "destructive", color: "text-red-600" },
-  AppealReview: { label: "Đang xem xét kháng cáo", variant: "destructive", color: "text-red-600" },
-  Resolved: { label: "Đã giải quyết", variant: "outline", color: "text-green-600" },
-  Closed: { label: "Đã đóng", variant: "secondary", color: "text-gray-600" },
+  PENDING_SELLER: { label: "Chờ Seller phản hồi", variant: "outline", color: "text-amber-600" },
+  SELLER_APPROVED: { label: "Seller đã chấp thuận", variant: "default", color: "text-blue-600" },
+  SELLER_REJECTED: { label: "Seller đã từ chối", variant: "destructive", color: "text-red-600" },
+  AUTO_ESCALATED: { label: "Tự động chuyển Moderator", variant: "outline", color: "text-orange-600" },
+  MODERATOR_REVIEW: { label: "Moderator đang xem xét", variant: "default", color: "text-blue-600" },
+  RESOLVED_REFUNDED: { label: "Đã hoàn tiền", variant: "secondary", color: "text-green-600" },
+  CLOSED_REJECTED: { label: "Đã đóng (từ chối)", variant: "secondary", color: "text-gray-600" },
 };
 
 const categoryLabels: Record<string, string> = {
@@ -100,9 +98,6 @@ export default function ModeratorComplaintDetailPage({
   const [decisionReason, setDecisionReason] = useState("");
   const [refundAmount, setRefundAmount] = useState<number>(0);
 
-  // Internal note state
-  const [internalNote, setInternalNote] = useState("");
-  const [isAddingNote, setIsAddingNote] = useState(false);
 
   // Request info state
   const [isRequestInfoDialogOpen, setIsRequestInfoDialogOpen] = useState(false);
@@ -146,24 +141,6 @@ export default function ModeratorComplaintDetailPage({
     } catch (error) {
       const message = error instanceof Error ? error.message : "Không thể nhận khiếu nại";
       toast.error(message);
-    }
-  };
-
-  // Add internal note
-  const handleAddInternalNote = async () => {
-    if (!internalNote.trim()) return;
-
-    setIsAddingNote(true);
-    try {
-      await complaintService.addInternalNote(complaintId, internalNote);
-      toast.success("Đã thêm ghi chú");
-      setInternalNote("");
-      fetchComplaint();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Không thể thêm ghi chú";
-      toast.error(message);
-    } finally {
-      setIsAddingNote(false);
     }
   };
 
@@ -257,7 +234,7 @@ export default function ModeratorComplaintDetailPage({
   }
 
   const status = statusConfig[complaint.status] || { label: complaint.status, variant: "outline" as const, color: "text-gray-600" };
-  const canMakeDecision = ["ModeratorAssigned", "InReview", "NeedMoreInfo"].includes(complaint.status);
+  const canMakeDecision = ["MODERATOR_REVIEW", "AUTO_ESCALATED", "SELLER_APPROVED", "SELLER_REJECTED"].includes(complaint.status);
   const canAssign = !complaint.assignedToUserId;
 
   return (
@@ -481,6 +458,50 @@ Bạn đã thử đăng nhập bao nhiêu lần?
                 </>
               )}
 
+              {/* Seller Evidence */}
+              {complaint.sellerEvidence && complaint.sellerEvidence.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4" />
+                      Bằng chứng từ seller ({complaint.sellerEvidence.length})
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {complaint.sellerEvidence.map((evidence, idx) => (
+                        <a
+                          key={idx}
+                          href={evidence.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block border rounded-lg p-2 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="text-xs font-medium">{evidence.type}</div>
+                          {evidence.description && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {evidence.description}
+                            </div>
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {complaint.sellerResponseNote && (
+                <>
+                  <Separator />
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Phản hồi từ seller
+                    </h4>
+                    <p className="text-sm">{complaint.sellerResponseNote}</p>
+                  </div>
+                </>
+              )}
+
               {/* Decision Info */}
               {complaint.decidedAt && (
                 <>
@@ -518,40 +539,6 @@ Bạn đã thử đăng nhập bao nhiêu lần?
             </CardContent>
           </Card>
 
-          {/* Internal Notes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                Ghi chú nội bộ
-              </CardTitle>
-              <CardDescription>
-                Ghi chú chỉ moderator và admin có thể xem
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Textarea
-                  value={internalNote}
-                  onChange={(e) => setInternalNote(e.target.value)}
-                  placeholder="Thêm ghi chú..."
-                  rows={2}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleAddInternalNote}
-                  disabled={isAddingNote || !internalNote.trim()}
-                  className="self-end"
-                >
-                  {isAddingNote ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Thêm"
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Sidebar */}
@@ -585,7 +572,7 @@ Bạn đã thử đăng nhập bao nhiêu lần?
                 <h4 className="text-sm font-medium text-muted-foreground mb-1">Shop</h4>
                 <p className="font-medium">
                   {typeof complaint.shopId === "object"
-                    ? complaint.shopId.name
+                    ? (complaint.shopId.shopName || complaint.shopId.name || "N/A")
                     : "N/A"}
                 </p>
               </div>

@@ -10,6 +10,7 @@ import {
   addInternalNoteSchema,
   requestInfoSchema,
   makeDecisionSchema,
+  sellerDecisionSchema,
   appealDecisionSchema,
   getComplaintsQuerySchema,
   getQueueQuerySchema,
@@ -44,7 +45,7 @@ export class ComplaintController {
 
       res.status(201).json({
         success: true,
-        message: "Tạo khiếu nại thành công. Moderator sẽ xử lý trong thời gian sớm nhất.",
+        message: "Tạo khiếu nại thành công. Seller có 24h để phản hồi trước khi chuyển moderator.",
         data: ticket,
       });
     } catch (error) {
@@ -138,6 +139,68 @@ export class ComplaintController {
       res.status(200).json({
         success: true,
         data: tickets,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get seller complaints (for own shop/orders)
+   * GET /api/complaints/seller/me
+   */
+  getSellerComplaints = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const { limit = 20, skip = 0, status } = req.query;
+
+      const tickets = await complaintService.getSellerComplaints(userId, {
+        limit: Number(limit),
+        skip: Number(skip),
+        status: status as string,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: tickets,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Seller decision on complaint
+   * POST /api/complaints/:id/seller-decision
+   */
+  sellerDecision = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const id = getParamString(req.params.id);
+      const input = sellerDecisionSchema.parse(req.body);
+
+      const ticket = await complaintService.sellerDecision(id, userId, input);
+
+      res.status(200).json({
+        success: true,
+        message: "Seller đã phản hồi khiếu nại",
+        data: ticket,
       });
     } catch (error) {
       next(error);
@@ -456,10 +519,13 @@ export class ComplaintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const userId = req.user?.id;
+      const user = req.user;
       const id = getParamString(req.params.id);
 
-      const ticket = await complaintService.getComplaintById(id, userId);
+      const ticket = await complaintService.getComplaintById(
+        id,
+        user ? { id: user.id, roleKey: user.roleKey } : undefined
+      );
 
       if (!ticket) {
         throw new AppError("Khiếu nại không tồn tại", 404);
@@ -484,7 +550,17 @@ export class ComplaintController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      const user = req.user;
       const id = getParamString(req.params.id);
+
+      const ticket = await complaintService.getComplaintById(
+        id,
+        user ? { id: user.id, roleKey: user.roleKey } : undefined
+      );
+
+      if (!ticket) {
+        throw new AppError("Khiếu nại không tồn tại", 404);
+      }
 
       const timeline = await ComplaintTimeline.find({ ticketId: id })
         .populate("actorUserId", "fullName email")
