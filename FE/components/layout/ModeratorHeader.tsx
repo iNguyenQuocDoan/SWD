@@ -19,14 +19,11 @@ import {
   LogOut,
   Shield,
   Package,
-  MessageSquare,
   AlertTriangle,
   Store,
   Menu,
   X,
   Home,
-  FileText,
-  Ban,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -44,9 +41,7 @@ export function ModeratorHeader() {
   const navItems = [
     { href: "/moderator", label: "Dashboard", icon: Home },
     { href: "/moderator/review", label: "Duyệt sản phẩm", icon: Package },
-    { href: "/moderator/reports", label: "Xử lý báo cáo", icon: AlertTriangle },
-    { href: "/moderator/reviews", label: "Kiểm duyệt review", icon: MessageSquare },
-    { href: "/moderator/comments", label: "Kiểm duyệt comment", icon: FileText },
+    { href: "/moderator/complaints", label: "Xử lý khiếu nại", icon: AlertTriangle },
     { href: "/moderator/shops", label: "Quản lý shop", icon: Store },
   ];
 

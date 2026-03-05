@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -107,6 +107,20 @@ export default function ModeratorComplaintsPage() {
     if (minutes < 1440) return `${Math.round(minutes / 60)} giờ`;
     return `${Math.round(minutes / 1440)} ngày`;
   };
+
+  // Sort by queue time: newest first (đơn mới lên đầu)
+  const sortedQueueItems = useMemo(() => {
+    return [...queueItems].sort((a, b) => {
+      const aTime = new Date(a.addedToQueueAt).getTime();
+      const bTime = new Date(b.addedToQueueAt).getTime();
+
+      if (!Number.isNaN(aTime) && !Number.isNaN(bTime)) {
+        return bTime - aTime;
+      }
+
+      return a.ticketAge - b.ticketAge;
+    });
+  }, [queueItems]);
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
@@ -267,7 +281,7 @@ export default function ModeratorComplaintsPage() {
                 <div>
                   <CardTitle className="text-base">Danh sách khiếu nại</CardTitle>
                   <CardDescription className="text-xs">
-                    {queueItems.length} khiếu nại
+                    {sortedQueueItems.length} khiếu nại
                   </CardDescription>
                 </div>
               </div>
@@ -279,7 +293,7 @@ export default function ModeratorComplaintsPage() {
                     <Skeleton key={i} className="h-24 w-full" />
                   ))}
                 </div>
-              ) : queueItems.length === 0 ? (
+              ) : sortedQueueItems.length === 0 ? (
                 <div className="text-center py-12">
                   <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Hàng đợi trống</h3>
@@ -289,7 +303,7 @@ export default function ModeratorComplaintsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {queueItems.map((item) => {
+                  {sortedQueueItems.map((item) => {
                     const ticket = typeof item.ticketId === "object" ? item.ticketId as Complaint : null;
                     const status = statusConfig[item.status] || { label: item.status, variant: "outline" as const };
 
