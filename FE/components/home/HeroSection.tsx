@@ -1,11 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowRight, Sparkles, CheckCircle2, Loader2, ShoppingBag } from "lucide-react";
+import { ArrowRight, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
 import { FadeIn, StaggerContainer, StaggerItem, AnimatedCounter } from "@/components/animations";
-import { motion } from "framer-motion";
 import { statsService } from "@/lib/services/stats.service";
 import { useState, useEffect } from "react";
 
@@ -34,14 +32,25 @@ export function HeroSection() {
   }, []);
 
   return (
-    <section className="relative min-h-[calc(100vh-80px)] lg:min-h-[550px] w-full flex items-center overflow-hidden py-8 md:py-12 lg:py-14">
+    <section className="relative w-full aspect-video min-h-[360px] md:min-h-[420px] max-h-[calc(100vh-80px)] flex items-center overflow-hidden">
+      {/* Full-section video background */}
+      <video
+        src="/images/Agent_video_Pippit_20260305023455.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover -z-10"
+      />
+
+      {/* Overlay to keep text readable */}
+      <div className="absolute inset-0 bg-black/35 -z-10" />
 
       {/* Content */}
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left: Text Content */}
           <div className="space-y-5 md:space-y-6 text-center lg:text-left lg:pl-20 xl:pl-24">
-
             {/* Badge */}
             <FadeIn direction="down" delay={0.1}>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md bg-white/20 border border-white/30 text-white text-sm font-medium drop-shadow-md">
@@ -139,56 +148,6 @@ export function HeroSection() {
               </div>
             </FadeIn>
           </div>
-
-          {/* Right: Hero Image */}
-          <FadeIn direction="left" delay={0.4} className="hidden lg:block relative h-[500px]">
-            <div className="absolute inset-0 flex items-center justify-center">
-              {/* Animated Glow behind the image */}
-              <motion.div
-                className="absolute w-[450px] h-[450px] bg-violet-500/20 blur-[100px] rounded-full"
-                animate={{
-                  scale: [1, 1.2, 1],
-                  opacity: [0.3, 0.5, 0.3],
-                }}
-                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-              />
-
-              <motion.div
-                className="relative z-10 w-full h-full flex items-center justify-center"
-                animate={{
-                  y: [-15, 15, -15],
-                  rotate: [-1, 1, -1]
-                }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <div className="relative group">
-                  {/* Subtle outer glow on hover */}
-                  <div className="absolute -inset-4 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 rounded-[3rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                  <Image
-                    src="/images/Hero.png"
-                    alt="Marketplace Hero"
-                    width={450}
-                    height={450}
-                    className="relative z-10 object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)] filter contrast-[1.05]"
-                    priority
-                  />
-                </div>
-              </motion.div>
-
-              {/* Decorative elements to maintain the floaty feel */}
-              <motion.div
-                className="absolute top-1/4 right-[10%] w-3 h-3 bg-violet-400 rounded-full blur-[1px] shadow-[0_0_15px_rgba(167,139,250,0.8)]"
-                animate={{ y: [0, -20, 0], opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              />
-              <motion.div
-                className="absolute bottom-1/4 left-[10%] w-4 h-4 bg-fuchsia-400 rounded-full blur-[1px] shadow-[0_0_15px_rgba(232,121,249,0.8)]"
-                animate={{ y: [0, 20, 0], opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              />
-            </div>
-          </FadeIn>
         </div>
       </div>
     </section>

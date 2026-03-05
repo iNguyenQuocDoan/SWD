@@ -28,7 +28,7 @@ export function FadeIn({
   children,
   direction = "up",
   delay = 0,
-  duration = 0.5,
+  duration = 0.8,
   className = "",
   once = true,
   threshold = 0.1,
@@ -62,7 +62,7 @@ export function FadeIn({
       ref={ref}
       initial={{ opacity: 0, ...offset }}
       animate={inView ? { opacity: 1, x: 0, y: 0 } : { opacity: 0, ...offset }}
-      transition={{ duration, delay, ease: "easeOut" }}
+      transition={{ duration, delay, ease: [0.22, 1, 0.36, 1] }}
       className={className}
       suppressHydrationWarning
     >
