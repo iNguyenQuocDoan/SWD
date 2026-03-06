@@ -32,10 +32,5 @@ router.get("/complaints/overview", ...complaintAuth, reportController.getComplai
 router.get("/complaints/trends", ...complaintAuth, reportController.getComplaintTrends);
 router.get("/complaints/resolution", ...complaintAuth, reportController.getResolutionStats);
 router.get("/complaints/sla", ...complaintAuth, reportController.getSLACompliance);
-router.get(
-  "/complaints/moderator-performance",
-  ...complaintAuth,
-  reportController.getModeratorPerformance
-);
 
 export default router;

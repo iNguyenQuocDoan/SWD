@@ -166,34 +166,6 @@ export interface SLAComplianceResponse {
   };
 }
 
-export interface ModeratorPerformanceResponse {
-  period: { startDate: Date; endDate: Date };
-  moderators: {
-    moderatorId: string;
-    moderatorName: string;
-    moderatorEmail: string;
-    totalAssigned: number;
-    totalResolved: number;
-    totalEscalated: number;
-    resolutionRate: number;
-    avgResolutionTimeMinutes: number;
-    avgFirstResponseTimeMinutes: number;
-    fullRefunds: number;
-    partialRefunds: number;
-    rejections: number;
-    slaBreaches: number;
-    slaComplianceRate: number;
-    appealOverturnRate: number;
-    avgSatisfactionScore: number;
-  }[];
-  summary: {
-    totalModerators: number;
-    totalTicketsAssigned: number;
-    totalTicketsResolved: number;
-    avgResolutionRate: number;
-  };
-}
-
 // ============ DASHBOARD ============
 
 export interface AdminDashboardResponse {
