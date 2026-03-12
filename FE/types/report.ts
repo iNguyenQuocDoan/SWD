@@ -178,3 +178,50 @@ export interface SellerOrderOverviewResponse {
     percentage: number;
   }[];
 }
+
+// ============ TOP SELLING PRODUCTS ============
+
+export interface TopSellingProductItem {
+  productId: string;
+  productName: string;
+  shopId: string;
+  shopName: string;
+  thumbnail: string | null;
+  totalQuantitySold: number;
+  totalRevenue: number;
+  orderCount: number;
+  avgPrice: number;
+}
+
+export interface TopSellingProductsResponse {
+  period: DateRange;
+  products: TopSellingProductItem[];
+  summary: {
+    totalProductsSold: number;
+    totalRevenue: number;
+    totalOrders: number;
+  };
+}
+
+// ============ SHOP RANKINGS ============
+
+export interface ShopRankingItem {
+  shopId: string;
+  shopName: string;
+  revenue: number;
+  orderCount: number;
+  complaintCount: number;
+  rating: number;
+  status: string;
+}
+
+export interface ShopRankingResponse {
+  period: DateRange;
+  topByRevenue: ShopRankingItem[];
+  topByComplaints: ShopRankingItem[];
+  summary: {
+    totalActiveShops: number;
+    avgRating: number;
+    totalComplaints: number;
+  };
+}

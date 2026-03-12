@@ -20,16 +20,14 @@ import {
   Shield,
   FileText,
   UserCheck,
-  ShoppingBag,
   Wallet,
-  Clock,
   Package,
   ArrowRight,
 } from "lucide-react";
 import { reportService } from "@/lib/services/report.service";
 import { shopService, Shop } from "@/lib/services/shop.service";
 import { AdminDashboardResponse } from "@/types/report";
-import { AdminRevenueChart, AdminOrderChart } from "@/components/admin/dashboard";
+import { AdminRevenueChart, AdminOrderChart, AdminDateRangeChart, AdminShopRankingChart, AdminTopProductsChart } from "@/components/admin/dashboard";
 
 const formatPrice = (price: number) => {
   if (price >= 1_000_000_000) {
@@ -108,8 +106,6 @@ export default function AdminDashboard() {
   }
 
   const revenue = dashboard?.revenue;
-  const orders = dashboard?.orders;
-  const complaints = dashboard?.complaints;
   const escrow = dashboard?.escrow;
 
   return (
@@ -168,69 +164,6 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* Orders & Complaints Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Orders */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium flex items-center gap-2">
-              <ShoppingBag className="h-4 w-4" />
-              Đơn hàng
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm">Đơn hôm nay</span>
-              <span className="font-bold">{orders?.todayOrders ?? 0}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-              <span className="text-sm">Đang chờ xử lý</span>
-              <span className="font-bold text-yellow-600">
-                {orders?.pendingOrders ?? 0}
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-              <span className="text-sm">Có tranh chấp</span>
-              <span className="font-bold text-red-600">
-                {orders?.disputedOrders ?? 0}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Complaints */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Khiếu nại & Hỗ trợ
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm">Ticket đang mở</span>
-              <span className="font-bold">{complaints?.openTickets ?? 0}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-              <span className="text-sm">Khẩn cấp</span>
-              <Badge variant="destructive">{complaints?.urgentTickets ?? 0}</Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-              <span className="text-sm">Vi phạm SLA hôm nay</span>
-              <span className="font-bold text-orange-600">
-                {complaints?.slaBreachedToday ?? 0}
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-2 border-t">
-              <span className="text-sm text-gray-500">Thời gian xử lý TB</span>
-              <span className="font-semibold">
-                {(complaints?.avgResolutionHours ?? 0).toFixed(1)}h
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Escrow */}
       <Card>
         <CardHeader className="pb-3">
@@ -270,11 +203,20 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* Analytics Charts */}
-      <div className="grid gap-6 md:grid-cols-3">
+      {/* Analytics Charts - Row 1: Top sản phẩm + Xếp hạng Shop */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <AdminTopProductsChart />
+        <AdminShopRankingChart />
+      </div>
+
+      {/* Analytics Charts - Row 2: Thống kê doanh thu + Đơn hàng */}
+      <div className="grid gap-6 md:grid-cols-2">
         <AdminRevenueChart />
         <AdminOrderChart />
       </div>
+
+      {/* Analytics Charts - Row 3: Thời gian tùy chọn */}
+      <AdminDateRangeChart />
 
       {/* Pending Sellers */}
       {pendingShops.length > 0 && (

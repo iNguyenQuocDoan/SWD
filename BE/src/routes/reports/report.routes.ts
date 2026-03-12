@@ -33,4 +33,10 @@ router.get("/complaints/trends", ...complaintAuth, reportController.getComplaint
 router.get("/complaints/resolution", ...complaintAuth, reportController.getResolutionStats);
 router.get("/complaints/sla", ...complaintAuth, reportController.getSLACompliance);
 
+// Shop Rankings
+router.get("/shops/rankings", ...adminAuth, reportController.getShopRankings);
+
+// Top Selling Products
+router.get("/products/top-selling", ...adminAuth, reportController.getTopSellingProducts);
+
 export default router;
