@@ -98,9 +98,6 @@ export default function ModeratorComplaintDetailPage({
   const [decisionReason, setDecisionReason] = useState("");
   const [refundAmount, setRefundAmount] = useState<number>(0);
 
-  // Internal note state
-  const [internalNote, setInternalNote] = useState("");
-  const [isAddingNote, setIsAddingNote] = useState(false);
 
   // Request info state
   const [isRequestInfoDialogOpen, setIsRequestInfoDialogOpen] = useState(false);
@@ -144,24 +141,6 @@ export default function ModeratorComplaintDetailPage({
     } catch (error) {
       const message = error instanceof Error ? error.message : "Không thể nhận khiếu nại";
       toast.error(message);
-    }
-  };
-
-  // Add internal note
-  const handleAddInternalNote = async () => {
-    if (!internalNote.trim()) return;
-
-    setIsAddingNote(true);
-    try {
-      await complaintService.addInternalNote(complaintId, internalNote);
-      toast.success("Đã thêm ghi chú");
-      setInternalNote("");
-      fetchComplaint();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Không thể thêm ghi chú";
-      toast.error(message);
-    } finally {
-      setIsAddingNote(false);
     }
   };
 
@@ -479,6 +458,50 @@ Bạn đã thử đăng nhập bao nhiêu lần?
                 </>
               )}
 
+              {/* Seller Evidence */}
+              {complaint.sellerEvidence && complaint.sellerEvidence.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4" />
+                      Bằng chứng từ seller ({complaint.sellerEvidence.length})
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {complaint.sellerEvidence.map((evidence, idx) => (
+                        <a
+                          key={idx}
+                          href={evidence.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block border rounded-lg p-2 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="text-xs font-medium">{evidence.type}</div>
+                          {evidence.description && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {evidence.description}
+                            </div>
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {complaint.sellerResponseNote && (
+                <>
+                  <Separator />
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Phản hồi từ seller
+                    </h4>
+                    <p className="text-sm">{complaint.sellerResponseNote}</p>
+                  </div>
+                </>
+              )}
+
               {/* Decision Info */}
               {complaint.decidedAt && (
                 <>
@@ -516,40 +539,6 @@ Bạn đã thử đăng nhập bao nhiêu lần?
             </CardContent>
           </Card>
 
-          {/* Internal Notes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                Ghi chú nội bộ
-              </CardTitle>
-              <CardDescription>
-                Ghi chú chỉ moderator và admin có thể xem
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Textarea
-                  value={internalNote}
-                  onChange={(e) => setInternalNote(e.target.value)}
-                  placeholder="Thêm ghi chú..."
-                  rows={2}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleAddInternalNote}
-                  disabled={isAddingNote || !internalNote.trim()}
-                  className="self-end"
-                >
-                  {isAddingNote ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Thêm"
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Sidebar */}
@@ -583,7 +572,7 @@ Bạn đã thử đăng nhập bao nhiêu lần?
                 <h4 className="text-sm font-medium text-muted-foreground mb-1">Shop</h4>
                 <p className="font-medium">
                   {typeof complaint.shopId === "object"
-                    ? complaint.shopId.name
+                    ? (complaint.shopId.shopName || complaint.shopId.name || "N/A")
                     : "N/A"}
                 </p>
               </div>

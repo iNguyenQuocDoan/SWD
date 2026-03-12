@@ -185,7 +185,7 @@ export class ComplaintService {
     const [existingTicket, customer, seller] = await Promise.all([
       SupportTicket.findOne({
         orderItemId: input.orderItemId,
-        status: { $nin: ["RESOLVED_REFUNDED", "CLOSED_REJECTED", "Closed"] },
+        status: { $nin: ["RESOLVED_REFUNDED", "CLOSED_REJECTED", "APPEAL_CLOSED"] },
       }),
       User.findById(customerId),
       User.findById(shop.ownerUserId),
@@ -373,7 +373,7 @@ export class ComplaintService {
       content: input.reason,
       type: "Appeal",
       category: ticket.category,
-      status: "AppealReview",
+      status: "APPEAL_REVIEW",
       isAppeal: true,
       originalTicketId: ticket._id,
       escalationLevel: "Level3_SeniorMod",
@@ -393,7 +393,7 @@ export class ComplaintService {
 
     // Update original ticket
     await SupportTicket.findByIdAndUpdate(ticketId, {
-      status: "AppealFiled",
+      status: "APPEAL_FILED",
       appealTicketId: appealTicket._id,
     });
 
@@ -431,10 +431,19 @@ export class ComplaintService {
     const sellerStatus = input.decision === "APPROVE" ? "SELLER_APPROVED" : "SELLER_REJECTED";
     const sellerDecisionText = input.decision === "APPROVE" ? "Seller chấp thuận khiếu nại" : "Seller từ chối khiếu nại";
 
+    const sellerEvidence: IComplaintEvidence[] = (input.evidence || []).map((e) => ({
+      uploadedBy: sellerId,
+      type: e.type,
+      url: e.url,
+      description: e.description,
+      uploadedAt: now,
+    }));
+
     await SupportTicket.findByIdAndUpdate(ticketId, {
       status: sellerStatus,
       sellerRespondedAt: now,
-      decisionNote: input.note || sellerDecisionText,
+      sellerResponseNote: input.note || sellerDecisionText,
+      ...(sellerEvidence.length > 0 ? { $push: { sellerEvidence: { $each: sellerEvidence } } } : {}),
     });
 
     await this.addTimelineEvent(
@@ -443,7 +452,11 @@ export class ComplaintService {
       sellerId,
       "SELLER",
       `${sellerDecisionText}, chuyển moderator kiểm tra`,
-      { decision: input.decision, note: input.note }
+      {
+        decision: input.decision,
+        note: input.note,
+        sellerEvidenceCount: sellerEvidence.length,
+      }
     );
 
     // Cả approve/reject đều chuyển cho moderator quyết định cuối cùng
@@ -802,7 +815,7 @@ export class ComplaintService {
     }
 
     await SupportTicket.findByIdAndUpdate(appealTicketId, {
-      status: "Closed",
+      status: "APPEAL_CLOSED",
       resolutionType: input.decision === "Upheld" ? "Reject" : (input.newResolutionType || "None"),
       decisionNote: input.reason,
       decidedByUserId: new mongoose.Types.ObjectId(reviewerId),
@@ -887,6 +900,7 @@ export class ComplaintService {
     const ticket = await SupportTicket.findById(ticketId)
       .populate("customerUserId", "fullName email")
       .populate("sellerUserId", "fullName email")
+      .populate("shopId", "shopName")
       .populate("assignedToUserId", "fullName email")
       .populate({
         path: "orderItemId",
@@ -977,7 +991,7 @@ export class ComplaintService {
 
     const existingTicket = await SupportTicket.findOne({
       orderItemId,
-      status: { $nin: ["RESOLVED_REFUNDED", "CLOSED_REJECTED", "Closed"] },
+      status: { $nin: ["RESOLVED_REFUNDED", "CLOSED_REJECTED", "APPEAL_CLOSED"] },
     });
 
     if (existingTicket) {

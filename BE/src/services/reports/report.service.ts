@@ -1,4 +1,8 @@
+<<<<<<< report
 import { Order, OrderItem, SupportTicket, ModeratorStats, Shop, Product } from "@/models";
+=======
+import { Order, OrderItem, SupportTicket } from "@/models";
+>>>>>>> eKYC2/Seller
 import {
   DateRangeQuery,
   RevenueOverviewResponse,
@@ -12,7 +16,6 @@ import {
   ComplaintTrendResponse,
   ResolutionStatsResponse,
   SLAComplianceResponse,
-  ModeratorPerformanceResponse,
   AdminDashboardResponse,
   ShopRankingResponse,
   TopSellingProductsResponse,
@@ -712,107 +715,6 @@ export class ReportService {
           stats.totalTickets > 0
             ? Math.round((stats.withinResolutionSLA / stats.totalTickets) * 100 * 100) / 100
             : 100,
-      },
-    };
-  }
-
-  async getModeratorPerformance(dateRange: DateRangeQuery): Promise<ModeratorPerformanceResponse> {
-    const { startDate, endDate } = dateRange;
-
-    const result = await ModeratorStats.aggregate([
-      {
-        $match: {
-          date: { $gte: startDate, $lte: endDate },
-        },
-      },
-      {
-        $group: {
-          _id: "$moderatorUserId",
-          totalAssigned: { $sum: "$ticketsAssigned" },
-          totalResolved: { $sum: "$ticketsResolved" },
-          totalEscalated: { $sum: "$ticketsEscalated" },
-          avgResolutionTime: { $avg: "$avgResolutionTimeMinutes" },
-          avgFirstResponseTime: { $avg: "$avgFirstResponseTimeMinutes" },
-          fullRefunds: { $sum: "$fullRefunds" },
-          partialRefunds: { $sum: "$partialRefunds" },
-          rejections: { $sum: "$rejections" },
-          slaBreaches: { $sum: "$slaBreaches" },
-          appealsReceived: { $sum: "$appealsReceived" },
-          appealsOverturned: { $sum: "$appealsOverturned" },
-          avgSatisfactionScore: { $avg: "$customerSatisfactionScore" },
-        },
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "_id",
-          foreignField: "_id",
-          as: "moderator",
-        },
-      },
-      { $unwind: "$moderator" },
-      {
-        $project: {
-          moderatorId: "$_id",
-          moderatorName: "$moderator.fullName",
-          moderatorEmail: "$moderator.email",
-          totalAssigned: 1,
-          totalResolved: 1,
-          totalEscalated: 1,
-          resolutionRate: {
-            $cond: [
-              { $gt: ["$totalAssigned", 0] },
-              { $round: [{ $multiply: [{ $divide: ["$totalResolved", "$totalAssigned"] }, 100] }, 2] },
-              0,
-            ],
-          },
-          avgResolutionTimeMinutes: { $round: ["$avgResolutionTime", 0] },
-          avgFirstResponseTimeMinutes: { $round: ["$avgFirstResponseTime", 0] },
-          fullRefunds: 1,
-          partialRefunds: 1,
-          rejections: 1,
-          slaBreaches: 1,
-          slaComplianceRate: {
-            $cond: [
-              { $gt: ["$totalResolved", 0] },
-              {
-                $round: [
-                  {
-                    $multiply: [
-                      { $divide: [{ $subtract: ["$totalResolved", "$slaBreaches"] }, "$totalResolved"] },
-                      100,
-                    ],
-                  },
-                  2,
-                ],
-              },
-              100,
-            ],
-          },
-          appealOverturnRate: {
-            $cond: [
-              { $gt: ["$appealsReceived", 0] },
-              { $round: [{ $multiply: [{ $divide: ["$appealsOverturned", "$appealsReceived"] }, 100] }, 2] },
-              0,
-            ],
-          },
-          avgSatisfactionScore: { $round: ["$avgSatisfactionScore", 2] },
-        },
-      },
-      { $sort: { totalResolved: -1 } },
-    ]);
-
-    return {
-      period: { startDate, endDate },
-      moderators: result,
-      summary: {
-        totalModerators: result.length,
-        totalTicketsAssigned: result.reduce((sum, m) => sum + m.totalAssigned, 0),
-        totalTicketsResolved: result.reduce((sum, m) => sum + m.totalResolved, 0),
-        avgResolutionRate:
-          result.length > 0
-            ? Math.round((result.reduce((sum, m) => sum + m.resolutionRate, 0) / result.length) * 100) / 100
-            : 0,
       },
     };
   }

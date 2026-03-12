@@ -80,7 +80,8 @@ export interface UserBasic {
 
 export interface ShopBasic {
   _id: string;
-  name: string;
+  shopName?: string;
+  name?: string;
   logo?: string | null;
 }
 
@@ -112,12 +113,14 @@ export interface Complaint {
   escalationLevel: EscalationLevel;
 
   buyerEvidence: ComplaintEvidence[];
+  sellerEvidence?: ComplaintEvidence[];
 
   assignedToUserId?: (string | UserBasic) | null;
 
   resolutionType: ResolutionType;
   refundAmount?: number | null;
 
+  sellerResponseNote?: string | null;
   decisionNote?: string | null;
   decidedByUserId?: string | null;
   decidedAt?: string | null;
@@ -238,6 +241,7 @@ export interface RequestInfoRequest {
 export interface SellerDecisionRequest {
   decision: "APPROVE" | "REJECT";
   note?: string;
+  evidence?: Array<{ type: EvidenceType; url: string; description?: string }>;
 }
 
 export interface MakeDecisionRequest {

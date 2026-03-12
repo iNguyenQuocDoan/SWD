@@ -11,10 +11,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle, ArrowLeft, Clock, FileText, Loader2, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { complaintService } from "@/lib/services/complaint.service";
 import type { Complaint, ComplaintTimeline } from "@/lib/services/complaint.service";
+import { EvidenceUpload, type EvidenceItem } from "@/components/complaint/EvidenceUpload";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   PENDING_SELLER: { label: "Chờ Seller phản hồi", variant: "outline" },
@@ -44,6 +46,9 @@ export default function SellerComplaintDetailPage({
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [timeline, setTimeline] = useState<ComplaintTimeline[]>([]);
 
+  const [decisionNote, setDecisionNote] = useState("");
+  const [sellerEvidence, setSellerEvidence] = useState<EvidenceItem[]>([]);
+
   const fetchComplaintDetail = async () => {
     setLoading(true);
     try {
@@ -66,16 +71,30 @@ export default function SellerComplaintDetailPage({
   }, [id]);
 
   const handleSellerDecision = async (decision: "APPROVE" | "REJECT") => {
+    if (decision === "REJECT") {
+      if (!decisionNote.trim()) {
+        toast.error("Khi từ chối khiếu nại, bạn phải nhập lý do");
+        return;
+      }
+      if (sellerEvidence.length === 0) {
+        toast.error("Khi từ chối khiếu nại, bạn phải tải lên ít nhất 1 bằng chứng");
+        return;
+      }
+    }
+
     try {
       setActionLoading(decision);
       await complaintService.sellerDecision(id, {
         decision,
         note:
           decision === "APPROVE"
-            ? "Seller đã xem evidence và chấp thuận, chuyển Moderator quyết định"
-            : "Seller đã xem evidence và từ chối, chuyển Moderator quyết định",
+            ? decisionNote.trim() || "Seller đã xem evidence và chấp thuận, chuyển Moderator quyết định"
+            : decisionNote.trim(),
+        evidence: decision === "REJECT" ? sellerEvidence : undefined,
       });
       toast.success(decision === "APPROVE" ? "Đã approve khiếu nại" : "Đã reject khiếu nại");
+      setDecisionNote("");
+      setSellerEvidence([]);
       await fetchComplaintDetail();
     } catch (error) {
       console.error(error);
@@ -136,22 +155,43 @@ export default function SellerComplaintDetailPage({
             </div>
 
             {complaint.status === "PENDING_SELLER" ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => handleSellerDecision("APPROVE")}
-                  disabled={actionLoading !== null}
-                >
-                  {actionLoading === "APPROVE" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Approve
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleSellerDecision("REJECT")}
-                  disabled={actionLoading !== null}
-                >
-                  {actionLoading === "REJECT" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Reject
-                </Button>
+              <div className="space-y-4 border rounded-lg p-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Ghi chú phản hồi</label>
+                  <Textarea
+                    placeholder="Nhập ghi chú phản hồi của seller..."
+                    value={decisionNote}
+                    onChange={(e) => setDecisionNote(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Bằng chứng từ seller (bắt buộc khi Reject)</p>
+                  <EvidenceUpload
+                    evidence={sellerEvidence}
+                    onChange={setSellerEvidence}
+                    maxItems={10}
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => handleSellerDecision("APPROVE")}
+                    disabled={actionLoading !== null}
+                  >
+                    {actionLoading === "APPROVE" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Approve
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleSellerDecision("REJECT")}
+                    disabled={actionLoading !== null}
+                  >
+                    {actionLoading === "REJECT" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Reject
+                  </Button>
+                </div>
               </div>
             ) : null}
 
@@ -170,12 +210,33 @@ export default function SellerComplaintDetailPage({
               </div>
             ) : null}
 
+            {complaint.sellerEvidence && complaint.sellerEvidence.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Bằng chứng từ seller</div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {complaint.sellerEvidence.map((ev, idx) => (
+                    <a key={idx} href={ev.url} target="_blank" rel="noreferrer" className="text-xs p-2 border rounded hover:border-primary">
+                      {ev.type}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {complaint.sellerResponseNote ? (
+              <Card className="bg-muted/40">
+                <CardContent className="pt-4 space-y-1 text-sm">
+                  <div><span className="text-muted-foreground">Phản hồi seller:</span> {complaint.sellerResponseNote}</div>
+                </CardContent>
+              </Card>
+            ) : null}
+
             {complaint.decidedAt ? (
               <Card className="bg-muted/40">
                 <CardContent className="pt-4 space-y-1 text-sm">
                   <div><span className="text-muted-foreground">Kết quả:</span> {resolutionLabels[complaint.resolutionType] || complaint.resolutionType}</div>
                   {complaint.refundAmount ? <div><span className="text-muted-foreground">Hoàn tiền:</span> {complaint.refundAmount.toLocaleString("vi-VN")}đ</div> : null}
-                  <div><span className="text-muted-foreground">Ghi chú:</span> {complaint.decisionNote || "-"}</div>
+                  <div><span className="text-muted-foreground">Ghi chú quyết định moderator:</span> {complaint.decisionNote || "-"}</div>
                 </CardContent>
               </Card>
             ) : null}
@@ -207,4 +268,3 @@ export default function SellerComplaintDetailPage({
     </div>
   );
 }
-

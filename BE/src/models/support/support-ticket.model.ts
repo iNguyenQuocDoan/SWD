@@ -157,6 +157,7 @@ export interface ISupportTicket extends Document {
 
   // Evidence System
   buyerEvidence: IComplaintEvidence[];
+  sellerEvidence: IComplaintEvidence[];
 
   // Order Snapshot (NEW)
   orderSnapshot?: IOrderSnapshot | null;
@@ -182,6 +183,7 @@ export interface ISupportTicket extends Document {
   firstResponseAt?: Date | null;
   sellerResponseDeadlineAt?: Date | null;
   sellerRespondedAt?: Date | null;
+  sellerResponseNote?: string | null;
   escalatedAt?: Date | null;
   refundProcessedAt?: Date | null;
   slaBreached: boolean;
@@ -254,9 +256,9 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
         "MODERATOR_REVIEW",
         "RESOLVED_REFUNDED",
         "CLOSED_REJECTED",
-        "AppealFiled",
-        "AppealReview",
-        "Closed",
+        "APPEAL_FILED",
+        "APPEAL_REVIEW",
+        "APPEAL_CLOSED",
       ],
       default: "PENDING_SELLER",
     },
@@ -312,6 +314,10 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
 
     // Evidence System
     buyerEvidence: {
+      type: [ComplaintEvidenceSchema],
+      default: [],
+    },
+    sellerEvidence: {
       type: [ComplaintEvidenceSchema],
       default: [],
     },
@@ -436,6 +442,10 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
     refundAmount: {
       type: Number,
       min: 0,
+    },
+    sellerResponseNote: {
+      type: String,
+      default: null,
     },
     decidedByUserId: {
       type: Schema.Types.ObjectId,

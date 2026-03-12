@@ -216,8 +216,8 @@ export default function CustomerComplaintDetailPage({
 
   const status = statusConfig[complaint.status] || { label: complaint.status, variant: "outline" as const, color: "" };
   const isOwner = typeof complaint.customerUserId === 'object' ? complaint.customerUserId._id === user?.id : complaint.customerUserId === user?.id;
-  const canAddEvidence = isOwner && ["ModeratorAssigned", "InReview", "NeedMoreInfo"].includes(complaint.status);
-  const canAppeal = isOwner && complaint.status === "Appealable";
+  const canAddEvidence = isOwner && ["PENDING_SELLER", "SELLER_APPROVED", "AUTO_ESCALATED", "MODERATOR_REVIEW"].includes(complaint.status);
+  const canAppeal = isOwner && complaint.status === "CLOSED_REJECTED";
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
@@ -357,12 +357,12 @@ export default function CustomerComplaintDetailPage({
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">{complaint.content}</p>
               </div>
 
-              {/* Evidence list */}
+              {/* Buyer evidence list */}
               {complaint.buyerEvidence && complaint.buyerEvidence.length > 0 && (
                 <div className="space-y-3">
                   <h4 className="font-medium text-sm text-muted-foreground uppercase flex items-center gap-2">
                     <ImageIcon className="h-4 w-4" />
-                    Bằng chứng đã cung cấp ({complaint.buyerEvidence.length})
+                    Bằng chứng từ người mua ({complaint.buyerEvidence.length})
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {complaint.buyerEvidence.map((ev, idx) => (
@@ -382,6 +382,44 @@ export default function CustomerComplaintDetailPage({
                       </a>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Seller evidence list */}
+              {complaint.sellerEvidence && complaint.sellerEvidence.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    Bằng chứng từ seller ({complaint.sellerEvidence.length})
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {complaint.sellerEvidence.map((ev, idx) => (
+                      <a 
+                        key={idx} 
+                        href={ev.url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="group relative aspect-video border rounded-lg overflow-hidden bg-muted hover:border-primary transition-all"
+                      >
+                        <div className="absolute inset-0 flex items-center justify-center text-xs font-medium bg-background/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                          Xem ảnh
+                        </div>
+                        <div className="p-2 text-[10px] text-muted-foreground bg-muted truncate mt-auto">
+                          {ev.type}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {complaint.sellerResponseNote && (
+                <div className="bg-muted/30 border rounded-xl p-5 space-y-2">
+                  <div className="flex items-center gap-2 text-blue-600 font-bold">
+                    <MessageSquare className="h-5 w-5" />
+                    PHẢN HỒI TỪ SELLER
+                  </div>
+                  <p className="text-sm">{complaint.sellerResponseNote}</p>
                 </div>
               )}
 
@@ -434,7 +472,7 @@ export default function CustomerComplaintDetailPage({
               <div className="flex justify-between items-center py-2 border-b">
                 <span className="text-muted-foreground">Shop:</span>
                 <span className="font-medium truncate max-w-[150px]">
-                  {typeof complaint.shopId === 'object' ? complaint.shopId.name : 'N/A'}
+                  {typeof complaint.shopId === 'object' ? (complaint.shopId.shopName || complaint.shopId.name || 'N/A') : 'N/A'}
                 </span>
               </div>
               {complaint.appealDeadline && (

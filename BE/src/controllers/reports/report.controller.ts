@@ -197,20 +197,6 @@ export class ReportController {
     }
   };
 
-  getModeratorPerformance = async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      const dateRange = this.parseDateRange(req.query);
-      const data = await reportService.getModeratorPerformance(dateRange);
-      res.status(200).json({ success: true, data });
-    } catch (error) {
-      next(error);
-    }
-  };
-
   // ============ DASHBOARD ============
 
   getDashboard = async (

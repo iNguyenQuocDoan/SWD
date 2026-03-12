@@ -66,6 +66,11 @@ export interface AppealDecisionRequest {
 export interface SellerDecisionRequest {
   decision: "APPROVE" | "REJECT";
   note?: string;
+  evidence?: {
+    type: T.EvidenceType;
+    url: string;
+    description?: string;
+  }[];
 }
 
 export interface ComplaintFilter {
@@ -227,15 +232,6 @@ class ComplaintService {
     return res.data;
   }
 
-  /**
-   * DEPRECATED: /api/complaints/queue/pick was removed in backend.
-   * Logic should move to auto-assignment or manual pick from list.
-   * Returning null to prevent crashes but this should be removed from UI.
-   */
-  async pickFromQueue(): Promise<T.ComplaintQueueItem | null> {
-    console.warn("pickFromQueue is DEPRECATED and removed from backend. Please refactor UI.");
-    return null;
-  }
 
   /**
    * Assign complaint to moderator
