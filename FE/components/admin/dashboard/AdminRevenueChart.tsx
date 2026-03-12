@@ -290,7 +290,7 @@ export function AdminRevenueChart() {
 
   if (loading) {
     return (
-      <Card className="col-span-2">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-medium">Thống kê theo quý</CardTitle>
         </CardHeader>
@@ -304,7 +304,7 @@ export function AdminRevenueChart() {
   const hasData = data.some(q => q.revenue > 0 || q.orderCount > 0);
 
   return (
-    <Card className="col-span-2">
+    <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-base font-medium flex items-center gap-2">

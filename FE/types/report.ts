@@ -179,6 +179,30 @@ export interface SellerOrderOverviewResponse {
   }[];
 }
 
+// ============ TOP SELLING PRODUCTS ============
+
+export interface TopSellingProductItem {
+  productId: string;
+  productName: string;
+  shopId: string;
+  shopName: string;
+  thumbnail: string | null;
+  totalQuantitySold: number;
+  totalRevenue: number;
+  orderCount: number;
+  avgPrice: number;
+}
+
+export interface TopSellingProductsResponse {
+  period: DateRange;
+  products: TopSellingProductItem[];
+  summary: {
+    totalProductsSold: number;
+    totalRevenue: number;
+    totalOrders: number;
+  };
+}
+
 // ============ SHOP RANKINGS ============
 
 export interface ShopRankingItem {

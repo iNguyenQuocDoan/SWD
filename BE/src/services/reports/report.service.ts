@@ -1,4 +1,4 @@
-import { Order, OrderItem, SupportTicket, ModeratorStats, Shop } from "@/models";
+import { Order, OrderItem, SupportTicket, ModeratorStats, Shop, Product } from "@/models";
 import {
   DateRangeQuery,
   RevenueOverviewResponse,
@@ -15,6 +15,7 @@ import {
   ModeratorPerformanceResponse,
   AdminDashboardResponse,
   ShopRankingResponse,
+  TopSellingProductsResponse,
 } from "@/types/report.types";
 
 const PLATFORM_FEE_RATE = 0.05; // 5%
@@ -1069,6 +1070,92 @@ export class ReportService {
         totalActiveShops: activeShops.length,
         avgRating: Math.round(avgRating * 100) / 100,
         totalComplaints,
+      },
+    };
+  }
+
+  // ============ TOP SELLING PRODUCTS ============
+
+  async getTopSellingProducts(dateRange: DateRangeQuery & { limit?: number }): Promise<TopSellingProductsResponse> {
+    const { startDate, endDate, limit = 10 } = dateRange;
+
+    // Aggregate top selling products from OrderItems
+    const topProducts = await OrderItem.aggregate([
+      {
+        $match: {
+          itemStatus: { $in: ["Completed", "Delivered"] },
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: "$productId",
+          totalQuantitySold: { $sum: "$quantity" },
+          totalRevenue: { $sum: "$subtotal" },
+          orderCount: { $sum: 1 },
+          avgPrice: { $avg: "$unitPrice" },
+          shopId: { $first: "$shopId" },
+        },
+      },
+      { $sort: { totalQuantitySold: -1 } },
+      { $limit: limit },
+    ]);
+
+    // Get product and shop details
+    const productIds = topProducts.map((p) => p._id);
+    const shopIds = [...new Set(topProducts.map((p) => p.shopId))];
+
+    const [products, shops] = await Promise.all([
+      Product.find({ _id: { $in: productIds } }).select("_id title thumbnailUrl shopId"),
+      Shop.find({ _id: { $in: shopIds } }).select("_id shopName"),
+    ]);
+
+    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+    const shopMap = new Map(shops.map((s) => [s._id.toString(), s.shopName]));
+
+    // Build response
+    const productList = topProducts.map((p) => {
+      const product = productMap.get(p._id?.toString());
+      const shopName = shopMap.get(p.shopId?.toString()) || "Unknown";
+
+      return {
+        productId: p._id?.toString() || "",
+        productName: product?.title || "Unknown Product",
+        shopId: p.shopId?.toString() || "",
+        shopName,
+        thumbnail: product?.thumbnailUrl || null,
+        totalQuantitySold: p.totalQuantitySold,
+        totalRevenue: p.totalRevenue,
+        orderCount: p.orderCount,
+        avgPrice: Math.round(p.avgPrice),
+      };
+    });
+
+    // Calculate summary
+    const summaryResult = await OrderItem.aggregate([
+      {
+        $match: {
+          itemStatus: { $in: ["Completed", "Delivered"] },
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalProductsSold: { $sum: "$quantity" },
+          totalRevenue: { $sum: "$subtotal" },
+          totalOrders: { $sum: 1 },
+        },
+      },
+    ]);
+
+    return {
+      period: { startDate, endDate },
+      products: productList,
+      summary: {
+        totalProductsSold: summaryResult[0]?.totalProductsSold || 0,
+        totalRevenue: summaryResult[0]?.totalRevenue || 0,
+        totalOrders: summaryResult[0]?.totalOrders || 0,
       },
     };
   }

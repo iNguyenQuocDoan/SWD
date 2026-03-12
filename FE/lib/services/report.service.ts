@@ -51,4 +51,10 @@ export const reportService = {
   getShopRankings: async (params: { startDate?: string; endDate?: string; limit?: number }): Promise<ApiResponse<T.ShopRankingResponse>> => {
     return apiClient.get<T.ShopRankingResponse>("/reports/shops/rankings", { params });
   },
+
+  // ============ TOP SELLING PRODUCTS ============
+
+  getTopSellingProducts: async (params: { startDate?: string; endDate?: string; limit?: number }): Promise<ApiResponse<T.TopSellingProductsResponse>> => {
+    return apiClient.get<T.TopSellingProductsResponse>("/reports/products/top-selling", { params });
+  },
 };
