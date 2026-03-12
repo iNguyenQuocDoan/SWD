@@ -1,8 +1,4 @@
-<<<<<<< report
-import { Order, OrderItem, SupportTicket, ModeratorStats, Shop, Product } from "@/models";
-=======
-import { Order, OrderItem, SupportTicket } from "@/models";
->>>>>>> eKYC2/Seller
+import { Order, OrderItem, SupportTicket, Shop, Product } from "@/models";
 import {
   DateRangeQuery,
   RevenueOverviewResponse,
