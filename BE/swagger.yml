@@ -2922,6 +2922,64 @@ paths:
         '403':
           description: Forbidden
 
+  /api/reports/shops/rankings:
+    get:
+      summary: Shop Rankings
+      description: Xếp hạng shop - top doanh thu, top khiếu nại
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+        - name: limit
+          in: query
+          description: Số lượng shop tối đa (default 10)
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Shop rankings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopRankingResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /api/reports/products/top-selling:
+    get:
+      summary: Top Selling Products
+      description: Top sản phẩm bán chạy nhất theo số lượng
+      tags:
+        - Admin Reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+        - name: limit
+          in: query
+          description: Số lượng sản phẩm tối đa (default 10)
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Top selling products
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopSellingProductsResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
   # ==================== SELLER REPORTS ====================
 
   /api/seller/reports/dashboard:
@@ -5414,6 +5472,99 @@ components:
                   type: integer
                 avgResolutionRate:
                   type: number
+
+    ShopRankingResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            topByRevenue:
+              type: array
+              items:
+                $ref: '#/components/schemas/ShopRankingItem'
+            topByComplaints:
+              type: array
+              items:
+                $ref: '#/components/schemas/ShopRankingItem'
+            summary:
+              type: object
+              properties:
+                totalActiveShops:
+                  type: integer
+                avgRating:
+                  type: number
+                totalComplaints:
+                  type: integer
+
+    ShopRankingItem:
+      type: object
+      properties:
+        shopId:
+          type: string
+        shopName:
+          type: string
+        revenue:
+          type: number
+        orderCount:
+          type: integer
+        complaintCount:
+          type: integer
+        rating:
+          type: number
+        status:
+          type: string
+
+    TopSellingProductsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            period:
+              $ref: '#/components/schemas/DatePeriod'
+            products:
+              type: array
+              items:
+                $ref: '#/components/schemas/TopSellingProductItem'
+            summary:
+              type: object
+              properties:
+                totalProductsSold:
+                  type: integer
+                totalRevenue:
+                  type: number
+                totalOrders:
+                  type: integer
+
+    TopSellingProductItem:
+      type: object
+      properties:
+        productId:
+          type: string
+        productName:
+          type: string
+        shopId:
+          type: string
+        shopName:
+          type: string
+        thumbnail:
+          type: string
+          nullable: true
+        totalQuantitySold:
+          type: integer
+        totalRevenue:
+          type: number
+        orderCount:
+          type: integer
+        avgPrice:
+          type: number
 
     # ==================== SELLER REPORT SCHEMAS ====================
 

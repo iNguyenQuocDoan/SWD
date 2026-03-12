@@ -37,8 +37,6 @@ export type { PaymentStatus, PaymentProvider } from "./payments/payment.model";
 // Review models
 export { default as Review } from "./reviews/review.model";
 export type { IReview } from "./reviews/review.model";
-export { default as Report } from "./reviews/report.model";
-export type { IReport } from "./reviews/report.model";
 
 // Support models
 export { default as SupportTicket } from "./support/support-ticket.model";
@@ -53,15 +51,7 @@ export { default as ComplaintTimeline } from "./complaints/complaint-timeline.mo
 export type { IComplaintTimeline } from "./complaints/complaint-timeline.model";
 export { default as ComplaintQueue } from "./complaints/complaint-queue.model";
 export type { IComplaintQueue } from "./complaints/complaint-queue.model";
-export { default as ModeratorStats } from "./complaints/moderator-stats.model";
-export type { IModeratorStats } from "./complaints/moderator-stats.model";
-export { default as DecisionTemplate } from "./complaints/decision-template.model";
-export type { IDecisionTemplate } from "./complaints/decision-template.model";
 
 // eKYC models
 export { default as KycSession } from "./ekyc/kyc-session.model";
 export type { IKycSession, KycStatus } from "./ekyc/kyc-session.model";
-
-// Common models (keep at root)
-export { default as AuditLog } from "./AuditLog";
-export type { IAuditLog } from "./AuditLog";

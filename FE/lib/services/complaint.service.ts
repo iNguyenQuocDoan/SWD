@@ -63,6 +63,16 @@ export interface AppealDecisionRequest {
   note?: string;
 }
 
+export interface SellerDecisionRequest {
+  decision: "APPROVE" | "REJECT";
+  note?: string;
+  evidence?: {
+    type: T.EvidenceType;
+    url: string;
+    description?: string;
+  }[];
+}
+
 export interface ComplaintFilter {
   status?: string;
   category?: string;
@@ -73,6 +83,8 @@ export interface ComplaintFilter {
 export interface QueueFilter {
   status?: string;
   priority?: "high" | "normal"; // Deprecated in swagger, but kept for types
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
   limit?: number;
   skip?: number;
 }
@@ -157,6 +169,29 @@ class ComplaintService {
   }
 
   /**
+   * Get complaints for seller's own shop/orders
+   */
+  async getSellerComplaints(filter: ComplaintFilter = {}): Promise<ComplaintsResponse> {
+    const res = await complaintsApi.getSellerComplaints({
+      status: filter.status,
+      limit: filter.limit,
+      skip: filter.skip,
+    });
+    return {
+      tickets: res.data,
+      total: res.pagination?.total || res.data.length,
+    };
+  }
+
+  /**
+   * Seller decision on complaint
+   */
+  async sellerDecision(complaintId: string, data: SellerDecisionRequest): Promise<T.Complaint> {
+    const res = await complaintsApi.sellerDecision(complaintId, data);
+    return res.data;
+  }
+
+  /**
    * Check if can file complaint
    * Wrapped to use complaintsApi.checkCanFile
    */
@@ -177,6 +212,8 @@ class ComplaintService {
   async getQueue(filter: QueueFilter = {}): Promise<QueueResponse> {
     const res = await complaintsApi.getQueue({
       status: filter.status as T.ComplaintQueueStatus,
+      sortBy: filter.sortBy,
+      sortOrder: filter.sortOrder,
       limit: filter.limit,
       skip: filter.skip,
     });
@@ -195,15 +232,6 @@ class ComplaintService {
     return res.data;
   }
 
-  /**
-   * DEPRECATED: /api/complaints/queue/pick was removed in backend.
-   * Logic should move to auto-assignment or manual pick from list.
-   * Returning null to prevent crashes but this should be removed from UI.
-   */
-  async pickFromQueue(): Promise<T.ComplaintQueueItem | null> {
-    console.warn("pickFromQueue is DEPRECATED and removed from backend. Please refactor UI.");
-    return null;
-  }
 
   /**
    * Assign complaint to moderator

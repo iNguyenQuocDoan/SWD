@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { platformCatalogController } from "@/controllers/products/platform-catalog.controller";
-import { authenticate, checkPermission } from "@/middleware";
+import { authenticate, authorize } from "@/middleware";
 import { wrapRequestHandler } from "@/utils/handlers";
-import { PERMISSIONS } from "@/constants/permissions";
+import { ROLE_KEYS } from "@/constants/roles";
 
 const router = Router();
 
@@ -10,27 +10,27 @@ const router = Router();
 router.get("/", wrapRequestHandler(platformCatalogController.getAll));
 router.get("/:id", wrapRequestHandler(platformCatalogController.getById));
 
-// Protected routes (Admin only)
+// Protected routes
 router.use(authenticate);
 
-// Create platform catalog
+// Create platform catalog (admin only)
 router.post(
   "/",
-  checkPermission(PERMISSIONS.PLATFORM_CATALOG_MANAGE),
+  authorize(ROLE_KEYS.ADMIN),
   wrapRequestHandler(platformCatalogController.create)
 );
 
-// Update platform catalog
+// Update platform catalog (admin only)
 router.put(
   "/:id",
-  checkPermission(PERMISSIONS.PLATFORM_CATALOG_MANAGE),
+  authorize(ROLE_KEYS.ADMIN),
   wrapRequestHandler(platformCatalogController.update)
 );
 
-// Delete platform catalog
+// Delete platform catalog (admin only)
 router.delete(
   "/:id",
-  checkPermission(PERMISSIONS.PLATFORM_CATALOG_MANAGE),
+  authorize(ROLE_KEYS.ADMIN),
   wrapRequestHandler(platformCatalogController.delete)
 );
 

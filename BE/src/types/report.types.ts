@@ -166,34 +166,6 @@ export interface SLAComplianceResponse {
   };
 }
 
-export interface ModeratorPerformanceResponse {
-  period: { startDate: Date; endDate: Date };
-  moderators: {
-    moderatorId: string;
-    moderatorName: string;
-    moderatorEmail: string;
-    totalAssigned: number;
-    totalResolved: number;
-    totalEscalated: number;
-    resolutionRate: number;
-    avgResolutionTimeMinutes: number;
-    avgFirstResponseTimeMinutes: number;
-    fullRefunds: number;
-    partialRefunds: number;
-    rejections: number;
-    slaBreaches: number;
-    slaComplianceRate: number;
-    appealOverturnRate: number;
-    avgSatisfactionScore: number;
-  }[];
-  summary: {
-    totalModerators: number;
-    totalTicketsAssigned: number;
-    totalTicketsResolved: number;
-    avgResolutionRate: number;
-  };
-}
-
 // ============ DASHBOARD ============
 
 export interface AdminDashboardResponse {
@@ -281,4 +253,51 @@ export interface SellerOrderOverviewResponse {
     count: number;
     percentage: number;
   }[];
+}
+
+// ============ TOP SELLING PRODUCTS ============
+
+export interface TopSellingProductItem {
+  productId: string;
+  productName: string;
+  shopId: string;
+  shopName: string;
+  thumbnail: string | null;
+  totalQuantitySold: number;
+  totalRevenue: number;
+  orderCount: number;
+  avgPrice: number;
+}
+
+export interface TopSellingProductsResponse {
+  period: { startDate: Date; endDate: Date };
+  products: TopSellingProductItem[];
+  summary: {
+    totalProductsSold: number;
+    totalRevenue: number;
+    totalOrders: number;
+  };
+}
+
+// ============ SHOP RANKINGS ============
+
+export interface ShopRankingItem {
+  shopId: string;
+  shopName: string;
+  revenue: number;
+  orderCount: number;
+  complaintCount: number;
+  rating: number;
+  status: string;
+}
+
+export interface ShopRankingResponse {
+  period: { startDate: Date; endDate: Date };
+  topByRevenue: ShopRankingItem[];
+  topByComplaints: ShopRankingItem[];
+  summary: {
+    totalActiveShops: number;
+    avgRating: number;
+    totalComplaints: number;
+  };
 }

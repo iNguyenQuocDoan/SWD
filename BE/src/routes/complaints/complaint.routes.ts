@@ -67,13 +67,20 @@ router.get(
   wrapRequestHandler(complaintController.getModeratorWorkload)
 );
 
-// ===== Customer Routes =====
+// ===== Customer/Seller Routes =====
 
-// Get my complaints (customer)
+// Get my complaints as buyer
 router.get(
   "/me",
   checkPermission(PERMISSIONS.TICKET_VIEW),
   wrapRequestHandler(complaintController.getMyComplaints)
+);
+
+// Get my complaints as seller (shop owner)
+router.get(
+  "/seller/me",
+  checkPermission(PERMISSIONS.COMPLAINT_VIEW_SHOP),
+  wrapRequestHandler(complaintController.getSellerComplaints)
 );
 
 // Check if can file complaint for an order item
@@ -129,6 +136,15 @@ router.post(
   "/:id/appeal",
   checkPermission(PERMISSIONS.COMPLAINT_APPEAL),
   wrapRequestHandler(complaintController.fileAppeal)
+);
+
+// ===== Seller Actions =====
+
+// Seller decision on complaint
+router.post(
+  "/:id/seller-decision",
+  checkPermission(PERMISSIONS.COMPLAINT_RESPOND),
+  wrapRequestHandler(complaintController.sellerDecision)
 );
 
 // ===== Moderator Actions =====

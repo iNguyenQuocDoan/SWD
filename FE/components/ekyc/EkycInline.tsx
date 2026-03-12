@@ -44,12 +44,54 @@ type Props = {
 };
 
 type DocMeta = { id: EkycDocumentType; title: string; subtitle: string };
+type ReasonCode = "CARD_LIVENESS_FAILED" | "FACE_LIVENESS_FAILED" | "FACE_COMPARE_FAILED" | "FACE_MISMATCH";
+
+type ReasonMapping = {
+  message: string;
+  docs: EkycDocumentType[];
+};
 
 const DOCS: DocMeta[] = [
   { id: "front", title: "Bước 1: CCCD/CMND mặt trước", subtitle: "Chụp rõ, không lóa." },
   { id: "back", title: "Bước 2: CCCD/CMND mặt sau", subtitle: "Chụp rõ, không lóa." },
   { id: "selfie", title: "Bước 3: Ảnh chân dung (Selfie)", subtitle: "Chụp rõ mặt, đủ ánh sáng." },
 ];
+
+const REASON_MAPPINGS: Record<ReasonCode, ReasonMapping> = {
+  CARD_LIVENESS_FAILED: {
+    message: "Bước 1 lỗi: Ảnh mặt trước giấy tờ chưa rõ hoặc không đạt kiểm tra thật/giả.",
+    docs: ["front"],
+  },
+  FACE_LIVENESS_FAILED: {
+    message: "Bước 3 lỗi: Ảnh selfie chưa đạt kiểm tra khuôn mặt sống (liveness).",
+    docs: ["selfie"],
+  },
+  FACE_COMPARE_FAILED: {
+    message: "Bước 3 lỗi: Khuôn mặt selfie chưa khớp với ảnh giấy tờ.",
+    docs: ["front", "selfie"],
+  },
+  FACE_MISMATCH: {
+    message: "Bước 3 lỗi: Khuôn mặt selfie chưa khớp với ảnh giấy tờ.",
+    docs: ["front", "selfie"],
+  },
+};
+
+const parseReasonsToDocErrors = (reasons?: string[]) => {
+  const docErrors: Partial<Record<EkycDocumentType, string>> = {};
+
+  (reasons ?? []).forEach((reason) => {
+    const mapping = REASON_MAPPINGS[reason as ReasonCode];
+    if (!mapping) return;
+
+    mapping.docs.forEach((doc) => {
+      if (!docErrors[doc]) {
+        docErrors[doc] = mapping.message;
+      }
+    });
+  });
+
+  return docErrors;
+};
 
 const statusBadge = (status?: string) => {
   if (status === "VERIFIED") {
@@ -66,6 +108,7 @@ export function EkycInline({ onVerified }: Props) {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [docErrors, setDocErrors] = useState<Partial<Record<EkycDocumentType, string>>>({});
 
   // Camera states for selfie
   const [showCamera, setShowCamera] = useState(false);
@@ -94,6 +137,7 @@ export function EkycInline({ onVerified }: Props) {
     try {
       const data = await ekycService.getSession();
       setSession(data);
+      setDocErrors(data.status === "RETRY_REQUIRED" ? parseReasonsToDocErrors(data.decisionReasons) : {});
       if (data.hashes) {
         setDocs((prev) => ({
           ...prev,
@@ -185,6 +229,9 @@ export function EkycInline({ onVerified }: Props) {
       return;
     }
 
+    setError(null);
+    setDocErrors((prev) => ({ ...prev, [type]: undefined }));
+
     setDocs((prev) => {
       const old = prev[type];
       if (old.previewUrl) URL.revokeObjectURL(old.previewUrl);
@@ -256,15 +303,54 @@ export function EkycInline({ onVerified }: Props) {
     }
   };
 
+  const scrollToDoc = (type: EkycDocumentType) => {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById(`ekyc-step-${type}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const validateBeforeProcess = () => {
+    const nextDocErrors: Partial<Record<EkycDocumentType, string>> = {};
+
+    if (!docs.front.uploaded) {
+      nextDocErrors.front = "Bước 1 lỗi: Bạn chưa tải lên CCCD/CMND mặt trước.";
+    }
+    if (!docs.back.uploaded) {
+      nextDocErrors.back = "Bước 2 lỗi: Bạn chưa tải lên CCCD/CMND mặt sau.";
+    }
+    if (!docs.selfie.uploaded) {
+      nextDocErrors.selfie = "Bước 3 lỗi: Bạn chưa tải lên ảnh selfie.";
+    }
+
+    return nextDocErrors;
+  };
+
   const process = async () => {
-    if (!allUploaded) return;
+    const precheckErrors = validateBeforeProcess();
+    if (Object.keys(precheckErrors).length > 0) {
+      setDocErrors(precheckErrors);
+      setError("Bạn đang thiếu dữ liệu ở một số bước. Vui lòng kiểm tra thông báo lỗi ngay tại từng bước.");
+      const firstInvalid = DOCS.find((doc) => precheckErrors[doc.id]);
+      if (firstInvalid) {
+        scrollToDoc(firstInvalid.id);
+      }
+      return;
+    }
+
     setProcessing(true);
     setError(null);
+    setDocErrors({});
 
     try {
       const result = await ekycService.process({ client_session: clientSession, token, type: docType });
       if (result.status === "RETRY_REQUIRED") {
-        setError(`Xác minh không thành công: ${result.reasons.join(", ")}`);
+        const stepErrors = parseReasonsToDocErrors(result.reasons);
+        setDocErrors(stepErrors);
+        setError("Xác minh không thành công. Vui lòng kiểm tra lỗi ở từng bước bên dưới.");
+        const firstInvalid = DOCS.find((doc) => stepErrors[doc.id]);
+        if (firstInvalid) {
+          scrollToDoc(firstInvalid.id);
+        }
       }
       await loadSession();
     } catch (e: any) {
@@ -332,7 +418,13 @@ export function EkycInline({ onVerified }: Props) {
         {session?.status === "RETRY_REQUIRED" ? (
           <Alert>
             <AlertTitle>Cần xác minh lại</AlertTitle>
-            <AlertDescription>{session.decisionReasons?.join(", ") || "Vui lòng chụp lại ảnh và thử lại."}</AlertDescription>
+            <AlertDescription>
+              {Object.values(docErrors).filter(Boolean).length > 0
+                ? Object.values(docErrors)
+                    .filter(Boolean)
+                    .join(" ")
+                : "Vui lòng chụp lại ảnh và thử lại."}
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -342,10 +434,17 @@ export function EkycInline({ onVerified }: Props) {
             const isSelfie = m.id === "selfie";
 
             return (
-              <Card key={m.id} className="p-3">
+              <Card
+                id={`ekyc-step-${m.id}`}
+                key={m.id}
+                className={`p-3 ${docErrors[m.id] ? "border-red-500" : ""}`}
+              >
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
+                    <div className="flex items-center gap-2">
                     <div className="text-sm font-medium truncate">{m.title}</div>
+                      {docErrors[m.id] ? <Badge variant="destructive">Sai bước này</Badge> : null}
+                    </div>
                     <div className="text-xs text-muted-foreground">{m.subtitle}</div>
                   </div>
 
@@ -385,6 +484,7 @@ export function EkycInline({ onVerified }: Props) {
                       ) : (
                         <Input type="file" accept="image/*" onChange={(e) => onPick(m.id, e.target.files?.[0] ?? null)} />
                       )}
+                      {docErrors[m.id] ? <div className="text-xs text-red-600">{docErrors[m.id]}</div> : null}
                       {state.error ? <div className="text-xs text-red-600">{state.error}</div> : null}
                     </div>
 
@@ -440,7 +540,7 @@ export function EkycInline({ onVerified }: Props) {
             <RotateCcw className="h-4 w-4 mr-2" />
             Reset
           </Button>
-          <Button onClick={process} disabled={!allUploaded || processing}>
+          <Button onClick={process} disabled={processing}>
             {processing ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />

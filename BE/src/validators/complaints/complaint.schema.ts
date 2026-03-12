@@ -89,6 +89,34 @@ export const fileAppealSchema = z.object({
     .optional(),
 });
 
+// ===== Seller Schemas =====
+
+export const sellerDecisionSchema = z
+  .object({
+  decision: z.enum(["APPROVE", "REJECT"]),
+  note: z.string().max(1000).optional(),
+    evidence: z.array(evidenceSchema).max(10, "Tối đa 10 bằng chứng").optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.decision === "REJECT") {
+      if (!data.note || data.note.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["note"],
+          message: "Khi từ chối khiếu nại, seller phải nhập lý do",
+        });
+      }
+
+      if (!data.evidence || data.evidence.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["evidence"],
+          message: "Khi từ chối khiếu nại, seller phải cung cấp ít nhất 1 bằng chứng",
+        });
+      }
+    }
+});
+
 // ===== Moderator Schemas =====
 
 // Add internal note
@@ -149,23 +177,6 @@ export const escalationRulesSchema = z.object({
   appealWindowHours: z.number().min(24).max(168).default(72),
 });
 
-// Decision template
-export const createDecisionTemplateSchema = z.object({
-  name: z
-    .string()
-    .min(5, "Tên mẫu phải có ít nhất 5 ký tự")
-    .max(100, "Tên mẫu không được quá 100 ký tự"),
-  category: complaintCategorySchema,
-  resolutionType: resolutionTypeSchema,
-  templateContent: z
-    .string()
-    .min(50, "Nội dung mẫu phải có ít nhất 50 ký tự")
-    .max(2000, "Nội dung mẫu không được quá 2000 ký tự"),
-  templateContentVi: z.string().max(2000).optional(),
-});
-
-export const updateDecisionTemplateSchema = createDecisionTemplateSchema.partial();
-
 // ===== Query Schemas =====
 
 // Get complaints query
@@ -205,24 +216,15 @@ export const getQueueQuerySchema = z.object({
   skip: z.coerce.number().min(0).default(0),
 });
 
-// Get moderator stats query
-export const getModeratorStatsQuerySchema = z.object({
-  moderatorId: z.string().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-});
-
 // Export types
 export type CreateComplaintInput = z.infer<typeof createComplaintSchema>;
 export type AddEvidenceInput = z.infer<typeof addEvidenceSchema>;
 export type FileAppealInput = z.infer<typeof fileAppealSchema>;
+export type SellerDecisionInput = z.infer<typeof sellerDecisionSchema>;
 export type AddInternalNoteInput = z.infer<typeof addInternalNoteSchema>;
 export type RequestInfoInput = z.infer<typeof requestInfoSchema>;
 export type MakeDecisionInput = z.infer<typeof makeDecisionSchema>;
 export type AppealDecisionInput = z.infer<typeof appealDecisionSchema>;
 export type EscalationRulesInput = z.infer<typeof escalationRulesSchema>;
-export type CreateDecisionTemplateInput = z.infer<typeof createDecisionTemplateSchema>;
-export type UpdateDecisionTemplateInput = z.infer<typeof updateDecisionTemplateSchema>;
 export type GetComplaintsQuery = z.infer<typeof getComplaintsQuerySchema>;
 export type GetQueueQuery = z.infer<typeof getQueueQuerySchema>;
-export type GetModeratorStatsQuery = z.infer<typeof getModeratorStatsQuerySchema>;
