@@ -111,7 +111,7 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
         const canJoin = isParticipant || (isStaff && conversation.type === "Support");
 
         if (canJoin) {
-          socket.join(`conversation:${conversationId}`);
+      socket.join(`conversation:${conversationId}`);
         }
       } catch (err) {
         // Silently ignore or log error
@@ -139,7 +139,7 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
     socket.on("join:staff:tickets", () => {
       if (!auth?.roleKey) return;
       if (["MODERATOR", "SENIOR_MOD", "ADMIN"].includes(auth.roleKey)) {
-        socket.join("staff:tickets");
+      socket.join("staff:tickets");
       }
     });
 

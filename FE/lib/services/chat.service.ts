@@ -356,7 +356,7 @@ class ChatService {
         // Fallback nếu BE trả theo format cũ: { data: { messages, total, hasMore } }
         if (response.data?.messages && Array.isArray(response.data.messages)) {
           return response.data as MessagesResponse;
-        }
+      }
       }
 
       return { messages: [], total: 0, hasMore: false };

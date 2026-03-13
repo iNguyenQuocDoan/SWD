@@ -77,7 +77,7 @@ export const useChatStore = create<ChatState>((set) => ({
       const exists = state.messages.find((m) => m._id === message._id);
       if (exists) return state;
       return {
-        messages: [...state.messages, message],
+      messages: [...state.messages, message],
       };
     }),
   removeMessage: (messageId) =>

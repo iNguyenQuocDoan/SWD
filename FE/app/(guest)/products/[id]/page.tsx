@@ -82,7 +82,7 @@ export default function ProductDetailPage() {
 
         // BE có thể trả {success, data} hoặc trả thẳng data object tùy thuộc vào API client
         const productData = response.success ? response.data : (response as unknown as ProductResponse);
-        
+
         if (productData && (productData._id || productData.id)) {
           console.log("[ProductDetail] Processing data:", productData);
 
